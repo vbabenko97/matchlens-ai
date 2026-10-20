@@ -2,9 +2,24 @@
 
 Evidence-grounded synthetic football match intelligence for Microsoft × Premier League Inside the Game: Developer Hackathon.
 
-**Status:** repository bootstrap only; the application has not yet been implemented. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
+**Status:** M0 (skeleton, tests, CI) and M1 (synthetic generator + validator) done; metrics, explanations, UI and Azure integration are not built yet. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
 Project page: https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828
+
+## Quick start
+
+Requires Python 3.11+. No runtime dependencies; `pytest` and `ruff` for development.
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+python -m pytest -q && ruff check . && ruff format --check .
+
+python -m matchlens generate --seed 42 --out match.jsonl   # full 90-minute synthetic match
+python -m matchlens validate match.jsonl                    # format + invariant checks
+```
+
+Data format, geometry and possession rules: [docs/DATA_MODEL.md](docs/DATA_MODEL.md). Deployment/credentials plan: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Teams and players are fictional; all events are synthetic.
 
 ## Using Claude Code
 

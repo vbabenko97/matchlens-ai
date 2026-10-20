@@ -13,3 +13,4 @@ CLAUDE.local.md
 .claude/settings.local.json
 coverage.xml
 htmlcov/
+*.egg-info/
