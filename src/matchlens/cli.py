@@ -20,7 +20,28 @@ from .server import export_site, make_server
 from .validate import assert_valid, validate_match
 
 
+class ConfigError(Exception):
+    pass
+
+
+def _provider(offline: bool):
+    if offline:
+        return OfflineTemplateProvider()
+    try:
+        return provider_from_env()
+    except ValueError as exc:  # e.g. a non-https endpoint; never echo the key
+        raise ConfigError(f"Azure OpenAI configuration error: {exc}") from None
+
+
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+
+
+def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="matchlens")
     sub = parser.add_subparsers(dest="command", required=True)
     gen = sub.add_parser("generate", help="generate a synthetic match as JSONL")
@@ -71,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "demo":
         match = assert_valid(generate_match(args.seed))
-        provider = OfflineTemplateProvider() if args.offline else provider_from_env()
+        provider = _provider(args.offline)
         h, a = match.final_score
         meta = match.meta
         print(f"Synthetic match {meta.match_id}: {meta.home.name} {h}-{a} {meta.away.name}")
@@ -91,10 +112,14 @@ def main(argv: list[str] | None = None) -> int:
             match = assert_valid(match)
         else:
             match = assert_valid(generate_match(args.seed))
-        provider = OfflineTemplateProvider() if args.offline else provider_from_env()
+        provider = _provider(args.offline)
         bundle = build_bundle(match, provider)
         if args.command == "export-site":
-            export_site(bundle, args.out)
+            try:
+                export_site(bundle, args.out)
+            except FileExistsError as exc:
+                print(f"refusing to write: {exc}", file=sys.stderr)
+                return 1
             print(f"wrote static site to {args.out} (provider: {provider.name})", file=sys.stderr)
             return 0
         server = make_server(bundle, args.host, args.port)
@@ -135,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write("\n")
         return 0
     if args.command == "cards":
-        provider = OfflineTemplateProvider() if args.offline else provider_from_env()
+        provider = _provider(args.offline)
         card_set = build_cards(match, args.mode, provider, args.limit)
         if args.json:
             json.dump(asdict(card_set), sys.stdout, indent=1, ensure_ascii=False)
@@ -146,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"suppressed {moment_id}: {reason}")
         return 0
     if args.command == "overlays":
-        provider = OfflineTemplateProvider() if args.offline else provider_from_env()
+        provider = _provider(args.offline)
         card_sets = [build_cards(match, mode, provider) for mode in MODES]
         text = dumps(build_overlay_document(match, card_sets)) + "\n"
         if args.out:

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import http.server
-import shutil
+import json
 from importlib import resources
 from pathlib import Path
 
-from .replay import dumps
+from .replay import BUNDLE_SCHEMA, dumps
 
 WEB_FILES = ("index.html", "app.js", "style.css")
 _TYPES = {
@@ -30,9 +30,22 @@ def site_files(bundle: dict) -> dict[str, bytes]:
     return files
 
 
+def _is_previous_export(out: Path) -> bool:
+    try:
+        doc = json.loads((out / "data" / "bundle.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(doc, dict) and doc.get("schema") == BUNDLE_SCHEMA
+
+
 def export_site(bundle: dict, out: Path) -> list[Path]:
-    if out.exists():
-        shutil.rmtree(out)
+    """Write the static site into ``out``. Never deletes anything.
+
+    ``out`` must be missing, empty, or a previous MatchLens export (files are overwritten
+    in place); any other non-empty directory is refused so user files cannot be clobbered.
+    """
+    if out.exists() and (not out.is_dir() or (any(out.iterdir()) and not _is_previous_export(out))):
+        raise FileExistsError(f"{out} exists and is not an empty directory or a MatchLens export")
     written = []
     for rel, data in site_files(bundle).items():
         path = out / rel

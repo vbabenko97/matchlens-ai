@@ -106,6 +106,36 @@ def test_export_site(tmp_path, bundle):
     assert overlays["schema"] == OVERLAY_SCHEMA
 
 
+def test_export_site_never_deletes_user_files(tmp_path, bundle):
+    victim = tmp_path / "project"
+    victim.mkdir()
+    (victim / "important.txt").write_text("keep me")
+    with pytest.raises(FileExistsError):
+        export_site(bundle, victim)
+    assert (victim / "important.txt").read_text() == "keep me"
+    assert not (victim / "index.html").exists()
+    file_target = tmp_path / "file.txt"
+    file_target.write_text("x")
+    with pytest.raises(FileExistsError):
+        export_site(bundle, file_target)
+
+
+def test_export_site_overwrites_previous_export_in_place(tmp_path, bundle):
+    out = tmp_path / "site"
+    export_site(bundle, out)
+    (out / "CNAME").write_text("demo.example")  # host files next to the export survive
+    export_site(bundle, out)
+    assert (out / "CNAME").read_text() == "demo.example"
+    assert (out / "index.html").exists()
+
+
+def test_cli_export_site_refuses_non_empty_dir(tmp_path, capsys):
+    (tmp_path / "keep.txt").write_text("x")
+    assert main(["export-site", "--offline", "--out", str(tmp_path)]) == 1
+    assert "refusing to write" in capsys.readouterr().err
+    assert (tmp_path / "keep.txt").exists()
+
+
 @pytest.fixture(scope="module")
 def server(bundle):
     srv = make_server(bundle, port=0)

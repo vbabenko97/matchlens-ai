@@ -149,3 +149,17 @@ def test_cli_cards_and_demo(capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "Narrative provider: offline_template" in out
     assert "[CASUAL]" in out and "[ANALYST]" in out and "Offline fallback" in out
+
+
+def test_cli_reports_bad_azure_config_without_traceback(capsys, monkeypatch):
+    for key, value in {
+        "AZURE_OPENAI_ENDPOINT": "http://insecure.example",
+        "AZURE_OPENAI_API_KEY": "secret-value-123",
+        "AZURE_OPENAI_DEPLOYMENT": "d",
+        "AZURE_OPENAI_API_VERSION": "v",
+    }.items():
+        monkeypatch.setenv(key, value)
+    assert main(["demo", "--seed", "1", "--limit", "1"]) == 2
+    err = capsys.readouterr().err
+    assert "must be an https:// URL" in err and "secret-value-123" not in err
+    assert main(["demo", "--seed", "1", "--limit", "1", "--offline"]) == 0
