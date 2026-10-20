@@ -23,4 +23,4 @@ Configuration is read from environment variables listed in `.env.example`; real 
 ## Open questions for the operator
 - Is an Azure subscription with Foundry/Azure OpenAI access available, and what is the spend cap?
 - Which region/model deployment should be used?
-- Is Azure App Service acceptable for the public demo, or should hosting be elsewhere?
+- What do the hackathon rules require of the hosted demo (to confirm before choosing hosting)?
