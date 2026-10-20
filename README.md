@@ -2,7 +2,7 @@
 
 Evidence-grounded synthetic football match intelligence for Microsoft × Premier League Inside the Game: Developer Hackathon.
 
-**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 code (insight cards, Casual/Analyst modes, Azure OpenAI provider with offline fallback) done; the Azure path has not yet been run against a live endpoint. M4 browser replay UI done (local); public deployment is not done yet. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
+**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 code (insight cards, Casual/Analyst modes, Azure OpenAI provider with offline fallback) done; the Azure path has not yet been run against a live endpoint. M4 browser replay UI done; M5 deployment prepared (Azure Static Web Apps Free / GitHub Pages workflows) but not yet deployed. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
 Project page: https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828
 
@@ -15,6 +15,8 @@ python -m matchlens serve            # seed 1 (2-3), http://127.0.0.1:8000/
 ```
 
 The replay UI shows a scoreboard, pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen. You can play, pause, seek, jump to the previous/next moment and change speed (15×–240×), and switch between **Casual Fan** and **Analyst** modes. In Analyst mode, every event and metric ID on a card can be clicked to inspect it and highlight it on the pitch. **⬇ Overlay JSON** downloads the timed overlay cues (`matchlens.overlays/v1`). Keyboard: Space plays or pauses, ← / → seek 30 s.
+
+Deployment (static export, Azure Static Web Apps Free or GitHub Pages) and the public-URL Playwright smoke test are described in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 It runs fully offline without Azure credentials (deterministic, labelled template wording). Other options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`. `python -m matchlens export-site --out site/` writes the same UI as a static folder (no server code needed to host it).
 
@@ -52,6 +54,8 @@ export AZURE_OPENAI_DEPLOYMENT=<deployment-name>
 export AZURE_OPENAI_API_VERSION=<api-version>
 python -m matchlens demo --seed 42
 ```
+
+To verify one real call with no fallback, run `python -m matchlens azure-check` (see [docs/AZURE_VERIFICATION.md](docs/AZURE_VERIFICATION.md)).
 
 Without them (or with `--offline`, or on any request failure) cards use a deterministic template labelled "Offline fallback — not an Azure response". AI wording is always labelled unverified; the verified facts on each card are rendered from structured data and never from model output. Code path: `src/matchlens/narrative.py` (`AzureOpenAIProvider`).
 

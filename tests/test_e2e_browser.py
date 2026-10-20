@@ -1,36 +1,72 @@
 """Browser end-to-end tests of the replay UI (Playwright + Chromium).
 
+Targets, in order:
+- ``MATCHLENS_BASE_URL`` set (e.g. the public deployment): only that URL; the expected
+  data is read from its own ``data/bundle.json``.
+- otherwise, two local targets: the ``matchlens serve`` app server, and a plain static file
+  server hosting ``export-site`` output under a sub-path (as GitHub Pages / Azure Static
+  Web Apps would), proving the demo needs no Python server.
+
 Skipped when Playwright or a Chromium build is unavailable. Locally, set
 MATCHLENS_CHROMIUM to a Chromium executable if Playwright's bundled browser is missing.
 """
 
+import functools
+import http.server
 import json
 import os
 import threading
+import urllib.request
 
 import pytest
 
 from matchlens.generator import generate_match
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, dumps
-from matchlens.server import make_server
+from matchlens.server import export_site, make_server
 
 playwright_api = pytest.importorskip("playwright.sync_api")
 
 pytestmark = pytest.mark.e2e
+PUBLIC_URL = os.environ.get("MATCHLENS_BASE_URL", "").strip()
+TARGETS = ["public"] if PUBLIC_URL else ["app-server", "static-subpath"]
 
 
-@pytest.fixture(scope="module")
-def bundle():
-    return json.loads(dumps(build_bundle(generate_match(DEFAULT_DEMO_SEED))))
+def _start(server):
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
 
 
-@pytest.fixture(scope="module")
-def base_url(bundle):
-    srv = make_server(bundle, port=0)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{srv.server_address[1]}/"
+@pytest.fixture(scope="module", params=TARGETS)
+def target(request, tmp_path_factory):
+    """Yield ``(base_url, bundle)`` for one deployment target."""
+    if request.param == "public":
+        base = PUBLIC_URL if PUBLIC_URL.endswith("/") else PUBLIC_URL + "/"
+        with urllib.request.urlopen(base + "data/bundle.json", timeout=30) as resp:
+            yield base, json.load(resp)
+        return
+    bundle = json.loads(dumps(build_bundle(generate_match(DEFAULT_DEMO_SEED))))
+    if request.param == "app-server":
+        srv = _start(make_server(bundle, port=0))
+        yield f"http://127.0.0.1:{srv.server_address[1]}/", bundle
+    else:
+        root = tmp_path_factory.mktemp("static")
+        export_site(bundle, root / "matchlens-ai")
+        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root))
+        handler.log_message = lambda *args: None
+        srv = _start(http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler))
+        yield f"http://127.0.0.1:{srv.server_address[1]}/matchlens-ai/", bundle
     srv.shutdown()
     srv.server_close()
+
+
+@pytest.fixture(scope="module")
+def base_url(target):
+    return target[0]
+
+
+@pytest.fixture(scope="module")
+def bundle(target):
+    return target[1]
 
 
 @pytest.fixture(scope="module")
@@ -64,20 +100,26 @@ def _open(page, query=""):
     page.wait_for_selector("body[data-ready=true]")
 
 
-def test_initial_state(page):
+def test_initial_state(page, bundle):
     _open(page)
-    assert page.text_content("#home-name") == "Northbridge Rovers"
+    assert page.text_content("#home-name") == bundle["meta"]["home"]["name"]
     assert page.text_content("#home-score") == "0" and page.text_content("#away-score") == "0"
     assert page.text_content("#clock") == "00:00"
     assert page.locator("#cards .card").count() == 0  # no spoilers before kick-off
-    assert "offline deterministic template" in page.text_content("#disclosure")
+    disclosure = page.text_content("#disclosure")
+    if bundle["provider"] == "offline_template":
+        assert "offline deterministic template" in disclosure
+    else:
+        assert "NOT verified" in disclosure
     assert page.locator("#markers .marker").count() >= 4
 
 
 def test_seek_to_full_time_shows_final_score_and_cards(page, bundle):
     _open(page)
     page.evaluate("window.matchlens.seek(5400)")
-    assert page.text_content("#home-score") == "2" and page.text_content("#away-score") == "3"
+    home, away = bundle["final_score"]
+    assert page.text_content("#home-score") == str(home)
+    assert page.text_content("#away-score") == str(away)
     assert page.text_content("#period") == "FT"
     assert page.locator("#cards .card").count() == len(bundle["cards"]["casual"])
     # Seek via the timeline slider back to the start hides the cards again.
@@ -142,7 +184,8 @@ def test_analyst_evidence_is_inspectable(page, bundle):
 def test_narrative_is_labelled_not_verified_as_fact(page):
     _open(page, "?t=5400")
     statuses = page.locator("#cards .narrative .status").all_text_contents()
-    assert statuses and all("not an Azure response" in s for s in statuses)
+    allowed = ("Offline template · not an Azure response", "AI wording · NOT VERIFIED")
+    assert statuses and all(s in allowed for s in statuses)
     checks = page.locator("#cards .narrative .check").count()
     assert checks == 0  # ✓ marks only verified facts, never the narrative
 
@@ -152,7 +195,7 @@ def test_download_overlay_json(page, bundle):
     with page.expect_download() as info:
         page.click("#download")
     download = info.value
-    assert download.suggested_filename == "matchlens-overlays-ml1.json"
+    assert download.suggested_filename == f"matchlens-overlays-{bundle['meta']['match_id']}.json"
     with open(download.path(), encoding="utf-8") as fh:
         doc = json.load(fh)
     assert doc == bundle["overlays"]
@@ -160,7 +203,7 @@ def test_download_overlay_json(page, bundle):
 
 def test_mobile_layout_has_no_horizontal_scroll(browser, base_url):
     pg = browser.new_page(viewport={"width": 390, "height": 844})
-    pg.goto(base_url + "?t=3000")
+    pg.goto(base_url + "?t=3000")  # base_url fixture comes from the parametrized target
     pg.wait_for_selector("body[data-ready=true]")
     assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     pg.close()

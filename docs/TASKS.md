@@ -7,23 +7,29 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [x] M2 (Oct 21-22): Metrics and 2-4 robust key-moment detectors; unit tests with hand-checked fixtures.
 - [ ] M3 (Oct 23-24; code done, live Azure run blocked on access): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
 - [x] M4 (Oct 20, local; public hosting is M5): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
-- [ ] M5 (Oct 26): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
+- [ ] M5 (Oct 26; deployment prepared, waiting on operator Azure/Pages steps): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
 ## Latest checkpoint (2026-10-20)
-- **PR #1 merged** (`6d8e589`). **PR #2** (https://github.com/vbabenko97/matchlens-ai/pull/2) open with M3 (CI green at `5fcbcec`) and now M4. Only one branch is authorized, so both milestones share the PR.
-- **M3 (code) verified:** insight cards, Casual/Analyst modes, `AzureOpenAIProvider` + offline fallback. A live Azure run is still blocked on access.
-- **M4 verified locally:**
-  - **UI:** static HTML/CSS/vanilla JS (`src/matchlens/web/`), no new runtime dependencies. It has a scoreboard, a pitch view of recent ball events, timeline markers, synchronized insight cards with a lower-third overlay, a Casual/Analyst toggle, and an Analyst evidence inspector (event JSON, metric definition and sources, pitch highlight).
-  - **Replay controls:** play/pause, seek, previous/next moment, 15–240× speed, keyboard shortcuts, and an Overlay JSON download.
-  - **Data:** `matchlens.replay` bundle (precomputed, deterministic), `matchlens.overlays` (`matchlens.overlays/v1`), and `matchlens.server` (stdlib, localhost by default, strict CSP, fixed file set).
-  - **CLI:** `serve` (default seed 1 → 2-3), `export-site`, `overlays`.
-  - Runs fully offline without Azure credentials. AI wording, if configured, keeps its NOT VERIFIED label; `unsupported_numbers` warnings are labelled as heuristic only.
+- **PR #2 merged** (`ad818eb`) after review. Two blocking fixes landed first (CI green at `d11dad6`):
+  - `export-site` used to `rmtree` its `--out` directory (`--out .` would wipe the working tree); it now refuses non-empty non-export directories and never deletes;
+  - an invalid Azure config gives exit code 2 with a message instead of a traceback.
+- **M5 prepared (not deployed):**
+  - Static export with a CSP meta tag, plus `deploy/azure-static-web-apps/staticwebapp.config.json` (security headers).
+  - `.github/workflows/deploy-swa.yml` (Azure Static Web Apps Free, manual, needs `AZURE_STATIC_WEB_APPS_API_TOKEN`).
+  - `.github/workflows/deploy-pages.yml` (GitHub Pages fallback, manual).
+  - `.github/workflows/public-smoke.yml` (Playwright against the deployed URL after each deploy, on demand, and daily through 2026-11-10 via the `PUBLIC_DEMO_URL` variable).
+  - `actionlint` clean.
+  - `python -m matchlens azure-check`: exactly one live call, no fallback, redacted JSON evidence.
+  - `docs/AZURE_VERIFICATION.md` (concrete Foundry checklist) and `docs/DEPLOYMENT.md` (operator steps).
 - **Verified results:**
-  - `python -m pytest -q` -> 157 passed locally on Python 3.13 including 9 Playwright/Chromium e2e tests (148 passed + e2e module skipped on 3.11 without Playwright). The e2e suite passed 5/5 consecutive runs.
-  - `ruff check .` and `ruff format --check .` clean.
-  - Manual check: `python -m matchlens serve` serves the UI and the 2-3 bundle; unknown paths return 404. Screenshots were checked at 1400×900 and 390×844 (no horizontal scroll).
-  - GitHub Actions green at `c7938c5`: `test (3.11)`, `test (3.13)` and the new `e2e` job (Playwright Chromium) in both push (39471601403) and pull_request (39471608254) runs.
-- **Next smallest task (M5, needs operator approval):** choose and approve hosting (static export fits any static host; Azure Static Web Apps or App Service if Azure is approved), accessibility pass, demo rehearsal and video.
+  - `python -m pytest -q` -> 175 passed (incl. 18 e2e: app server + static sub-path) on Python 3.13; 3.11 without Playwright passes with e2e skipped.
+  - `MATCHLENS_BASE_URL=<static export on an independent host> python -m pytest -q -m e2e` -> 9 passed, so the suite can test a public URL.
+  - `ruff check .`, `ruff format --check .` clean.
+  - Azure tests use a fake transport and are **not** integration evidence.
+- **Stopped at operator steps:**
+  - (1) create the Free Static Web App and add its deployment token secret — or enable Pages (Source: GitHub Actions);
+  - (2) run the deploy workflow and set `PUBLIC_DEMO_URL`;
+  - (3) approve spend and create a Foundry model deployment, then run `azure-check` per `docs/AZURE_VERIFICATION.md`.
+- **Next after operator steps:** confirm the public smoke run is green, record the Azure evidence, then the accessibility pass and demo rehearsal (video not started, per instruction).
 - **Last verified command:** `python -m pytest -q && ruff check . && ruff format --check .`
-- **Blockers / decisions:** Azure access, region, model deployment and spend cap unconfirmed; nothing provisioned. Hosting deferred until Azure availability, costs and hackathon requirements are verified. Live Azure narrative run pending access.

@@ -1,0 +1,55 @@
+name: Public demo smoke test
+
+# Runs the Playwright e2e suite against a deployed URL. Called after each deploy, runnable by
+# hand, and scheduled daily through 2026-11-10 to confirm the public demo stays reachable.
+on:
+  workflow_call:
+    inputs:
+      url:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Public demo URL (defaults to the PUBLIC_DEMO_URL repository variable)"
+        type: string
+        required: false
+  schedule:
+    - cron: "23 7 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target URL
+        id: target
+        env:
+          INPUT_URL: ${{ inputs.url }}
+          VAR_URL: ${{ vars.PUBLIC_DEMO_URL }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          url="${INPUT_URL:-$VAR_URL}"
+          if [ -z "$url" ]; then
+            echo "No public URL configured (set repository variable PUBLIC_DEMO_URL); skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$EVENT" = "schedule" ] && [ "$(date -u +%F)" \> "2026-11-10" ]; then
+            echo "Monitoring window (through 2026-11-10) has ended; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - if: steps.target.outputs.skip != 'true'
+        uses: actions/checkout@v4
+      - if: steps.target.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - if: steps.target.outputs.skip != 'true'
+        run: python -m pip install -e ".[dev,e2e]" && python -m playwright install --with-deps chromium
+      - if: steps.target.outputs.skip != 'true'
+        env:
+          MATCHLENS_BASE_URL: ${{ steps.target.outputs.url }}
+        run: python -m pytest -q -m e2e
