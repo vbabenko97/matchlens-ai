@@ -148,7 +148,7 @@ class AzureOpenAIProvider:
     def __init__(
         self,
         config: AzureOpenAIConfig,
-        transport: Transport = _urllib_transport,
+        transport: Transport | None = None,
         timeout_s: float = 15.0,
     ):
         self.config = config
@@ -162,7 +162,8 @@ class AzureOpenAIProvider:
             f"/chat/completions?api-version={c.api_version}"
         )
 
-    def render(self, request: NarrativeRequest) -> str:
+    def complete(self, request: NarrativeRequest) -> dict:
+        """One chat-completions call; returns the parsed JSON response (raises on failure)."""
         facts = "\n".join(f"- {f}" for f in request.facts)
         body = {
             "messages": [
@@ -179,8 +180,12 @@ class AzureOpenAIProvider:
             "max_tokens": 200,
         }
         headers = {"Content-Type": "application/json", "api-key": self.config.api_key}
-        raw = self.transport(self.url(), headers, json.dumps(body).encode(), self.timeout_s)
-        text = json.loads(raw)["choices"][0]["message"]["content"]
+        transport = self.transport or _urllib_transport
+        raw = transport(self.url(), headers, json.dumps(body).encode(), self.timeout_s)
+        return json.loads(raw)
+
+    def render(self, request: NarrativeRequest) -> str:
+        text = self.complete(request)["choices"][0]["message"]["content"]
         if not isinstance(text, str) or not text.strip():
             raise ValueError("empty completion")
         return text.strip()

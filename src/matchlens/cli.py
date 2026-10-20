@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from .azure_check import run_check
 from .cards import build_cards, format_card
 from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
@@ -71,6 +73,10 @@ def _main(argv: list[str] | None = None) -> int:
     demo.add_argument("--seed", type=int, default=42)
     demo.add_argument("--limit", type=int, default=3)
     demo.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    chk = sub.add_parser(
+        "azure-check", help="make ONE live Azure OpenAI/Foundry call (no fallback) and report"
+    )
+    chk.add_argument("--timeout", type=float, default=30.0)
     ovl = sub.add_parser("overlays", help="timed overlay cues (both modes) as JSON")
     ovl.add_argument("path", type=Path)
     ovl.add_argument("--out", type=Path, help="output path (default: stdout)")
@@ -101,6 +107,12 @@ def _main(argv: list[str] | None = None) -> int:
             card_set = build_cards(match, mode, provider, args.limit)
             print("\n\n".join(format_card(c) for c in card_set.cards) + "\n")
         return 0
+
+    if args.command == "azure-check":
+        code, report = run_check(os.environ, timeout_s=args.timeout)
+        json.dump(report, sys.stdout, indent=1, ensure_ascii=False)
+        sys.stdout.write("\n")
+        return code
 
     if args.command in ("serve", "export-site"):
         if args.file:
