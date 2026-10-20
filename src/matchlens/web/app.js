@@ -1,0 +1,428 @@
+// MatchLens replay UI. Displays a precomputed bundle; it never decides what is verified.
+"use strict";
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const PITCH_W = 105;
+const PITCH_H = 68;
+const BALL_TYPES = new Set(["pass", "shot", "tackle", "interception", "recovery", "clearance"]);
+const TRAIL = 7; // recent ball events drawn on the pitch
+const HOLD_REAL_S = 5; // keep the lower-third up at least this long in real time
+const EVIDENCE_RE = /\s*\[evidence:[^\]]*\]/g;
+const KIND_LABEL = { goal: "Goal", big_chance_missed: "Big chance", press_win: "Press win" };
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  bundle: null, t: 0, playing: false, speed: 60, mode: "casual",
+  selected: [], lastFrame: null, cardsKey: "", eventsById: new Map(),
+};
+
+function el(tag, attrs = {}, text) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else node.setAttribute(k, v);
+  }
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function svg(tag, attrs = {}) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  return node;
+}
+
+const sx = (x) => x;
+const sy = (y) => PITCH_H - y; // data y grows up, SVG y grows down
+
+function fmtClock(t) {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+const minuteOf = (t) => Math.floor(t / 60) + 1;
+
+// Index of the last event with clock_s <= t (-1 if none).
+function indexAt(t) {
+  const ev = state.bundle.events;
+  let lo = 0;
+  let hi = ev.length - 1;
+  let ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (ev[mid].clock_s <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  return ans;
+}
+
+function drawMarkings() {
+  const g = $("markings");
+  const add = (tag, attrs) => g.appendChild(svg(tag, attrs));
+  add("rect", { x: 0, y: 0, width: PITCH_W, height: PITCH_H });
+  add("line", { x1: PITCH_W / 2, y1: 0, x2: PITCH_W / 2, y2: PITCH_H });
+  add("circle", { cx: PITCH_W / 2, cy: PITCH_H / 2, r: 9.15 });
+  add("circle", { cx: PITCH_W / 2, cy: PITCH_H / 2, r: 0.4, class: "spot" });
+  for (const left of [true, false]) {
+    const x0 = left ? 0 : PITCH_W;
+    const dir = left ? 1 : -1;
+    const box = (depth, width) =>
+      add("rect", { x: left ? 0 : PITCH_W - depth, y: (PITCH_H - width) / 2, width: depth, height: width });
+    box(16.5, 40.32);
+    box(5.5, 18.32);
+    add("circle", { cx: x0 + dir * 11, cy: PITCH_H / 2, r: 0.4, class: "spot" });
+    add("rect", { x: left ? -2 : PITCH_W, y: PITCH_H / 2 - 3.66, width: 2, height: 7.32 });
+  }
+}
+
+function drawEvent(g, e, opacity, highlight) {
+  if (!e.start) return;
+  const [x1, y1] = e.start;
+  const [x2, y2] = e.end || e.start;
+  const team = e.team || "";
+  if (highlight) {
+    if (e.type === "pass" || e.type === "shot" || e.type === "clearance") {
+      g.appendChild(svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: "hl" }));
+    }
+    g.appendChild(svg("circle", { cx: sx(x1), cy: sy(y1), r: 1.1, class: "hl-dot" }));
+    return;
+  }
+  const style = { opacity: String(opacity) };
+  if (e.type === "pass" || e.type === "clearance") {
+    const line = svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: `ev pass ${team}` });
+    Object.assign(line.style, style);
+    g.appendChild(line);
+  } else if (e.type === "shot") {
+    const line = svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: `ev shot ${team}` });
+    Object.assign(line.style, style);
+    g.appendChild(line);
+    if (e.outcome === "goal") {
+      g.appendChild(svg("circle", { cx: sx(x2), cy: sy(y2), r: 1.3, class: "goal-mark" }));
+    }
+  } else if (e.type === "pressure") {
+    const ring = svg("circle", { cx: sx(x1), cy: sy(y1), r: 1.6, class: `ev ${team}` });
+    Object.assign(ring.style, style);
+    g.appendChild(ring);
+  } else {
+    const dot = svg("circle", { cx: sx(x1), cy: sy(y1), r: 0.9, class: `dot ${team}` });
+    Object.assign(dot.style, style);
+    g.appendChild(dot);
+  }
+}
+
+function renderPitch(idx) {
+  const trail = $("trail");
+  trail.replaceChildren();
+  const ev = state.bundle.events;
+  const recent = [];
+  for (let i = idx; i >= 0 && recent.length < TRAIL; i--) {
+    if (BALL_TYPES.has(ev[i].type) || ev[i].type === "pressure") recent.push(ev[i]);
+    if (ev[i].type === "period_start") break;
+  }
+  recent.reverse().forEach((e, i) => drawEvent(trail, e, 0.25 + (0.75 * (i + 1)) / recent.length, false));
+  const lastBall = recent.filter((e) => BALL_TYPES.has(e.type)).pop();
+  if (lastBall) {
+    const [bx, by] = lastBall.end || lastBall.start;
+    trail.appendChild(svg("circle", { cx: sx(bx), cy: sy(by), r: 0.8, class: "ball" }));
+  }
+  const hl = $("highlight");
+  hl.replaceChildren();
+  for (const id of state.selected) {
+    const e = state.eventsById.get(id);
+    if (e) drawEvent(hl, e, 1, true);
+  }
+}
+
+function renderScoreboard(idx) {
+  const e = idx >= 0 ? state.bundle.events[idx] : null;
+  $("home-score").textContent = e ? e.home_score : 0;
+  $("away-score").textContent = e ? e.away_score : 0;
+  $("clock").textContent = fmtClock(state.t);
+  const half = state.bundle.meta.period_length_s;
+  $("period").textContent = state.t >= state.bundle.duration_s ? "FT" : state.t >= half ? "2H" : "1H";
+  const s = state.bundle.series;
+  const m = Math.min(Math.floor(state.t / 60), s["home.shots"].length - 1);
+  $("stat-shots").textContent = `${s["home.shots"][m]} – ${s["away.shots"][m]}`;
+  $("stat-xg").textContent = `${s["home.xg_heuristic"][m].toFixed(2)} – ${s["away.xg_heuristic"][m].toFixed(2)}`;
+  if (e && e.team) {
+    const team = e.team === "home" ? state.bundle.meta.home.name : state.bundle.meta.away.name;
+    const what = (e.subtype && e.subtype !== "open_play" ? e.subtype : e.type).replace("_", " ");
+    $("stat-last").textContent = `${e.minute}' ${team}: ${what}${e.outcome ? ` (${e.outcome.replace("_", " ")})` : ""}`;
+  } else {
+    $("stat-last").textContent = "—";
+  }
+}
+
+function cardsForMode() {
+  return state.bundle.cards[state.mode] || [];
+}
+
+function activeCard() {
+  const holdMatch = HOLD_REAL_S * state.speed;
+  const visible = cardsForMode().filter((c) => c.anchor_clock_s <= state.t);
+  const last = visible[visible.length - 1];
+  if (!last) return null;
+  const until = Math.max(last.end_clock_s, last.anchor_clock_s + holdMatch);
+  return state.t <= until ? last : null;
+}
+
+function selectEvidence(ids) {
+  state.selected = ids;
+  state.cardsKey = "";
+  render();
+}
+
+function inspectEvent(id) {
+  const e = state.eventsById.get(id);
+  const body = $("inspector-body");
+  body.replaceChildren();
+  $("inspector-hint").hidden = true;
+  if (!e) { body.appendChild(el("p", { class: "hint" }, `Unknown event ${id}`)); return; }
+  body.appendChild(el("h3", {}, `Event ${id}`));
+  const jump = el("button", { type: "button" }, `Jump to ${e.minute}'`);
+  jump.addEventListener("click", () => seek(e.clock_s));
+  body.appendChild(jump);
+  body.appendChild(el("pre", { id: "inspector-json" }, JSON.stringify(e, null, 2)));
+  selectEvidence([id]);
+}
+
+function inspectMetric(id) {
+  const m = state.bundle.metrics[id];
+  const body = $("inspector-body");
+  body.replaceChildren();
+  $("inspector-hint").hidden = true;
+  if (!m) { body.appendChild(el("p", { class: "hint" }, `Unknown metric ${id}`)); return; }
+  body.appendChild(el("h3", {}, `Metric ${id}`));
+  const dl = el("dl");
+  const value = m.value === null ? "undefined" : String(m.value);
+  for (const [k, v] of [["Label", m.label], ["Value", value], ["Kind", m.kind], ["Definition", m.definition],
+    ["Sources", `${m.source_event_ids.length} events`]]) {
+    dl.appendChild(el("dt", {}, k));
+    dl.appendChild(el("dd", {}, v));
+  }
+  body.appendChild(dl);
+  if (m.kind === "heuristic") body.appendChild(el("p", { class: "hint" }, "Synthetic heuristic — not empirically calibrated."));
+  const chips = el("div", { class: "chips" });
+  for (const sid of m.source_event_ids) chips.appendChild(eventChip(sid));
+  body.appendChild(chips);
+  selectEvidence(m.source_event_ids);
+}
+
+function eventChip(id) {
+  const b = el("button", { type: "button", class: "chip", "data-event-id": id, "aria-pressed": String(state.selected.includes(id)) }, id);
+  b.addEventListener("click", () => inspectEvent(id));
+  return b;
+}
+
+function metricChip(id) {
+  const b = el("button", { type: "button", class: "chip metric", "data-metric-id": id }, id);
+  b.addEventListener("click", () => inspectMetric(id));
+  return b;
+}
+
+function renderCard(card, isActive) {
+  const analyst = state.mode === "analyst";
+  const art = el("article", { class: `card ${card.team}${isActive ? " active" : ""}`, "data-card-id": card.card_id });
+  const head = el("header");
+  head.appendChild(el("span", { class: "kind" }, KIND_LABEL[card.kind] || card.kind));
+  head.appendChild(el("span", { class: "minute" }, `${minuteOf(card.anchor_clock_s)}'`));
+  head.appendChild(el("h3", {}, card.title));
+  art.appendChild(head);
+
+  const facts = el("ul", { class: "facts", "aria-label": "Verified facts" });
+  for (const f of card.facts) {
+    const li = el("li", { class: f.kind === "heuristic" ? "heuristic" : "" });
+    li.appendChild(el("span", { class: "check", title: "Verified from structured event data" }, "✓"));
+    const body = el("div");
+    body.appendChild(el("span", {}, f.text));
+    if (analyst && (f.event_ids.length || f.metric_ids.length)) {
+      const chips = el("div", { class: "chips" });
+      f.event_ids.forEach((id) => chips.appendChild(eventChip(id)));
+      f.metric_ids.forEach((id) => chips.appendChild(metricChip(id)));
+      body.appendChild(chips);
+    }
+    li.appendChild(body);
+    facts.appendChild(li);
+  }
+  art.appendChild(facts);
+
+  if (analyst) {
+    const all = el("button", { type: "button", class: "chip", "data-evidence": card.card_id },
+      `Show all ${card.evidence_event_ids.length} evidence events on pitch`);
+    all.addEventListener("click", () => selectEvidence(card.evidence_event_ids));
+    art.appendChild(all);
+  }
+
+  // Narrative: wording only, always labelled; never shown as a verified fact.
+  const n = card.narrative;
+  const nar = el("div", { class: "narrative", "data-status": n.status });
+  const unverified = n.status === "unverified_ai_wording";
+  nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}` },
+    unverified ? "AI wording · NOT VERIFIED" : "Offline template · not an Azure response"));
+  const duplicate = n.text === card.facts.map((f) => f.text).join(" ");
+  if (unverified) {
+    nar.appendChild(el("p", { class: "text" }, n.text));
+  } else if (!duplicate) {
+    const det = el("details");
+    det.appendChild(el("summary", {}, "Wording"));
+    det.appendChild(el("p", { class: "text" }, n.text));
+    nar.appendChild(det);
+  }
+  nar.appendChild(el("p", { class: "hint" }, n.label));
+  if (n.fallback_reason) nar.appendChild(el("p", { class: "warn" }, n.fallback_reason));
+  for (const w of n.warnings) nar.appendChild(el("p", { class: "warn" }, `⚠ ${w} (heuristic check only)`));
+  art.appendChild(nar);
+  return art;
+}
+
+function renderCards() {
+  const active = activeCard();
+  const visible = cardsForMode().filter((c) => c.anchor_clock_s <= state.t);
+  const key = [state.mode, visible.length, active ? active.card_id : "", state.selected.join(",")].join("|");
+  if (key !== state.cardsKey) {
+    state.cardsKey = key;
+    const box = $("cards");
+    box.replaceChildren();
+    [...visible].reverse().forEach((c) => box.appendChild(renderCard(c, active && c.card_id === active.card_id)));
+    $("cards-hint").hidden = visible.length > 0;
+  }
+  const lt = $("lower-third");
+  if (active) {
+    lt.hidden = false;
+    $("lt-kind").textContent = KIND_LABEL[active.kind] || active.kind;
+    $("lt-title").textContent = active.title;
+    // Prefer a summary fact (not a single-event line) and drop evidence brackets on the graphic.
+    const summary = active.facts.find((f) => f.event_ids.length !== 1 || f.metric_ids.length) || active.facts[0];
+    $("lt-fact").textContent = summary ? summary.text.replace(EVIDENCE_RE, "") : "";
+  } else {
+    lt.hidden = true;
+  }
+}
+
+function renderMarkers() {
+  const box = $("markers");
+  box.replaceChildren();
+  const d = state.bundle.duration_s;
+  for (const e of state.bundle.events) {
+    if (e.type === "shot" && e.outcome === "goal") {
+      const tick = el("span", { class: "marker goal-tick", title: `Goal ${e.minute}'` });
+      tick.style.left = `${(100 * e.clock_s) / d}%`;
+      box.appendChild(tick);
+    }
+  }
+  for (const c of cardsForMode()) {
+    const b = el("button", { type: "button", class: `marker ${c.kind}`, "aria-label": `${KIND_LABEL[c.kind]} ${minuteOf(c.anchor_clock_s)}': ${c.title}`, title: c.title },
+      c.kind === "goal" ? "G" : c.kind === "press_win" ? "P" : "!");
+    b.style.left = `${(100 * c.anchor_clock_s) / d}%`;
+    b.addEventListener("click", () => seek(c.start_clock_s));
+    box.appendChild(b);
+  }
+}
+
+function render() {
+  const idx = indexAt(state.t);
+  renderScoreboard(idx);
+  renderPitch(idx);
+  renderCards();
+  $("seek").value = String(Math.floor(state.t));
+  $("play").textContent = state.playing ? "⏸" : "▶";
+  $("play").setAttribute("aria-label", state.playing ? "Pause" : "Play");
+}
+
+function seek(t) {
+  state.t = Math.max(0, Math.min(state.bundle.duration_s, t));
+  render();
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  for (const b of document.querySelectorAll(".mode-toggle button")) {
+    b.setAttribute("aria-checked", String(b.dataset.mode === mode));
+  }
+  document.body.dataset.mode = mode;
+  $("inspector").hidden = mode !== "analyst";
+  state.selected = [];
+  state.cardsKey = "";
+  renderMarkers();
+  render();
+}
+
+function setPlaying(on) {
+  if (on && state.t >= state.bundle.duration_s) state.t = 0;
+  state.playing = on;
+  state.lastFrame = null;
+  render();
+}
+
+function frame(now) {
+  if (state.playing) {
+    if (state.lastFrame !== null) {
+      state.t += ((now - state.lastFrame) / 1000) * state.speed;
+      if (state.t >= state.bundle.duration_s) { state.t = state.bundle.duration_s; state.playing = false; }
+    }
+    state.lastFrame = now;
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+
+function jumpMoment(dir) {
+  const cards = cardsForMode();
+  const target = dir > 0
+    ? cards.find((c) => c.anchor_clock_s > state.t + 0.5)
+    : [...cards].reverse().find((c) => c.anchor_clock_s < state.t - 0.5);
+  if (target) seek(target.anchor_clock_s);
+}
+
+function bindControls() {
+  $("play").addEventListener("click", () => setPlaying(!state.playing));
+  $("restart").addEventListener("click", () => { seek(0); setPlaying(false); });
+  $("prev").addEventListener("click", () => jumpMoment(-1));
+  $("next").addEventListener("click", () => jumpMoment(1));
+  $("speed").addEventListener("change", (ev) => { state.speed = Number(ev.target.value); });
+  $("seek").addEventListener("input", (ev) => seek(Number(ev.target.value)));
+  for (const b of document.querySelectorAll(".mode-toggle button")) {
+    b.addEventListener("click", () => setMode(b.dataset.mode));
+  }
+  document.addEventListener("keydown", (ev) => {
+    const tag = (ev.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "select") return;
+    if (ev.code === "Space" && tag !== "button") { ev.preventDefault(); setPlaying(!state.playing); }
+    else if (ev.key === "ArrowRight") seek(state.t + 30);
+    else if (ev.key === "ArrowLeft") seek(state.t - 30);
+  });
+}
+
+function init(bundle) {
+  state.bundle = bundle;
+  for (const e of bundle.events) state.eventsById.set(e.event_id, e);
+  const { home, away, match_id: matchId } = bundle.meta;
+  for (const [id, text] of [["home-name", home.name], ["away-name", away.name], ["legend-home", home.name], ["legend-away", away.name]]) {
+    $(id).textContent = text;
+  }
+  $("seek").max = String(bundle.duration_s);
+  $("download").setAttribute("download", `matchlens-overlays-${matchId}.json`);
+  const offline = bundle.provider === "offline_template";
+  $("disclosure").textContent =
+    `Synthetic match ${matchId} (seed ${bundle.meta.seed}) between fictional teams. ` +
+    "✓ facts are rendered from verified, structured event data and cite event/metric IDs. " +
+    "xG is a synthetic heuristic, not empirically calibrated. " +
+    (offline
+      ? "Narrative provider: offline deterministic template — not an Azure response."
+      : "Narrative wording comes from Azure OpenAI and is NOT verified; the ✓ facts are authoritative.");
+  drawMarkings();
+  bindControls();
+  const params = new URLSearchParams(location.search);
+  const speed = Number(params.get("speed"));
+  if ([15, 30, 60, 120, 240].includes(speed)) { state.speed = speed; $("speed").value = String(speed); }
+  setMode(params.get("mode") === "analyst" ? "analyst" : "casual");
+  if (params.has("t")) seek(Number(params.get("t")) || 0);
+  requestAnimationFrame(frame);
+  document.body.dataset.ready = "true";
+}
+
+window.matchlens = { state, seek, setMode, setPlaying };
+
+fetch("data/bundle.json")
+  .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+  .then(init)
+  .catch((err) => { $("disclosure").textContent = `Could not load match data: ${err.message}`; });

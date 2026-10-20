@@ -12,7 +12,7 @@ Status: **plan only — nothing deployed.** Deployment and any paid resource req
 Configuration is read from environment variables listed in `.env.example`; real values live only in a local `.env` (git-ignored) or the host's secret store.
 
 ## Plan
-1. **Inference (M3):** one small client module calling a Microsoft Foundry / Azure OpenAI chat deployment to render narrative text from structured, evidence-cited facts. Claims are re-checked against event/metric IDs after generation. If the endpoint is not configured or fails, a deterministic template renderer is used and labelled "Offline fallback — not an Azure response".
+1. **Inference (M3, implemented — not yet run against a live endpoint):** `src/matchlens/narrative.py`, one small client module calling a Microsoft Foundry / Azure OpenAI chat deployment to render narrative text from structured, evidence-cited facts. Claims are re-checked against event/metric IDs after generation. If the endpoint is not configured or fails, a deterministic template renderer is used and labelled "Offline fallback — not an Azure response".
 2. **Demo hosting (M5):** prefer Azure App Service (Linux, Python) for the Streamlit/browser UI so the Microsoft story is end-to-end; fall back to a free host if Azure hosting is unavailable. Judges must not need an account or API key; the server holds the key, with request caps to bound cost.
 3. **Evidence:** README section showing the exact code path, the env vars, and a screenshot/recording of a live Azure-rendered card next to the labelled fallback.
 
@@ -24,3 +24,9 @@ Configuration is read from environment variables listed in `.env.example`; real 
 - Is an Azure subscription with Foundry/Azure OpenAI access available, and what is the spend cap?
 - Which region/model deployment should be used?
 - What do the hackathon rules require of the hosted demo (to confirm before choosing hosting)?
+
+## To verify the Azure path once access exists (operator, no code changes)
+1. Create (or reuse) an Azure OpenAI / Foundry resource and a chat model deployment within the agreed spend cap.
+2. Export the four `AZURE_OPENAI_*` variables locally (never commit them).
+3. Run `python -m matchlens demo --seed 42`; expect `Narrative provider: azure_openai` and wording labelled "AI-generated wording (Azure OpenAI) — not verified". A "Note: azure_openai unavailable (...)" line means the request failed and the offline fallback was used.
+4. Capture that output (with the key redacted) as integration evidence.

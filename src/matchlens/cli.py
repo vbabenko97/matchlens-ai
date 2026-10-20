@@ -1,4 +1,4 @@
-"""Command-line entry point: ``python -m matchlens {generate,validate}``."""
+"""Command-line entry point: ``python -m matchlens <command>`` (see ``--help``)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,40 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from .cards import build_cards, format_card
 from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
 from .metrics import DEFAULT_WINDOW_S, compute_metrics
 from .moments import describe_moment, detect_moments, select_key_moments
+from .narrative import MODES, OfflineTemplateProvider, provider_from_env
+from .overlays import build_overlay_document
+from .replay import DEFAULT_DEMO_SEED, build_bundle, dumps
+from .server import export_site, make_server
 from .validate import assert_valid, validate_match
 
 
+class ConfigError(Exception):
+    pass
+
+
+def _provider(offline: bool):
+    if offline:
+        return OfflineTemplateProvider()
+    try:
+        return provider_from_env()
+    except ValueError as exc:  # e.g. a non-https endpoint; never echo the key
+        raise ConfigError(f"Azure OpenAI configuration error: {exc}") from None
+
+
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+
+
+def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="matchlens")
     sub = parser.add_subparsers(dest="command", required=True)
     gen = sub.add_parser("generate", help="generate a synthetic match as JSONL")
@@ -35,7 +61,79 @@ def main(argv: list[str] | None = None) -> int:
     mom = sub.add_parser("moments", help="detect and select key moments as JSON")
     mom.add_argument("path", type=Path)
     mom.add_argument("--limit", type=int, default=4)
+    crd = sub.add_parser("cards", help="build verified insight cards for one audience mode")
+    crd.add_argument("path", type=Path)
+    crd.add_argument("--mode", choices=MODES, required=True)
+    crd.add_argument("--limit", type=int, default=4)
+    crd.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    crd.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    demo = sub.add_parser("demo", help="generate a match and print casual and analyst cards")
+    demo.add_argument("--seed", type=int, default=42)
+    demo.add_argument("--limit", type=int, default=3)
+    demo.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    ovl = sub.add_parser("overlays", help="timed overlay cues (both modes) as JSON")
+    ovl.add_argument("path", type=Path)
+    ovl.add_argument("--out", type=Path, help="output path (default: stdout)")
+    ovl.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    for name, help_text in (
+        ("serve", "serve the replay UI locally"),
+        ("export-site", "write the replay UI as a static site"),
+    ):
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("--seed", type=int, default=DEFAULT_DEMO_SEED)
+        p.add_argument("--file", type=Path, help="replay a JSONL match instead of a seed")
+        p.add_argument("--offline", action="store_true", help="ignore Azure settings")
+        if name == "serve":
+            p.add_argument("--host", default="127.0.0.1")
+            p.add_argument("--port", type=int, default=8000)
+        else:
+            p.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
+
+    if args.command == "demo":
+        match = assert_valid(generate_match(args.seed))
+        provider = _provider(args.offline)
+        h, a = match.final_score
+        meta = match.meta
+        print(f"Synthetic match {meta.match_id}: {meta.home.name} {h}-{a} {meta.away.name}")
+        print(f"Narrative provider: {provider.name}\n")
+        for mode in MODES:
+            card_set = build_cards(match, mode, provider, args.limit)
+            print("\n\n".join(format_card(c) for c in card_set.cards) + "\n")
+        return 0
+
+    if args.command in ("serve", "export-site"):
+        if args.file:
+            try:
+                match = read_match(args.file)
+            except MatchFormatError as exc:
+                print("\n".join(exc.errors), file=sys.stderr)
+                return 1
+            match = assert_valid(match)
+        else:
+            match = assert_valid(generate_match(args.seed))
+        provider = _provider(args.offline)
+        bundle = build_bundle(match, provider)
+        if args.command == "export-site":
+            try:
+                export_site(bundle, args.out)
+            except FileExistsError as exc:
+                print(f"refusing to write: {exc}", file=sys.stderr)
+                return 1
+            print(f"wrote static site to {args.out} (provider: {provider.name})", file=sys.stderr)
+            return 0
+        server = make_server(bundle, args.host, args.port)
+        host, port = server.server_address[:2]
+        print(
+            f"MatchLens replay: http://{host}:{port}/ (provider: {provider.name}; Ctrl+C to stop)"
+        )
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.server_close()
+        return 0
 
     if args.command == "generate":
         match = assert_valid(generate_match(args.seed, period_length_s=args.period_length))
@@ -60,6 +158,26 @@ def main(argv: list[str] | None = None) -> int:
         records = [m.to_record() for m in compute_metrics(match, args.window).values()]
         json.dump(records, sys.stdout, indent=1)
         sys.stdout.write("\n")
+        return 0
+    if args.command == "cards":
+        provider = _provider(args.offline)
+        card_set = build_cards(match, args.mode, provider, args.limit)
+        if args.json:
+            json.dump(asdict(card_set), sys.stdout, indent=1, ensure_ascii=False)
+            sys.stdout.write("\n")
+        else:
+            print("\n\n".join(format_card(c) for c in card_set.cards))
+            for moment_id, reason in card_set.suppressed:
+                print(f"suppressed {moment_id}: {reason}")
+        return 0
+    if args.command == "overlays":
+        provider = _provider(args.offline)
+        card_sets = [build_cards(match, mode, provider) for mode in MODES]
+        text = dumps(build_overlay_document(match, card_sets)) + "\n"
+        if args.out:
+            args.out.write_text(text, encoding="utf-8")
+        else:
+            sys.stdout.write(text)
         return 0
     if args.command == "moments":
         chosen = select_key_moments(detect_moments(match), args.limit)

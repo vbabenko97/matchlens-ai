@@ -5,19 +5,25 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [x] M0 (Oct 20): Decide minimal Python stack, project layout, install/format/test commands. Initialize tests and CI. Record deployment plan and available Azure/Microsoft credentials without copying credentials to git.
 - [x] M1 (Oct 20-21): New deterministic synthetic generator and schema validator; reproducibility and invariant tests; checked-in tiny demo fixture.
 - [x] M2 (Oct 21-22): Metrics and 2-4 robust key-moment detectors; unit tests with hand-checked fixtures.
-- [ ] M3 (Oct 23-24): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
-- [ ] M4 (Oct 25): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
+- [ ] M3 (Oct 23-24; code done, live Azure run blocked on access): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
+- [x] M4 (Oct 20, local; public hosting is M5): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
 - [ ] M5 (Oct 26): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
 ## Latest checkpoint (2026-10-20)
-- **M0/M1 verified on GitHub:** PR https://github.com/vbabenko97/matchlens-ai/pull/1 — Actions `test (3.11)` and `test (3.13)` green on `cb4b149` and `5751d67`. MIT license after third-party license check.
-- **M2 verified:** GitHub Actions `test (3.11)` and `test (3.13)` green on `6b018c8` (push run 39465880717, pull_request run 39465886454).
-  - `matchlens.metrics`: per-team and 15-min-window metrics with stable IDs, definitions, `fact`/`heuristic` kind and source event IDs; undefined ratios are `null`.
-  - `matchlens.claims`: **fixed the free-text loophole.** `Claim` no longer has a text field; verified statements are rendered from templates using only verified data (`ClaimCheck.text`); `assess_prose` always returns `unverified`. Negative tests: a `Claim(text=...)` is rejected, wording cannot depend on caller prose, and false, true and fake-citation prose all stay unverified.
-  - `matchlens.moments`: three deterministic detectors (`goal` with build-up chain, `big_chance_missed` at xG heuristic >= 0.2, `press_win` = pressure -> win <= 8 s -> shot <= 20 s), deterministic selection of up to 4 with a reserved non-goal slot, and template descriptions citing evidence IDs. CLI: `python -m matchlens moments <file>`.
-  - Hand-verified tests on the 24-event `tests/hand_match.py` (every expected value and evidence ID counted by hand), plus property tests on generated matches.
-- **Verified results:** `python -m pytest -q` -> 106 passed on Python 3.13 and 3.11 locally; `ruff check .` and `ruff format --check .` clean.
-- **Next smallest task (M3):** narrative cards built from selected moments + verified metric claims, two audience modes (casual vs analyst) differing in content; then the env-configured Azure/Foundry rendering path with the labelled deterministic fallback (no provisioning).
+- **PR #1 merged** (`6d8e589`). **PR #2** (https://github.com/vbabenko97/matchlens-ai/pull/2) open with M3 (CI green at `5fcbcec`) and now M4. Only one branch is authorized, so both milestones share the PR.
+- **M3 (code) verified:** insight cards, Casual/Analyst modes, `AzureOpenAIProvider` + offline fallback. A live Azure run is still blocked on access.
+- **M4 verified locally:**
+  - **UI:** static HTML/CSS/vanilla JS (`src/matchlens/web/`), no new runtime dependencies. It has a scoreboard, a pitch view of recent ball events, timeline markers, synchronized insight cards with a lower-third overlay, a Casual/Analyst toggle, and an Analyst evidence inspector (event JSON, metric definition and sources, pitch highlight).
+  - **Replay controls:** play/pause, seek, previous/next moment, 15–240× speed, keyboard shortcuts, and an Overlay JSON download.
+  - **Data:** `matchlens.replay` bundle (precomputed, deterministic), `matchlens.overlays` (`matchlens.overlays/v1`), and `matchlens.server` (stdlib, localhost by default, strict CSP, fixed file set).
+  - **CLI:** `serve` (default seed 1 → 2-3), `export-site`, `overlays`.
+  - Runs fully offline without Azure credentials. AI wording, if configured, keeps its NOT VERIFIED label; `unsupported_numbers` warnings are labelled as heuristic only.
+- **Verified results:**
+  - `python -m pytest -q` -> 157 passed locally on Python 3.13 including 9 Playwright/Chromium e2e tests (148 passed + e2e module skipped on 3.11 without Playwright). The e2e suite passed 5/5 consecutive runs.
+  - `ruff check .` and `ruff format --check .` clean.
+  - Manual check: `python -m matchlens serve` serves the UI and the 2-3 bundle; unknown paths return 404. Screenshots were checked at 1400×900 and 390×844 (no horizontal scroll).
+  - GitHub Actions green at `c7938c5`: `test (3.11)`, `test (3.13)` and the new `e2e` job (Playwright Chromium) in both push (39471601403) and pull_request (39471608254) runs.
+- **Next smallest task (M5, needs operator approval):** choose and approve hosting (static export fits any static host; Azure Static Web Apps or App Service if Azure is approved), accessibility pass, demo rehearsal and video.
 - **Last verified command:** `python -m pytest -q && ruff check . && ruff format --check .`
-- **Blockers / decisions:** Azure access, region, model deployment and spend cap unconfirmed — configuration stays environment-based (`.env.example`), nothing provisioned. Hosting deferred until Azure availability, costs and hackathon requirements are verified. Any LLM text in M3 must be labelled unverified (see `docs/DATA_MODEL.md`).
+- **Blockers / decisions:** Azure access, region, model deployment and spend cap unconfirmed; nothing provisioned. Hosting deferred until Azure availability, costs and hackathon requirements are verified. Live Azure narrative run pending access.

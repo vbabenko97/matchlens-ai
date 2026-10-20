@@ -61,3 +61,29 @@ Deterministic detectors; each `KeyMoment` has an ID `<kind>:<anchor_event_id>`, 
 | `press_win` | tackle/interception by a team that pressed the lost possession <= 8 s earlier, and whose won possession shoots <= 20 s later | pressure ... win, plus the shot |
 
 `select_key_moments(moments, limit=4)` ranks goals, then missed big chances, then press wins (higher shot xG heuristic first, then earlier) and returns them in match order; if goals would fill every slot (limit >= 2), the best non-goal moment takes the last slot. `describe_moment` renders template text from structured fields only, ending with the evidence IDs. Over seeds 1-60: ~3.6 goals, ~1.7 missed big chances and ~6.5 press wins per match.
+
+## Insight cards (`matchlens.cards`, M3)
+`build_cards(match, mode, provider=None, limit=4)` builds one card per selected key moment. A moment must re-detect identically (`verify_moment`) or its card is suppressed with a reason. Each card has `title`, `start_clock_s` / `anchor_clock_s` / `end_clock_s` (anchor + 12 s, for overlays), `evidence_event_ids`, verified `facts` and a `narrative`.
+
+Facts are the only factual content. Each is rendered from verified structured data and carries `event_ids` and/or `metric_ids`:
+
+| | Casual Fan | Analyst |
+|---|---|---|
+| content | who and when, score situation (ahead / level / extends lead / pulls one back), how the move began, outcome of a chance | every evidence event, possession and build-up structure, shot quality from the xG heuristic, metrics for the 15-min window around the moment |
+| statistics | none (no xG, no counts) | labelled xG heuristic and window metrics |
+| evidence in text | no (kept as structured IDs on each fact) | yes (`[evidence: ...]` on every fact) |
+
+## Narrative providers (`matchlens.narrative`)
+`NarrativeProvider.render(NarrativeRequest) -> str` only rewords the verified fact texts. `provider_from_env()` returns `AzureOpenAIProvider` (Azure OpenAI / Microsoft Foundry chat completions, `POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=...`, `api-key` header, HTTPS required, stdlib HTTP only) when all four `AZURE_OPENAI_*` variables are set, else `OfflineTemplateProvider`. `narrate()` labels the result:
+- `deterministic_template` + "Offline fallback: deterministic template wording — not an Azure response." (offline, or any provider error; `fallback_reason` names the exception type only, never secrets);
+- `unverified_ai_wording` + "AI-generated wording (Azure OpenAI) — not verified" for model output. Numbers in model output that do not appear in the facts are listed in `warnings` (a guard, not verification).
+
+No narrative is ever `verified`; model output never changes a card's facts.
+
+## Overlay cues (`matchlens.overlays`, M4) — schema `matchlens.overlays/v1`
+Top level: `match_id`, `seed`, `synthetic: true`, `time_unit: "match_seconds"`, `teams`, `final_score`, `notes`, `cues`. Each cue is one card in one mode: `cue_id`, `mode`, `kind`, `team`, `start_s` (anchor event), `end_s` (anchor + 12 s), `lead_in_s` (first evidence event), `title`, `facts` (verified text + `event_ids`/`metric_ids` + `kind`), `evidence_event_ids`, and `narrative` with its `status` and `label`. Consumers must show `facts` as facts and `narrative` only as labelled wording.
+
+## Replay bundle and UI (`matchlens.replay`, `matchlens.server`, `src/matchlens/web/`)
+`build_bundle(match, provider)` precomputes everything the browser needs (schema `matchlens.replay/v1`): all events, cards for both modes, suppressed moments, the metrics cited by cards (with sources), per-minute cumulative goals/shots/xG heuristic (`minute_series`, checked against `compute_metrics` totals), and the overlay document. The browser only displays the bundle and never decides what is verified. The UI is static HTML/CSS/vanilla JS with no dependencies and no build step. It sets text only through `textContent`; `serve` adds a strict CSP (`script-src 'self'`, no inline or eval) and serves a fixed in-memory file set (no filesystem paths, so no traversal).
+
+Narrative display rules in the UI: ✓ marks only verified facts. Offline wording carries "Offline template · not an Azure response". AI wording carries "AI wording · NOT VERIFIED" plus its label; `unsupported_numbers` warnings are shown as "(heuristic check only)", because that check cannot establish the semantic truth of model prose.
