@@ -79,3 +79,11 @@ Facts are the only factual content. Each is rendered from verified structured da
 - `unverified_ai_wording` + "AI-generated wording (Azure OpenAI) — not verified" for model output. Numbers in model output that do not appear in the facts are listed in `warnings` (a guard, not verification).
 
 No narrative is ever `verified`; model output never changes a card's facts.
+
+## Overlay cues (`matchlens.overlays`, M4) — schema `matchlens.overlays/v1`
+Top level: `match_id`, `seed`, `synthetic: true`, `time_unit: "match_seconds"`, `teams`, `final_score`, `notes`, `cues`. Each cue is one card in one mode: `cue_id`, `mode`, `kind`, `team`, `start_s` (anchor event), `end_s` (anchor + 12 s), `lead_in_s` (first evidence event), `title`, `facts` (verified text + `event_ids`/`metric_ids` + `kind`), `evidence_event_ids`, and `narrative` with its `status` and `label`. Consumers must show `facts` as facts and `narrative` only as labelled wording.
+
+## Replay bundle and UI (`matchlens.replay`, `matchlens.server`, `src/matchlens/web/`)
+`build_bundle(match, provider)` precomputes everything the browser needs (schema `matchlens.replay/v1`): all events, cards for both modes, suppressed moments, the metrics cited by cards (with sources), per-minute cumulative goals/shots/xG heuristic (`minute_series`, checked against `compute_metrics` totals), and the overlay document. The browser only displays the bundle and never decides what is verified. The UI is static HTML/CSS/vanilla JS with no dependencies and no build step. It sets text only through `textContent`; `serve` adds a strict CSP (`script-src 'self'`, no inline or eval) and serves a fixed in-memory file set (no filesystem paths, so no traversal).
+
+Narrative display rules in the UI: ✓ marks only verified facts. Offline wording carries "Offline template · not an Azure response". AI wording carries "AI wording · NOT VERIFIED" plus its label; `unsupported_numbers` warnings are shown as "(heuristic check only)", because that check cannot establish the semantic truth of model prose.

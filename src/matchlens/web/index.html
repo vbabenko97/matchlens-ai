@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MatchLens AI — Synthetic Match Replay</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◎</span>
+      <span>MatchLens <strong>AI</strong></span>
+      <span class="pill synthetic" title="All teams, players and events are synthetic">Synthetic match</span>
+    </div>
+    <div class="scoreboard" aria-live="polite" aria-label="Scoreboard">
+      <span class="team home" id="home-name">Home</span>
+      <span class="score"><span id="home-score">0</span><span class="dash">–</span><span id="away-score">0</span></span>
+      <span class="team away" id="away-name">Away</span>
+      <span class="clock" id="clock">00:00</span>
+      <span class="period" id="period">1H</span>
+    </div>
+    <div class="mode-toggle" role="radiogroup" aria-label="Audience mode">
+      <button type="button" role="radio" data-mode="casual" aria-checked="true">Casual Fan</button>
+      <button type="button" role="radio" data-mode="analyst" aria-checked="false">Analyst</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-label="Pitch and replay">
+      <div class="pitch-wrap">
+        <svg id="pitch" viewBox="-3 -3 111 74" role="img" aria-label="Pitch showing the latest ball events">
+          <g id="markings"></g>
+          <g id="trail"></g>
+          <g id="highlight"></g>
+        </svg>
+        <div class="lower-third" id="lower-third" hidden>
+          <span class="lt-kind" id="lt-kind"></span>
+          <span class="lt-title" id="lt-title"></span>
+          <span class="lt-fact" id="lt-fact"></span>
+        </div>
+        <div class="legend" aria-hidden="true">
+          <span class="key home-key"></span><span id="legend-home">Home</span>
+          <span class="key away-key"></span><span id="legend-away">Away</span>
+          <span class="dir">→ home attacks right</span>
+        </div>
+      </div>
+
+      <div class="stats" id="stats" aria-label="Match statistics so far">
+        <div><span class="stat-label">Shots</span><span id="stat-shots">0 – 0</span></div>
+        <div><span class="stat-label">Synthetic xG <abbr title="Synthetic heuristic, not empirically calibrated">ⓘ</abbr></span><span id="stat-xg">0.00 – 0.00</span></div>
+        <div><span class="stat-label">Last event</span><span id="stat-last">—</span></div>
+      </div>
+
+      <div class="controls" aria-label="Replay controls">
+        <button type="button" id="play" aria-label="Play">▶</button>
+        <button type="button" id="restart" aria-label="Restart">⟲</button>
+        <button type="button" id="prev" aria-label="Previous key moment">⏮</button>
+        <button type="button" id="next" aria-label="Next key moment">⏭</button>
+        <label class="speed">Speed
+          <select id="speed">
+            <option value="15">15×</option>
+            <option value="30">30×</option>
+            <option value="60" selected>60×</option>
+            <option value="120">120×</option>
+            <option value="240">240×</option>
+          </select>
+        </label>
+        <a id="download" class="button" href="data/overlays.json" download>⬇ Overlay JSON</a>
+      </div>
+
+      <div class="timeline">
+        <div class="markers" id="markers"></div>
+        <input type="range" id="seek" min="0" max="5400" step="1" value="0" aria-label="Seek match time">
+        <div class="ticks" aria-hidden="true"><span>0'</span><span>45'</span><span>90'</span></div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Insight cards">
+      <h2 id="cards-heading">Key moments</h2>
+      <p class="hint" id="cards-hint">Press play — cards appear as moments happen.</p>
+      <div id="cards" aria-live="polite"></div>
+      <section class="inspector" id="inspector" hidden aria-label="Evidence inspector">
+        <h2>Evidence inspector</h2>
+        <p class="hint" id="inspector-hint">Select an event or metric ID on a card.</p>
+        <div id="inspector-body"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <p id="disclosure">Loading…</p>
+  </footer>
+</body>
+</html>
