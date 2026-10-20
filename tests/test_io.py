@@ -76,3 +76,12 @@ def test_cli_generate_and_validate(tmp_path, capsys):
     assert "OK:" in capsys.readouterr().out
     out.write_text(out.read_text().replace('"seq":5,', '"seq":50,'), encoding="utf-8")
     assert main(["validate", str(out)]) == 1
+
+
+def test_cli_metrics(capsys):
+    assert main(["metrics", str(DEMO_FIXTURE), "--window", "300"]) == 0
+    records = {r["metric_id"]: r for r in json.loads(capsys.readouterr().out)}
+    goals = (records["home.goals"]["value"], records["away.goals"]["value"])
+    assert goals == read_match(DEMO_FIXTURE).final_score
+    assert records["home.xg_heuristic"]["kind"] == "heuristic"
+    assert "home.shots@300-600" in records

@@ -29,3 +29,20 @@ Unique IDs and gap-free `seq`; clock nondecreasing and inside its period; `perio
 
 ## Known simplifications
 No stoppage time, corners, fouls, cards, substitutions, offside or pass recipients. The generator models event *structure*, not realistic football dynamics; its rates are tuned only so a demo match looks plausible (~24 shots, ~3.6 goals per match averaged over seeds 1-60).
+
+## Metrics (`matchlens.metrics`, M2)
+`compute_metrics(match, window_s=900)` returns metrics keyed by stable IDs: `<team>.<name>` for full-match totals and `<team>.<name>@<start>-<end>` for clock windows `[start, end)` (the final window includes the end whistle). Each metric carries `value`, `unit`, `kind` (`fact` or `heuristic`), a plain-language `definition`, and the `source_event_ids` it was computed from (ratios also list `numerator_event_ids`).
+
+| name | definition |
+|---|---|
+| `passes`, `passes_completed`, `pass_completion` | team pass events (incl. restarts); outcome `complete`; ratio, `null` when no passes |
+| `shots`, `shots_on_target`, `goals` | team shots; outcome `goal`/`saved`; outcome `goal` |
+| `pressures` | team pressure events |
+| `turnovers` | team passes `intercepted`/`out` plus opponent tackles |
+| `possessions` | possession chains owned (sources = first event of each chain) |
+| `xg_heuristic` | **heuristic**: sum of the synthetic shot heuristic |
+
+Window metrics: `passes`, `shots`, `pressures`, `turnovers`, `xg_heuristic`.
+
+## Claim verification (`matchlens.claims`)
+`verify_claim(claim, metrics, match)` returns `verified` only if the claim cites a metric and/or events; all cited events exist; a cited metric exists, is defined and matches the stated value (tolerance 5e-4); cited events are sources of that metric; and heuristic metrics are described as "heuristic" or "synthetic". Otherwise it returns `unsupported` with reasons, so callers must suppress or flag the claim.
