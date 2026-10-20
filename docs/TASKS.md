@@ -12,7 +12,7 @@ Update this file after verified work. A task is done only when the acceptance ch
 
 ## Latest checkpoint (2026-10-20)
 - **M0/M1 verified on GitHub:** PR https://github.com/vbabenko97/matchlens-ai/pull/1 — Actions `test (3.11)` and `test (3.13)` green on `cb4b149` and `5751d67`. MIT license after third-party license check.
-- **M2 verified (locally; GitHub CI for this push: see PR):**
+- **M2 verified:** GitHub Actions `test (3.11)` and `test (3.13)` green on `6b018c8` (push run 39465880717, pull_request run 39465886454).
   - `matchlens.metrics`: per-team and 15-min-window metrics with stable IDs, definitions, `fact`/`heuristic` kind and source event IDs; undefined ratios are `null`.
   - `matchlens.claims`: **fixed the free-text loophole.** `Claim` no longer has a text field; verified statements are rendered from templates using only verified data (`ClaimCheck.text`); `assess_prose` always returns `unverified`. Negative tests: a `Claim(text=...)` is rejected, wording cannot depend on caller prose, and false, true and fake-citation prose all stay unverified.
   - `matchlens.moments`: three deterministic detectors (`goal` with build-up chain, `big_chance_missed` at xG heuristic >= 0.2, `press_win` = pressure -> win <= 8 s -> shot <= 20 s), deterministic selection of up to 4 with a reserved non-goal slot, and template descriptions citing evidence IDs. CLI: `python -m matchlens moments <file>`.
