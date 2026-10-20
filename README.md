@@ -32,3 +32,7 @@ Claude Code skills are optional. The single `/submission-audit` skill is for the
 - Only original synthetic data and code may be contributed.
 - Never commit secrets, API keys, or personally identifying credentials.
 - Anthropic usage credits for coding are separate from any Azure runtime charges.
+
+## License
+
+MIT — see [LICENSE](LICENSE). The project has no runtime dependencies; development tools (pytest, ruff, setuptools) are MIT/BSD/Apache-licensed and are not redistributed.
