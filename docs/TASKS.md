@@ -23,7 +23,7 @@ Update this file after verified work. A task is done only when the acceptance ch
   - `python -m pytest -q` -> 157 passed locally on Python 3.13 including 9 Playwright/Chromium e2e tests (148 passed + e2e module skipped on 3.11 without Playwright). The e2e suite passed 5/5 consecutive runs.
   - `ruff check .` and `ruff format --check .` clean.
   - Manual check: `python -m matchlens serve` serves the UI and the 2-3 bundle; unknown paths return 404. Screenshots were checked at 1400×900 and 390×844 (no horizontal scroll).
-  - CI: new `e2e` job (Playwright Chromium) added alongside the 3.11/3.13 matrix — see PR #2 for its result.
+  - GitHub Actions green at `c7938c5`: `test (3.11)`, `test (3.13)` and the new `e2e` job (Playwright Chromium) in both push (39471601403) and pull_request (39471608254) runs.
 - **Next smallest task (M5, needs operator approval):** choose and approve hosting (static export fits any static host; Azure Static Web Apps or App Service if Azure is approved), accessibility pass, demo rehearsal and video.
 - **Last verified command:** `python -m pytest -q && ruff check . && ruff format --check .`
 - **Blockers / decisions:** Azure access, region, model deployment and spend cap unconfirmed; nothing provisioned. Hosting deferred until Azure availability, costs and hackathon requirements are verified. Live Azure narrative run pending access.
