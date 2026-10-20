@@ -2,10 +2,10 @@
 
 Event-by-event (H = home/NBR attacking +x, A = away/EVA attacking -x):
   P1  1 start | 2 H kick-off | 3 H pass | 4 A pressure | 5 H pass intercepted
-      6 A interception | 7 A pass | 8 A pass out | 9 H throw-in | 10 H shot off target
+      6 A interception | 7 A pass | 8 A shot off target | 9 H goal kick | 10 H shot off target
       11 A goal kick | 12 H tackle | 13 H pass | 14 H shot GOAL (1-0) | 15 end
   P2  16 start | 17 A kick-off | 18 H pressure | 19 A shot blocked | 20 H clearance
-      21 H recovery | 22 H shot saved | 23 A keeper recovery | 24 end
+      21 H recovery | 22 H shot saved (big chance) | 23 A keeper recovery | 24 end
 """
 
 import random
@@ -36,8 +36,8 @@ _ROWS = [
     (1, 5, "pass", HOME, "NBR-08", 1, "intercepted", (60, 40), (75, 30), "open_play", None),
     (1, 6, "interception", AWAY, "EVA-03", 2, "won", (75, 30), (75, 30), None, 5),
     (1, 9, "pass", AWAY, "EVA-06", 2, "complete", (75, 30), (60, 30), "open_play", None),
-    (1, 12, "pass", AWAY, "EVA-08", 2, "out", (60, 30), (60, 68), "open_play", None),
-    (1, 20, "pass", HOME, "NBR-03", 3, "complete", (60, 68), (65, 60), "throw_in", 8),
+    (1, 12, "shot", AWAY, "EVA-08", 2, "off_target", (60, 30), (0, 45), None, None),
+    (1, 20, "pass", HOME, "NBR-01", 3, "complete", (99.5, 34), (65, 60), "goal_kick", 8),
     (1, 24, "shot", HOME, "NBR-09", 3, "off_target", (65, 60), (105, 45), None, None),
     (1, 40, "pass", AWAY, "EVA-01", 4, "complete", (5.5, 34), (40, 34), "goal_kick", 10),
     (1, 44, "tackle", HOME, "NBR-06", 5, "won", (40, 34), (40, 34), None, None),
@@ -48,9 +48,9 @@ _ROWS = [
     (2, 60, "pass", AWAY, "EVA-09", 6, "complete", (52.5, 34), (58, 34), "kick_off", None),
     (2, 62, "pressure", HOME, "NBR-09", 6, None, (58, 34), None, None, None),
     (2, 63, "shot", AWAY, "EVA-09", 6, "blocked", (58, 34), (56, 34), None, None),
-    (2, 64, "clearance", HOME, "NBR-04", 7, None, (56, 34), (80, 30), None, 19),
-    (2, 66, "recovery", HOME, "NBR-06", 7, "won", (80, 30), (80, 30), None, None),
-    (2, 70, "shot", HOME, "NBR-11", 7, "saved", (80, 30), (104, 34), None, None),
+    (2, 64, "clearance", HOME, "NBR-04", 7, None, (56, 34), (96, 36), None, 19),
+    (2, 66, "recovery", HOME, "NBR-06", 7, "won", (96, 36), (96, 36), None, None),
+    (2, 70, "shot", HOME, "NBR-11", 7, "saved", (96, 36), (104, 34), None, None),
     (2, 72, "recovery", AWAY, "EVA-01", 8, "won", (104, 34), (104, 34), None, 22),
     (2, 120, "period_end", None, None, None, None, None, None, None, None),
 ]

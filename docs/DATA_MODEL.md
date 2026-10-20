@@ -45,4 +45,19 @@ No stoppage time, corners, fouls, cards, substitutions, offside or pass recipien
 Window metrics: `passes`, `shots`, `pressures`, `turnovers`, `xg_heuristic`.
 
 ## Claim verification (`matchlens.claims`)
-`verify_claim(claim, metrics, match)` returns `verified` only if the claim cites a metric and/or events; all cited events exist; a cited metric exists, is defined and matches the stated value (tolerance 5e-4); cited events are sources of that metric; and heuristic metrics are described as "heuristic" or "synthetic". Otherwise it returns `unsupported` with reasons, so callers must suppress or flag the claim.
+A `Claim` is structured: `metric_id`, `value`, `cited_event_ids`. It deliberately has **no free-text field**. `verify_claim(claim, metrics, match)` returns `verified` only if the claim cites a metric and/or events; all cited events exist; a cited metric exists, is defined and matches the stated value (tolerance 5e-4); cited events are sources of that metric; and a value is never stated without a metric. Otherwise it returns `unsupported` with reasons and no text.
+
+Wording is rendered **after** verification from fixed templates using only verified data (`ClaimCheck.text`), and always ends with `[evidence: ...]`. Heuristic metrics are always rendered with "synthetic heuristic, not empirically calibrated".
+
+**Limitation (by design):** the meaning of free prose cannot be machine-verified. `assess_prose(text)` therefore always returns `unverified`, for true and false text alike, including prose that imitates an evidence citation. UIs must show only template-rendered statements as facts; any LLM wording (M3) is presentation only and must be labelled unverified, never shown as a verified claim.
+
+## Key moments (`matchlens.moments`)
+Deterministic detectors; each `KeyMoment` has an ID `<kind>:<anchor_event_id>`, anchor and start clock, evidence `event_ids` in match order, and structured `details`.
+
+| kind | rule | evidence |
+|---|---|---|
+| `goal` | every shot with outcome `goal` | the scoring possession chain up to the shot (ball events + pressures) |
+| `big_chance_missed` | non-goal shot with xG heuristic >= 0.2 | the shot + the event answering it (save, goal kick, clearance) |
+| `press_win` | tackle/interception by a team that pressed the lost possession <= 8 s earlier, and whose won possession shoots <= 20 s later | pressure ... win, plus the shot |
+
+`select_key_moments(moments, limit=4)` ranks goals, then missed big chances, then press wins (higher shot xG heuristic first, then earlier) and returns them in match order; if goals would fill every slot (limit >= 2), the best non-goal moment takes the last slot. `describe_moment` renders template text from structured fields only, ending with the evidence IDs. Over seeds 1-60: ~3.6 goals, ~1.7 missed big chances and ~6.5 press wins per match.

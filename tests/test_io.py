@@ -85,3 +85,10 @@ def test_cli_metrics(capsys):
     assert goals == read_match(DEMO_FIXTURE).final_score
     assert records["home.xg_heuristic"]["kind"] == "heuristic"
     assert "home.shots@300-600" in records
+
+
+def test_cli_moments(capsys):
+    assert main(["moments", str(DEMO_FIXTURE), "--limit", "3"]) == 0
+    records = json.loads(capsys.readouterr().out)
+    assert len(records) <= 3
+    assert all(r["event_ids"] and r["text"].endswith("]") for r in records)

@@ -34,13 +34,13 @@ EXPECTED = {
     "home.pressures": (1, _ids(18)),
     "home.turnovers": (1, _ids(5)),
     "home.possessions": (4, _ids(2, 9, 12, 20)),
-    "away.passes": (4, _ids(7, 8, 11, 17)),
+    "away.passes": (3, _ids(7, 11, 17)),
     "away.passes_completed": (3, _ids(7, 11, 17)),
-    "away.shots": (1, _ids(19)),
+    "away.shots": (2, _ids(8, 19)),
     "away.shots_on_target": (0, ()),
     "away.goals": (0, ()),
     "away.pressures": (1, _ids(4)),
-    "away.turnovers": (2, _ids(8, 12)),
+    "away.turnovers": (1, _ids(12)),
     "away.possessions": (4, _ids(6, 11, 17, 23)),
 }
 
@@ -54,7 +54,7 @@ def test_hand_counted_values_and_sources(metrics, metric_id):
 
 def test_pass_completion(metrics):
     home, away = metrics["home.pass_completion"], metrics["away.pass_completion"]
-    assert home.value == 0.8 and away.value == 0.75
+    assert home.value == 0.8 and away.value == 1.0
     assert home.source_event_ids == EXPECTED["home.passes"][1]
     assert home.numerator_event_ids == EXPECTED["home.passes_completed"][1]
 
@@ -70,12 +70,14 @@ def test_pass_completion_undefined_without_passes(match):
 def test_xg_is_heuristic_sum_of_shots(metrics):
     home = metrics["home.xg_heuristic"]
     expected = round(
-        xg_heuristic(HOME, (65, 60)) + xg_heuristic(HOME, (90, 34)) + xg_heuristic(HOME, (80, 30)),
+        xg_heuristic(HOME, (65, 60)) + xg_heuristic(HOME, (90, 34)) + xg_heuristic(HOME, (96, 36)),
         3,
     )
     assert home.kind == HEURISTIC and home.value == expected
     assert home.source_event_ids == _ids(10, 14, 22)
-    assert metrics["away.xg_heuristic"].value == xg_heuristic(AWAY, (58, 34))
+    assert metrics["away.xg_heuristic"].value == round(
+        xg_heuristic(AWAY, (60, 30)) + xg_heuristic(AWAY, (58, 34)), 3
+    )
 
 
 def test_window_counts(metrics):
@@ -86,7 +88,7 @@ def test_window_counts(metrics):
         1,
         0,
     ]
-    assert metrics["away.turnovers@0-30"].source_event_ids == _ids(8)
+    assert metrics["away.turnovers@0-30"].source_event_ids == ()
     assert metrics["away.turnovers@30-60"].source_event_ids == _ids(12)
     assert metrics["away.passes@60-90"].window == (60.0, 90.0)
 

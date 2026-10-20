@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
 from .metrics import DEFAULT_WINDOW_S, compute_metrics
+from .moments import describe_moment, detect_moments, select_key_moments
 from .validate import assert_valid, validate_match
 
 
@@ -30,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     met = sub.add_parser("metrics", help="compute event-grounded metrics as JSON")
     met.add_argument("path", type=Path)
     met.add_argument("--window", type=int, default=DEFAULT_WINDOW_S, help="window seconds")
+    mom = sub.add_parser("moments", help="detect and select key moments as JSON")
+    mom.add_argument("path", type=Path)
+    mom.add_argument("--limit", type=int, default=4)
     args = parser.parse_args(argv)
 
     if args.command == "generate":
@@ -53,6 +58,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if args.command == "metrics":
         records = [m.to_record() for m in compute_metrics(match, args.window).values()]
+        json.dump(records, sys.stdout, indent=1)
+        sys.stdout.write("\n")
+        return 0
+    if args.command == "moments":
+        chosen = select_key_moments(detect_moments(match), args.limit)
+        records = [{**asdict(m), "text": describe_moment(m, match)} for m in chosen]
         json.dump(records, sys.stdout, indent=1)
         sys.stdout.write("\n")
         return 0

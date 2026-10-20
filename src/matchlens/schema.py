@@ -126,3 +126,8 @@ class Match:
             return (0, 0)
         last = self.events[-1]
         return (last.home_score, last.away_score)
+
+
+def minute_of(clock_s: float) -> int:
+    """Broadcast-style match minute: 0-59 s is the 1st minute."""
+    return int(clock_s // 60) + 1
