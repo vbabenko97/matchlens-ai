@@ -92,3 +92,25 @@ def test_cli_moments(capsys):
     records = json.loads(capsys.readouterr().out)
     assert len(records) <= 3
     assert all(r["event_ids"] and r["text"].endswith("]") for r in records)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "fragment"),
+    [
+        ("period_length_s", "x", "'period_length_s' has wrong type str"),
+        ("period_length_s", 300.5, "'period_length_s' has wrong type float"),
+        ("seed", None, "'seed' has wrong type NoneType"),
+        ("home", 5, "'home' has wrong type int"),
+        ("match_id", ..., "missing 'match_id'"),
+    ],
+)
+def test_malformed_match_record_is_reported_not_raised(lines, key, value, fragment):
+    errors = _errors(_edit(lines, 0, **{key: value}))
+    assert any("malformed match record" in e and fragment in e for e in errors), errors
+
+
+def test_malformed_player_record(lines):
+    rec = json.loads(lines[0])
+    rec["home"]["players"][0]["number"] = "1"
+    errors = _errors([json.dumps(rec), *lines[1:]])
+    assert any("home.players[0]: 'number' has wrong type str" in e for e in errors)

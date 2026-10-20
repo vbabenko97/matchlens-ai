@@ -120,11 +120,11 @@ def validate_match(match: Match) -> list[str]:
         where = f"event {e.event_id} (seq {e.seq})"
         if e.seq != idx + 1:
             issues.append(f"{where}: seq must be {idx + 1}")
+        if e.related_event_id is not None and e.related_event_id not in seen_ids:
+            issues.append(f"{where}: related_event_id must reference an earlier event")
         if e.event_id in seen_ids:
             issues.append(f"{where}: duplicate event_id")
         seen_ids.add(e.event_id)
-        if e.related_event_id is not None and e.related_event_id not in seen_ids - {e.event_id}:
-            issues.append(f"{where}: related_event_id must reference an earlier event")
 
         # Clock and period structure.
         if e.clock_s < prev_clock:

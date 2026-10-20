@@ -117,24 +117,44 @@ def _parse_event(rec: dict[str, Any], where: str, errors: list[str]) -> Event | 
     )
 
 
-def _parse_team(rec: Any) -> Team:
+def _req(rec: Any, key: str, types: type | tuple[type, ...], where: str) -> Any:
+    if not isinstance(rec, dict) or key not in rec:
+        raise ValueError(f"{where}: missing '{key}'")
+    value = rec[key]
+    if isinstance(value, bool) or not isinstance(value, types):
+        raise ValueError(f"{where}: '{key}' has wrong type {type(value).__name__}")
+    return value
+
+
+def _parse_team(rec: Any, where: str) -> Team:
+    players = []
+    for i, p in enumerate(_req(rec, "players", list, where)):
+        pw = f"{where}.players[{i}]"
+        players.append(
+            Player(
+                player_id=_req(p, "player_id", str, pw),
+                name=_req(p, "name", str, pw),
+                number=_req(p, "number", int, pw),
+                position=_req(p, "position", str, pw),
+            )
+        )
     return Team(
-        side=rec["side"],
-        team_id=rec["team_id"],
-        name=rec["name"],
-        players=tuple(Player(**p) for p in rec["players"]),
+        side=_req(rec, "side", str, where),
+        team_id=_req(rec, "team_id", str, where),
+        name=_req(rec, "name", str, where),
+        players=tuple(players),
     )
 
 
 def _parse_meta(rec: dict[str, Any]) -> MatchMeta:
     return MatchMeta(
-        match_id=rec["match_id"],
-        seed=rec["seed"],
-        period_length_s=rec["period_length_s"],
-        home=_parse_team(rec["home"]),
-        away=_parse_team(rec["away"]),
-        schema_version=rec["schema_version"],
-        generator=rec["generator"],
+        match_id=_req(rec, "match_id", str, "match"),
+        seed=_req(rec, "seed", int, "match"),
+        period_length_s=_req(rec, "period_length_s", int, "match"),
+        home=_parse_team(_req(rec, "home", dict, "match"), "home"),
+        away=_parse_team(_req(rec, "away", dict, "match"), "away"),
+        schema_version=_req(rec, "schema_version", str, "match"),
+        generator=_req(rec, "generator", str, "match"),
     )
 
 
@@ -165,8 +185,8 @@ def parse_lines(lines: Iterable[str]) -> Match:
                 continue
             try:
                 meta = _parse_meta(rec)
-            except (KeyError, TypeError) as exc:
-                errors.append(f"{where}: malformed match record ({exc!r})")
+            except ValueError as exc:
+                errors.append(f"{where}: malformed match record ({exc})")
         elif kind == "event":
             if meta is None and lineno == 1:
                 errors.append(f"{where}: first record must be the match record")

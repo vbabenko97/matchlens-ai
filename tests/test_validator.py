@@ -123,3 +123,8 @@ def test_assert_valid_raises(match):
     with pytest.raises(MatchValidationError):
         assert_valid(_swap(match, 5, event_id=match.events[4].event_id))
     assert assert_valid(match) is match
+
+
+def test_related_event_must_be_earlier(match):
+    _assert_rejected(_swap(match, 5, related_event_id=match.events[5].event_id), "related_event_id")
+    _assert_rejected(_swap(match, 5, related_event_id=match.events[9].event_id), "related_event_id")
