@@ -1,4 +1,4 @@
-"""Command-line entry point: ``python -m matchlens {generate,validate}``."""
+"""Command-line entry point: ``python -m matchlens <command>`` (see ``--help``)."""
 
 from __future__ import annotations
 
@@ -8,10 +8,12 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from .cards import build_cards, format_card
 from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
 from .metrics import DEFAULT_WINDOW_S, compute_metrics
 from .moments import describe_moment, detect_moments, select_key_moments
+from .narrative import MODES, OfflineTemplateProvider, provider_from_env
 from .validate import assert_valid, validate_match
 
 
@@ -35,7 +37,29 @@ def main(argv: list[str] | None = None) -> int:
     mom = sub.add_parser("moments", help="detect and select key moments as JSON")
     mom.add_argument("path", type=Path)
     mom.add_argument("--limit", type=int, default=4)
+    crd = sub.add_parser("cards", help="build verified insight cards for one audience mode")
+    crd.add_argument("path", type=Path)
+    crd.add_argument("--mode", choices=MODES, required=True)
+    crd.add_argument("--limit", type=int, default=4)
+    crd.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    crd.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    demo = sub.add_parser("demo", help="generate a match and print casual and analyst cards")
+    demo.add_argument("--seed", type=int, default=42)
+    demo.add_argument("--limit", type=int, default=3)
+    demo.add_argument("--offline", action="store_true", help="ignore Azure settings")
     args = parser.parse_args(argv)
+
+    if args.command == "demo":
+        match = assert_valid(generate_match(args.seed))
+        provider = OfflineTemplateProvider() if args.offline else provider_from_env()
+        h, a = match.final_score
+        meta = match.meta
+        print(f"Synthetic match {meta.match_id}: {meta.home.name} {h}-{a} {meta.away.name}")
+        print(f"Narrative provider: {provider.name}\n")
+        for mode in MODES:
+            card_set = build_cards(match, mode, provider, args.limit)
+            print("\n\n".join(format_card(c) for c in card_set.cards) + "\n")
+        return 0
 
     if args.command == "generate":
         match = assert_valid(generate_match(args.seed, period_length_s=args.period_length))
@@ -60,6 +84,17 @@ def main(argv: list[str] | None = None) -> int:
         records = [m.to_record() for m in compute_metrics(match, args.window).values()]
         json.dump(records, sys.stdout, indent=1)
         sys.stdout.write("\n")
+        return 0
+    if args.command == "cards":
+        provider = OfflineTemplateProvider() if args.offline else provider_from_env()
+        card_set = build_cards(match, args.mode, provider, args.limit)
+        if args.json:
+            json.dump(asdict(card_set), sys.stdout, indent=1, ensure_ascii=False)
+            sys.stdout.write("\n")
+        else:
+            print("\n\n".join(format_card(c) for c in card_set.cards))
+            for moment_id, reason in card_set.suppressed:
+                print(f"suppressed {moment_id}: {reason}")
         return 0
     if args.command == "moments":
         chosen = select_key_moments(detect_moments(match), args.limit)
