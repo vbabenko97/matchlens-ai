@@ -24,7 +24,7 @@ import pytest
 
 from matchlens.agent import DEMO_TRACE, RecordedProposer
 from matchlens.generator import generate_match
-from matchlens.personalize import PERSONALIZE_TRACE, RecordedPersonalizer
+from matchlens.personalize import PERSONALIZE_REVIEW, PERSONALIZE_TRACE, RecordedPersonalizer
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, demo_extra_bundles, dumps
 from matchlens.server import export_site, make_server
 
@@ -59,7 +59,9 @@ def target(request, tmp_path_factory):
     trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
     proposer = RecordedProposer(trace, DEMO_TRACE)
     personalizer = RecordedPersonalizer(
-        json.loads((ROOT / PERSONALIZE_TRACE).read_text(encoding="utf-8")), PERSONALIZE_TRACE
+        json.loads((ROOT / PERSONALIZE_TRACE).read_text(encoding="utf-8")),
+        PERSONALIZE_TRACE,
+        json.loads((ROOT / PERSONALIZE_REVIEW).read_text(encoding="utf-8")),
     )
     match = generate_match(DEFAULT_DEMO_SEED)
     bundle = json.loads(dumps(build_bundle(match, proposer=proposer, personalizer=personalizer)))
@@ -810,3 +812,6 @@ def test_the_recorded_personalizer_run_is_live_on_the_page(page, bundle):
     note = art.locator(".personalized-note").text_content()
     assert "recorded run" in note and "kept in English" in note
     assert "3-2" not in art.text_content()
+    _open(page, f"?t={bundle['duration_s']}&lang=uk&follow=home")
+    text = page.text_content("#cards")
+    assert "Впевненість" not in text and "відійшли назад" not in text  # editorial review

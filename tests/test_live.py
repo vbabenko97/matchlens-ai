@@ -337,7 +337,7 @@ def test_a_restarted_instance_continues_the_shared_count(match):
 
 def test_no_live_call_when_the_quota_store_fails_or_is_missing(match):
     class Broken:
-        def reserve(self, day, limit):
+        def reserve(self, day, limit, time_left=None):
             raise CounterError("quota store read failed (HTTP 500)")
 
     fake = Always()
@@ -360,3 +360,73 @@ def test_from_env_needs_the_shared_store_for_live_calls():
     assert isinstance(counter, TableCounter)
     with pytest.raises(ValueError):
         live.checker_from_env({**azure, live.COUNTER_URL_ENV: "http://bad"})
+
+
+# --- One deadline for the whole request -----------------------------------------------------
+
+
+def test_a_slow_quota_store_uses_up_the_deadline_without_a_model_call(match):
+    """The reproduced gap: with a slow store, the model part started at 31 s of a 30 s budget."""
+    clock = FakeClock()
+
+    def slow_store(method, url, headers, body, timeout):
+        clock.t += 29.5  # a slow but successful read
+        return (404, {}, b"{}") if method == "GET" else (204, {}, b"")
+
+    fake = Always()
+    counter = TableCounter("https://acct.table.core.windows.net/t?sig=s", slow_store, 30.0)
+    checker = _checker(match, fake, budget=Budget(counter=counter), clock=clock, deadline_s=30)
+    status, reply = checker.check(GOAL, "a")
+    assert status == 504 and reply["reason"] == DEADLINE
+    assert fake.calls == 0 and clock.t <= 30  # no insert, no model call, nothing past 30 s
+
+
+def test_a_failing_store_is_reported_as_such_within_the_deadline(match):
+    clock = FakeClock()
+    timeouts = []
+
+    def failing_store(method, url, headers, body, timeout):
+        timeouts.append(timeout)
+        clock.t += timeout
+        raise TimeoutError("read timed out")
+
+    fake = Always()
+    counter = TableCounter("https://acct.table.core.windows.net/t?sig=s", failing_store, 25.0)
+    checker = _checker(match, fake, budget=Budget(counter=counter), clock=clock, deadline_s=30)
+    status, reply = checker.check(GOAL, "a")
+    assert reply["reason"] == COUNTER_UNAVAILABLE and fake.calls == 0
+    assert timeouts == [25.0] and clock.t <= 30
+
+
+def test_store_calls_get_only_the_time_left(match):
+    clock = FakeClock()
+    seen = []
+
+    def store(method, url, headers, body, timeout):
+        seen.append(timeout)
+        clock.t += 27  # a slow but successful read and insert
+        return (404, {}, b"{}") if method == "GET" else (204, {}, b"")
+
+    counter = TableCounter("https://acct.table.core.windows.net/t?sig=s", store, 25.0)
+    checker = _checker(match, Always(), budget=Budget(counter=counter), clock=clock, deadline_s=30)
+    status, reply = checker.check(GOAL, "a")
+    assert seen == [25.0, 3.0]  # the insert only gets what is left of the 30 s
+    assert status == 504 and reply["reason"] == DEADLINE  # reserved, but no time for the model
+
+
+def test_a_quick_reservation_leaves_the_rest_of_the_deadline_to_the_model(match):
+    clock = FakeClock()
+    model_timeouts = []
+
+    def store(method, url, headers, body, timeout):
+        clock.t += 4
+        return (404, {}, b"{}") if method == "GET" else (204, {}, b"")
+
+    def model(url, headers, body, timeout):
+        model_timeouts.append(timeout)
+        return json.dumps(_ok_reply()).encode()
+
+    counter = TableCounter("https://acct.table.core.windows.net/t?sig=s", store, 5.0)
+    checker = _checker(match, model, budget=Budget(counter=counter), clock=clock, deadline_s=30)
+    status, reply = checker.check(GOAL, "a")
+    assert status == 200 and model_timeouts[0] == pytest.approx(22.0)  # 30 - 2 x 4 s

@@ -37,7 +37,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
   - xG is a labelled synthetic heuristic, never presented as calibrated.
   - Known simplifications are listed in [DATA_MODEL](docs/DATA_MODEL.md).
 - **Engineering practice.**
-  - 500+ automated tests, including unit tests and Playwright end-to-end tests on two local hosts. The same e2e suite runs against the public URL after every deploy and daily.
+  - 500+ automated tests, including unit tests and Playwright end-to-end tests on two local hosts. The same e2e suite runs against each public URL after every deploy, and daily on both hosts through the end of judging.
   - CI runs on Python 3.11 and 3.13 with `ruff`.
   - No runtime dependencies (stdlib only); the Azure Functions adapter adds `azure-functions` on Azure.
   - Deterministic seeds, and no secrets in the repository or the redacted evidence files.
@@ -63,7 +63,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 - **Evidence, not screenshots.**
   - Live runs are recorded as redacted traces ([claim agent](docs/evidence/agent-trace-2026-10-24.json), [personalizer](docs/evidence/personalize-trace-2026-10-24.json), [connectivity check](docs/evidence/azure-check-2026-10-24.json)) with response IDs and token usage.
   - Each public build replays them and re-runs every check, so a stricter checker applies to old runs too.
-  - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English.
+  - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English. Meaning drift that no deterministic check can see was handled by an editorial review of the same run: 12 more lines rejected, with reasons in a versioned file the build applies to the exact text.
 
 ### Real-world impact and applicability
 - **For broadcasters.** Overlay cues are timed in match seconds, carry their facts and evidence IDs, and are published only once their evidence exists. That makes them usable on a live feed. The on-air page is a working browser source today.
@@ -93,8 +93,9 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 ## Honest limits
 - The match is precomputed and replayed. Card selection and timing are causal (no card uses later events), but MatchLens does not ingest a live feed. Video auto-eventing, player speed and ball speed are not modelled.
 - The generator models event structure, not realistic football dynamics. Synthetic xG is an uncalibrated heuristic.
-- The live Foundry check covers the demo match's analyst cards only; other matches and the personalizer replay recorded runs.
+- The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent and personalizer); the five extra matches use the offline proposer and template wording, with no AI at all.
 - The personalizer checker verifies numbers, score order, names, `xG` and script, **not meaning or tone**. The page says so on every rewritten card.
+- An editorial review of the recorded personalizer run ([file](docs/evidence/personalize-review-2026-10-24.json)) rejected 12 lines that passed the checker but added details, changed the meaning or were not correct language. Those lines show the English fact. The recorded trace itself is unchanged.
 - The per-visitor limit relies on forgeable headers. The spend cap is the shared daily count.
 - Microsoft Agent Framework, MCP and Fabric are not used; the agents call the Responses API directly.
 
@@ -106,7 +107,7 @@ pip install -e .
 python -m matchlens serve            # seed 1 (2-3) plus five extra matches, http://127.0.0.1:8000/
 ```
 
-It runs fully offline without Azure credentials, with deterministic template wording labelled as such. Options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`, `--single-match`, `--agent-trace`, `--personalize-trace`, `--live-api`. `python -m matchlens export-site --out site/` writes the same UI as a static folder.
+It runs fully offline without Azure credentials, with deterministic template wording labelled as such. Options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`, `--single-match`, `--agent-trace`, `--personalize-trace`, `--editorial-review`, `--live-api`. `python -m matchlens export-site --out site/` writes the same UI as a static folder.
 
 ```bash
 pip install -e ".[dev]"
@@ -133,7 +134,10 @@ The replay UI has a scoreboard, a pitch view of the latest ball events, a timeli
 - the same names in Latin script, and no new ones;
 - `xG` kept, the right script, no Russian-only letters in Ukrainian, no markup.
 
-A rejected line goes back once with the reasons; still rejected, the English fact is shown with `lang="en"`. Recording: `python -m matchlens personalize-review --out <trace>`.
+A rejected line goes back once with the reasons; still rejected, the English fact is shown with `lang="en"`.
+- **Editorial review.** Every line of the recorded run that passed the checker was also read against its source. 12 lines that add details ("fierce tackle", "quick passes"), change the meaning ("the lead changed hands" becoming "confidence changed hands") or are not correct language are listed with reasons in [personalize-review-2026-10-24.json](docs/evidence/personalize-review-2026-10-24.json). The build applies the review to the exact text it names and fails if it no longer matches.
+- **On the page.** 24 of 232 lines show the English fact.
+- **Recording:** `python -m matchlens personalize-review --out <trace>`; replay with `--personalize-trace <trace> --editorial-review <review>`.
 
 **Claim agent.** `python -m matchlens agent-review --seed 1` runs one bounded Foundry agent per analyst card, with tools `list_metrics`, `get_metric` and `get_events`. In the [recorded run](docs/evidence/agent-trace-2026-10-24.json) (`gpt-4.1-mini`, 19 calls, 27 tool calls), the validator rejected a claim at 77' that cited the wrong events, and the retry was verified.
 

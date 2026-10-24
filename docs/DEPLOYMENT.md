@@ -12,7 +12,7 @@ Status (2026-10-24): **public demo live on Azure Static Web Apps at <https://won
 | Redeploy with accessibility pass | [run 40081567480](https://github.com/vbabenko97/matchlens-ai/actions/runs/40081567480) on `main` @ `2731814`: build, deploy and post-deploy smoke **success** (2026-10-24 09:21 UTC) |
 | Azure Static Web Apps | **deployed** (operator created `matchlens-demo` in `rg-matchlens-demo`); latest from `main` @ `14f1b88` by [run 40118847924](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118847924), deploy and smoke **success**. The managed API builds on Python 3.11. GitHub Pages stays the static mirror. |
 
-The deployed site is the offline static export of `main` @ `0aa672c`. It does not depend on the Responses API migration (the public site never calls Azure). Re-run the Pages workflow after merges only if the UI or bundle changes.
+Both hosts serve the same static export. The Pages mirror never calls Azure. On the Azure host the page calls Azure only through the live-check button (`/api/live-check`, server side); everything else replays recorded runs. Re-run the deploy workflows after merges that change the UI or the bundle.
 
 ## What gets deployed
 The public demo is the **static export** of the replay UI: `python -m matchlens export-site --offline --out site`. It has:
@@ -40,7 +40,7 @@ Operator steps:
    The Free plan has no hosting charge.
 2. **[operator]** In the new resource → *Manage deployment token* → copy it, then in GitHub add it under *Settings → Secrets and variables → Actions → New repository secret* as `AZURE_STATIC_WEB_APPS_API_TOKEN`.
 3. **[operator]** *Actions → Deploy demo (Azure Static Web Apps, Free) → Run workflow* on `main`.
-4. **[operator]** Copy the site URL (`https://<name>.azurestaticapps.net`) into the repository **variable** `PUBLIC_DEMO_URL` (not a secret). This enables the daily smoke test.
+4. **[operator]** Optional: set the repository **variable** `AZURE_DEMO_URL` (not a secret) if the site URL changes. The daily smoke test checks this host and `PUBLIC_DEMO_URL`, and defaults to `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/`.
 
 ## Option B (in use): GitHub Pages
 Workflow: `.github/workflows/deploy-pages.yml` (manual only). It builds the same export, deploys with `actions/deploy-pages`, then runs the Playwright smoke suite. The repository is public, so Pages is free.
@@ -79,7 +79,10 @@ Verified locally against independent static hosts: the app server, a plain stati
 2. Check the output (no key in the file: `grep -c "$AZURE_OPENAI_API_KEY" <file>` prints 0), commit it, then add `--personalize-trace docs/evidence/personalize-trace-2026-10-25.json` to the `export-site` lines of `deploy-pages.yml` and `deploy-swa.yml` (one PR), merge and redeploy.
 
 ## Live Foundry check on the public demo (Azure Static Web Apps managed API)
-**Status (2026-10-24): deployed on SWA; the Foundry app settings are set (the operator read them back for `personalize-review`). Not yet verified: one live call and a forced `daily_limit` (step 7), and whether `MATCHLENS_LIVE_COUNTER_URL` is set.**
+**Status: deployed and verified with one live call.**
+- **Live call.** An independent review of `main` @ `ff20751`, after the deploy, reported one live call on the Azure host: 7.2 s, 3 model calls, 8,058 tokens, 4 claims verified by the validator.
+- **Quota store.** A live reply also shows that `MATCHLENS_LIVE_COUNTER_URL` is set and the Table Storage reservation works: without it the API answers `not_configured` and makes no model call.
+- **Still open:** the forced `daily_limit` fallback (step 7).
 
 What it is: on Azure Static Web Apps, each analyst card gets a **Check this card live with Microsoft Foundry** button. It sends `POST /api/live-check` with `{"card_id": ...}` and nothing else. The function in `api/live_check/` (code: `src/matchlens/live.py`) builds the request itself from the demo match and runs the same bounded agent and validator as `agent-review`. The reply replaces the recorded claim check on that card and is labelled as a live call, with response IDs, token use and latency. The key stays in the app settings; the browser never sees it. GitHub Pages builds have no button (no server side).
 
@@ -131,7 +134,7 @@ Local run with your own key: `python -m matchlens serve --live-api` (reads the `
 - **Checklist:** [docs/AZURE_VERIFICATION.md](AZURE_VERIFICATION.md).
 - **Status (2026-10-24): verified.** `azure-check` made one live Foundry Responses API v1 call to the `gpt-4.1-mini` deployment: `status: completed`, 137 input / 41 output tokens, `store: false`. The redacted report is [evidence/azure-check-2026-10-24.json](evidence/azure-check-2026-10-24.json). Mocked tests do not count as evidence.
 
-The public static demo never calls Azure at runtime (that would need the key in the browser). A build-time Azure-worded bundle, with the key held only in a CI secret, is a possible later step. It needs operator approval and would keep the "not verified" label.
+The browser never holds a key. The Azure host's live check calls Foundry server side through `/api/live-check`, and every other AI output on the page replays a recorded run: the claim agent trace, and the personalizer trace with its editorial review.
 
 ## Credentials inventory (no values in git)
 | item | status |
