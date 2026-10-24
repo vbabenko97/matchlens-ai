@@ -1,0 +1,28 @@
+{
+ "checked_at_utc": "2026-10-24T08:51:37Z",
+ "api": "responses-v1",
+ "endpoint_host": "vbabenko2191-5875-resource.services.ai.azure.com",
+ "request_path": "/openai/v1/responses",
+ "deployment": "gpt-4.1-mini",
+ "ok": true,
+ "http_status": 200,
+ "latency_ms": 1079,
+ "response_status": "completed",
+ "response_id": "resp_04cbd41c6ce7fbd0016adc719a7220819680582d251053084b",
+ "model": "gpt-4.1-mini",
+ "usage": {
+  "input_tokens": 137,
+  "output_tokens": 41,
+  "total_tokens": 178
+ },
+ "store": false,
+ "prompt_facts": [
+  "Teo Kestrel scores for Eastvale Athletic in minute 77.",
+  "That levels the score at 2-2.",
+  "The move started with a tackle that won the ball back."
+ ],
+ "completion": "Teo Kestrel fires Eastvale Athletic level at 2-2 in the 77th minute after a great tackle wins the ball back! The momentum just swung big time in this match!",
+ "completion_status": "unverified_ai_wording",
+ "completion_label": "AI-generated wording (Azure OpenAI) — not verified; the verified facts on this card are authoritative.",
+ "note": "Proves one live Azure inference call; the completion text itself is not verified."
+}

@@ -34,8 +34,9 @@ ENV_VARS = (
     "AZURE_OPENAI_ENDPOINT",
     "AZURE_OPENAI_API_KEY",
     "AZURE_OPENAI_DEPLOYMENT",
-    "AZURE_OPENAI_API_VERSION",
 )
+RESPONSES_PATH = "/openai/v1/responses"
+MAX_OUTPUT_TOKENS = 200
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,16 +104,28 @@ def _urllib_transport(url: str, headers: dict[str, str], body: bytes, timeout: f
 
 @dataclass(frozen=True)
 class AzureOpenAIConfig:
+    """Foundry / Azure OpenAI v1 settings. ``endpoint`` is the resource base URL.
+
+    The endpoint may be given as the resource host, as ``.../openai/v1`` or as the full
+    ``.../openai/v1/responses`` target URI; it is normalised to the base URL. The v1 API
+    takes no ``api-version`` parameter, so ``AZURE_OPENAI_API_VERSION`` is not read.
+    """
+
     endpoint: str
     api_key: str = field(repr=False)
     deployment: str
-    api_version: str
 
     def __post_init__(self) -> None:
         if not self.endpoint.startswith("https://"):
             raise ValueError("AZURE_OPENAI_ENDPOINT must be an https:// URL")
-        if not all((self.api_key, self.deployment, self.api_version)):
+        if "?" in self.endpoint or "#" in self.endpoint:
+            raise ValueError("AZURE_OPENAI_ENDPOINT must not contain a query string")
+        if not all((self.api_key, self.deployment)):
             raise ValueError("Azure OpenAI configuration is incomplete")
+        base = self.endpoint.rstrip("/")
+        for suffix in ("/responses", "/openai/v1"):
+            base = base.removesuffix(suffix)
+        object.__setattr__(self, "endpoint", base)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AzureOpenAIConfig | None:
@@ -122,6 +135,41 @@ class AzureOpenAIConfig:
         if not all(values):
             return None
         return cls(*values)
+
+
+class ResponseFormatError(ValueError):
+    """The Responses API reply is not a usable completed text response.
+
+    Messages are fixed strings and never include response content or request headers.
+    """
+
+
+def extract_output_text(response: object) -> str:
+    """Return the joined ``output_text`` parts of a completed Responses API reply."""
+    if not isinstance(response, dict):
+        raise ResponseFormatError("response is not a JSON object")
+    if response.get("status") != "completed":
+        raise ResponseFormatError("response status is not 'completed'")
+    output = response.get("output")
+    if not isinstance(output, list):
+        raise ResponseFormatError("response has no output array")
+    parts: list[str] = []
+    for item in output:
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue  # e.g. reasoning items carry no user-facing text
+        content = item.get("content")
+        if not isinstance(content, list):
+            raise ResponseFormatError("message item has no content array")
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "output_text":
+                text = part.get("text")
+                if not isinstance(text, str):
+                    raise ResponseFormatError("output_text part has no text string")
+                parts.append(text)
+    text = "".join(parts).strip()
+    if not text:
+        raise ResponseFormatError("response contains no output_text")
+    return text
 
 
 _SYSTEM_PROMPT = {
@@ -141,7 +189,7 @@ _RULES = (
 
 
 class AzureOpenAIProvider:
-    """Chat-completions call to an Azure OpenAI / Microsoft Foundry deployment."""
+    """Responses API (v1) call to an Azure OpenAI / Microsoft Foundry deployment."""
 
     name = "azure_openai"
 
@@ -156,17 +204,14 @@ class AzureOpenAIProvider:
         self.timeout_s = timeout_s
 
     def url(self) -> str:
-        c = self.config
-        return (
-            f"{c.endpoint.rstrip('/')}/openai/deployments/{c.deployment}"
-            f"/chat/completions?api-version={c.api_version}"
-        )
+        return self.config.endpoint + RESPONSES_PATH
 
     def complete(self, request: NarrativeRequest) -> dict:
-        """One chat-completions call; returns the parsed JSON response (raises on failure)."""
+        """One Responses API call; returns the parsed JSON response (raises on failure)."""
         facts = "\n".join(f"- {f}" for f in request.facts)
         body = {
-            "messages": [
+            "model": self.config.deployment,
+            "input": [
                 {"role": "system", "content": f"{_SYSTEM_PROMPT[request.mode]} {_RULES}"},
                 {
                     "role": "user",
@@ -176,19 +221,19 @@ class AzureOpenAIProvider:
                     ),
                 },
             ],
-            "temperature": 0.2,
-            "max_tokens": 200,
+            "max_output_tokens": MAX_OUTPUT_TOKENS,
+            "store": False,  # no server-side retention of prompts or responses
         }
         headers = {"Content-Type": "application/json", "api-key": self.config.api_key}
         transport = self.transport or _urllib_transport
         raw = transport(self.url(), headers, json.dumps(body).encode(), self.timeout_s)
-        return json.loads(raw)
+        response = json.loads(raw)
+        if not isinstance(response, dict):
+            raise ResponseFormatError("response is not a JSON object")
+        return response
 
     def render(self, request: NarrativeRequest) -> str:
-        text = self.complete(request)["choices"][0]["message"]["content"]
-        if not isinstance(text, str) or not text.strip():
-            raise ValueError("empty completion")
-        return text.strip()
+        return extract_output_text(self.complete(request))
 
 
 def provider_from_env(env: Mapping[str, str] | None = None) -> NarrativeProvider:
