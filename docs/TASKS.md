@@ -10,7 +10,25 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): cards no longer look ahead
+## Latest checkpoint (2026-10-24): bounded Foundry claim agent (offline-verified)
+- **Built** `matchlens.agent`, one bounded agent with no framework. For each analyst card, a proposer drafts ≤ 4 structured claims (metric ID + value and/or event IDs).
+  - The Foundry agent can call three read-only tools (`list_metrics`, `get_metric`, `get_events`) bound to the match as of the card's publication. Later events read "not available".
+  - `verify_claim` decides. Rejected claims go back once with the reasons; claims still rejected are dropped. A wrong value on a real metric is replaced by a correction rendered from the computed metric.
+  - On the first goal card, an injected test claim (labelled deliberately wrong) is rejected: seed 1 gives "claimed 3 but home.goals:asof:ml1-01112 = 2", and "Goals: 2 (as of 71')" is published instead.
+- **Surfaces:**
+  - `python -m matchlens agent-review --seed 1 [--offline] [--out trace.json]`. The live path is strict (no fallback; exit 1 on failure) and writes a redacted `matchlens.agent-trace/v1`.
+  - `export-site/serve --agent-trace FILE` replays a recorded run with recomputed verdicts, labelled "not a live call".
+  - The bundle has `reviews`; analyst cards show a "Claim check" section (source, ✓/✗, reasons, correction, chips into the inspector).
+- **Verified:** `python -m pytest -q` -> 311 passed, incl. 44 e2e on local Chromium.
+  - The Foundry loop is tested against a scripted fake Responses API. It covers tool rounds, echo without item IDs, `store: false`, the causal tool results, a retry carrying the validator's reasons, fallbacks (HTTP, network, malformed answer, call limit), strict mode, and a key-free trace. These tests are **not** integration evidence.
+  - `ruff check .` and `ruff format --check .` clean.
+- **Blocked on the operator:** record a live run per `docs/AZURE_VERIFICATION.md` §5b (`agent-review --seed 1 --out agent-trace.json`) and commit it as `docs/evidence/agent-trace-<date>.json`.
+- **Next:**
+  1. Point the Pages workflow at the recorded trace (`--agent-trace`).
+  2. Redeploy (needs approval).
+  3. Video: card → Casual/Analyst → evidence → rejected claim with correction → recorded Foundry run IDs.
+
+## Checkpoint (2026-10-24): cards no longer look ahead
 - **Merged and deployed:**
   - PR #8 squash-merged as `3dd2b45`; CI was green on the PR head (3.11, 3.13, e2e).
   - Pages redeployed from `main` @ `3dd2b45` by [run 40085133359](https://github.com/vbabenko97/matchlens-ai/actions/runs/40085133359): `build`, `deploy` (10:15 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.

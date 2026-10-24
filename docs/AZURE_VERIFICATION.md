@@ -45,6 +45,22 @@ python -m matchlens azure-check | tee azure-check.json
 - [ ] Commit `azure-check.json` (it holds no secrets) as `docs/evidence/azure-check-<date>.json`, with a portal screenshot of the deployment metrics with the key area cropped.
 - [ ] Update `docs/TASKS.md` (M3: "live Azure run verified") and README's Microsoft integration section with the date, model and region.
 
+## 5b. Record a live claim-agent run [operator: same shell as step 2]
+```bash
+python -m matchlens agent-review --seed 1 --out agent-trace.json | tee agent-review.txt
+grep -c "$AZURE_OPENAI_API_KEY" agent-trace.json agent-review.txt   # both must print 0
+```
+`agent-review` runs the bounded Foundry claim agent on the four analyst cards of seed 1. That is about 2–5 Responses API calls per card, plus one retry per card if the validator rejects a claim. It is **strict**: any failure exits `1` (`live agent run failed: <type>`) and writes nothing, so a recorded trace never holds fallback output.
+
+Acceptance:
+- [ ] Exit code `0`.
+- [ ] Every card's lines show `response resp_…` IDs. No card shows `Note: foundry_agent unavailable`.
+- [ ] `agent-trace.json` has `"schema": "matchlens.agent-trace/v1"`, `"store": false`, the deployment, and per-call `response_id`/`model`/`usage`.
+- [ ] The goal card at 71' shows the injected test claim `home.goals:asof:ml1-01112 = 3` rejected ("claimed 3 but … = 2") and the correction published.
+- [ ] Any claim the model got wrong shows its reason, then a retry (`attempt 2`).
+
+Then commit `agent-trace.json` as `docs/evidence/agent-trace-<date>.json`. Build the public site from it with `python -m matchlens export-site --offline --agent-trace docs/evidence/agent-trace-<date>.json --out site`. That build re-checks the recorded claims, and the UI labels them "Recorded Microsoft Foundry agent run …, not a live call".
+
 ## 6. Afterwards
 - [ ] **[operator]** Keep the deployment only while it is needed; delete it or rotate the key after recording evidence if it is not used for the demo.
 - [ ] The public static demo does not call Azure and holds no key. Any future Azure-worded public build must be generated server-side or at build time, with the key kept in a secret store and the wording still labelled unverified.

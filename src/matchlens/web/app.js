@@ -9,6 +9,12 @@ const TRAIL = 7; // recent ball events drawn on the pitch
 const HOLD_REAL_S = 5; // keep the lower-third up at least this long in real time
 const EVIDENCE_RE = /\s*\[evidence:[^\]]*\]/g;
 const KIND_LABEL = { goal: "Goal", big_chance_missed: "Big chance", press_win: "Press win" };
+const SOURCE_LABEL = {
+  foundry_agent: "Foundry agent",
+  recorded_foundry_agent: "Foundry agent (recorded run)",
+  offline_proposer: "Offline proposer",
+  injected_test_claim: "Injected test claim (deliberately wrong)",
+};
 const MARKER_GAP_PX = 26; // 24px targets must not overlap (WCAG 2.5.8)
 const MARKER_LANE_REM = 1.75;
 const ANNOUNCE_DELAY_MS = 600; // coalesce announcements while scrubbing or at high speed
@@ -261,6 +267,9 @@ function renderCard(card, isActive) {
   }
   art.appendChild(facts);
 
+  const review = analyst && state.bundle.reviews ? state.bundle.reviews[card.card_id] : null;
+  if (review) art.appendChild(renderReview(review));
+
   if (analyst) {
     const all = el("button", { type: "button", class: "chip", "data-evidence": card.card_id },
       `Show all ${card.evidence_event_ids.length} evidence events on pitch`);
@@ -288,6 +297,60 @@ function renderCard(card, isActive) {
   for (const w of n.warnings) nar.appendChild(el("p", { class: "warn" }, `⚠ ${w} (heuristic check only)`));
   art.appendChild(nar);
   return art;
+}
+
+function claimText(c) {
+  const parts = [];
+  if (c.metric_id) parts.push(`${c.metric_id} = ${c.value === null ? "(no value)" : c.value}`);
+  if (c.cited_event_ids.length) parts.push(`events ${c.cited_event_ids.join(", ")}`);
+  return parts.join("; ") || "(cites nothing)";
+}
+
+function factChips(f) {
+  const chips = el("div", { class: "chips" });
+  f.event_ids.forEach((id) => chips.appendChild(eventChip(id)));
+  f.metric_ids.forEach((id) => chips.appendChild(metricChip(id)));
+  return chips;
+}
+
+// Claim check: every proposed claim with the validator's verdict. Only ✓ claims and
+// corrections rendered from computed metrics are published; the browser decides nothing.
+function renderReview(r) {
+  const sec = el("section", { class: "review", "aria-label": "Claim check" });
+  sec.appendChild(el("h4", {}, "Claim check"));
+  sec.appendChild(el("p", { class: "hint" }, r.proposer_label));
+  if (r.fallback_reason) sec.appendChild(el("p", { class: "warn" }, r.fallback_reason));
+  const calls = r.attempts.flatMap((a) => a.calls);
+  if (calls.length) {
+    const tools = calls.reduce((n, c) => n + c.tool_calls.length, 0);
+    sec.appendChild(el("p", { class: "hint" },
+      `${r.attempts.length} attempt(s), ${calls.length} model call(s), ${tools} tool call(s); ` +
+      `responses ${calls.map((c) => c.response_id).join(", ")}`));
+  }
+  const list = el("ul", { class: "verdicts" });
+  for (const v of r.verdicts) {
+    const ok = v.status === "verified";
+    const li = el("li", { class: ok ? "ok" : "rejected", "data-source": v.source });
+    li.appendChild(el("span", { class: "check", "aria-hidden": "true" }, ok ? "✓" : "✗"));
+    const body = el("div");
+    const where = v.source === "injected_test_claim" ? "" : ` · attempt ${v.attempt}`;
+    body.appendChild(el("span", { class: "source" }, `${SOURCE_LABEL[v.source] || v.source}${where}`));
+    body.appendChild(el("span", { class: "sr-only" }, ok ? " Verified: " : " Rejected: "));
+    body.appendChild(el("code", { class: "claim" }, claimText(v.claim)));
+    for (const reason of v.reasons) body.appendChild(el("p", { class: "reason" }, `Rejected: ${reason}`));
+    if (v.correction) {
+      const fix = el("p", { class: "correction" });
+      fix.appendChild(el("strong", {}, "Published instead: "));
+      fix.appendChild(el("span", {}, v.correction.text));
+      body.appendChild(fix);
+      body.appendChild(factChips(v.correction));
+    }
+    li.appendChild(body);
+    list.appendChild(li);
+  }
+  sec.appendChild(list);
+  for (const n of r.notes) sec.appendChild(el("p", { class: "warn" }, n));
+  return sec;
 }
 
 // Identify the focused control inside the cards so a re-render can restore focus to it.

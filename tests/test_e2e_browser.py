@@ -197,6 +197,30 @@ def test_analyst_evidence_is_inspectable(page, bundle):
     assert "Definition" in page.text_content("#inspector-body")
 
 
+def test_claim_check_shows_rejection_correction_and_sources(page, bundle):
+    review = next(
+        r
+        for r in bundle["reviews"].values()
+        if any(v["source"] == "injected_test_claim" for v in r["verdicts"])
+    )
+    injected = next(v for v in review["verdicts"] if v["source"] == "injected_test_claim")
+    _open(page, "?mode=analyst&t=5400")
+    card = page.locator(f'#cards .card[data-card-id="{review["card_id"]}"]')
+    row = card.locator('.verdicts li[data-source="injected_test_claim"]')
+    assert "rejected" in row.get_attribute("class")
+    reasons = row.locator(".reason").all_text_contents()
+    assert reasons == [f"Rejected: {r}" for r in injected["reasons"]]
+    assert injected["correction"]["text"] in row.locator(".correction").text_content()
+    assert card.locator(".review .hint").first.text_content() == review["proposer_label"]
+    metric_id = injected["correction"]["metric_ids"][0]
+    row.locator(f'.chip[data-metric-id="{metric_id}"]').click()
+    assert f"Metric {metric_id}" in page.text_content("#inspector-body")
+    assert "Unknown metric" not in page.text_content("#inspector-body")
+    assert page.locator("#cards .verdicts li.ok").count() >= 1
+    _open(page, "?t=5400")
+    assert page.locator("#cards .review").count() == 0  # casual mode shows no claim check
+
+
 def test_narrative_is_labelled_not_verified_as_fact(page):
     _open(page, "?t=5400")
     statuses = page.locator("#cards .narrative .status").all_text_contents()
