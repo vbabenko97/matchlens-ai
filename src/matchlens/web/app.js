@@ -43,6 +43,7 @@ const state = {
   index: null, entry: null, // data/matches.json and the match shown (null on older exports)
   variant: "en|neutral", // personalizer variant "lang|focus" (casual cards); en|neutral = source
   player: null, playerKey: "", // focused player (bundle.players record) and its rendered state
+  passingKey: "",
 };
 
 const LANG_NAME = { en: "English", de: "Deutsch", uk: "Українська" };
@@ -633,7 +634,7 @@ function playerStats(seq) {
     const i = stepIndex(s.steps, seq);
     out[s.name] = {
       stat: s,
-      value: i >= 0 ? s.steps[i][1] : s.unit === "ratio" ? null : 0,
+      value: i >= 0 ? s.steps[i][1] : s.unit === "count" || s.unit === "xg" ? 0 : null,
       ids: s.steps.slice(0, i + 1).flatMap((step) => step[2]),
     };
   }
@@ -650,6 +651,9 @@ function playerSummary(v, cards) {
     items.push([`${v.passes_completed.value} of ${plural(v.passes.value, "pass", "passes")} completed ` +
       `(${Math.round(100 * v.pass_completion.value)}%)`]);
   }
+  if (v.progressive_completed && v.progressive_completed.value) {
+    items.push([plural(v.progressive_completed.value, "progressive pass", "progressive passes")]);
+  }
   if (v.ball_wins.value) items.push([plural(v.ball_wins.value, "ball win", "ball wins")]);
   if (v.pressures.value) items.push([plural(v.pressures.value, "pressure", "pressures")]);
   if (v.goal_involvements.value) items.push([`involved in ${plural(v.goal_involvements.value, "goal move", "goal moves")}`]);
@@ -660,9 +664,16 @@ function playerSummary(v, cards) {
 
 function statValue(entry) {
   const { stat, value } = entry;
-  if (value === null) return "undefined";
+  return fmtValue(stat, value);
+}
+
+function fmtValue(stat, value) {
+  if (value === null || value === undefined) return "—";
   if (stat.unit === "ratio") return `${(100 * value).toFixed(1)}%`;
   if (stat.unit === "xg") return value.toFixed(2);
+  if (stat.unit === "xpass") return stat.name === "completed_minus_xpass" && value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+  if (stat.unit === "m") return `${value.toFixed(1)} m`;
+  if (stat.unit === "s") return `${value.toFixed(1)} s`;
   return String(value);
 }
 
@@ -734,6 +745,92 @@ function renderPlayer(idx) {
   }
 }
 
+// --- Passing: precomputed team steps (matchlens.passing), one per open-play pass ---
+
+const PASS_ROW = { seq: 0, id: 1, team: 2, completed: 3, length: 4, progressive: 6, pressed: 7 };
+
+// The team's totals after its last open-play pass at or before seq, or null before the first.
+function passTotals(side, seq) {
+  const p = state.bundle.passing;
+  const steps = p.teams[side];
+  const i = stepIndex(steps, seq);
+  if (i < 0) return null;
+  const out = {};
+  p.stats.forEach((s, k) => { out[s.name] = steps[i][k + 1]; });
+  return out;
+}
+
+// Which passes a stat is about: the evidence shown on the pitch.
+function passFilter(name) {
+  const long = state.bundle.passing.thresholds.long_m;
+  const done = (r) => r[PASS_ROW.completed];
+  if (name === "completed") return done;
+  if (name === "long_attempted") return (r) => r[PASS_ROW.length] >= long;
+  if (name === "long_completed") return (r) => r[PASS_ROW.length] >= long && done(r);
+  if (name === "progressive_attempted") return (r) => r[PASS_ROW.progressive];
+  if (name === "progressive_completed") return (r) => r[PASS_ROW.progressive] && done(r);
+  if (name === "pressed_attempted") return (r) => r[PASS_ROW.pressed];
+  if (name === "pressed_completed") return (r) => r[PASS_ROW.pressed] && done(r);
+  return () => true;
+}
+
+function passEvidence(side, name, seq) {
+  const keep = passFilter(name);
+  return state.bundle.passing.passes
+    .filter((r) => r[PASS_ROW.team] === side && r[PASS_ROW.seq] <= seq && keep(r))
+    .map((r) => r[PASS_ROW.id]);
+}
+
+function renderPassing(idx) {
+  const p = state.bundle.passing;
+  if (!p) return;
+  const seq = idx >= 0 ? state.bundle.events[idx].seq : -1;
+  const home = passTotals("home", seq);
+  const away = passTotals("away", seq);
+  const acc = (t) => (t ? `${Math.round(100 * t.completion)}%` : "–");
+  $("stat-pass").textContent = `${acc(home)} – ${acc(away)}`;
+  const panel = $("passing-panel");
+  panel.hidden = state.mode !== "analyst";
+  if (panel.hidden) { state.passingKey = ""; return; }
+  const key = `${home ? home.attempted : 0}|${away ? away.attempted : 0}`;
+  if (key === state.passingKey) return;
+  state.passingKey = key;
+  const a = document.activeElement;
+  const refocus = a && panel.contains(a) && a.dataset.passStat;
+  const { home: h, away: w } = state.bundle.meta;
+  const table = el("table", { class: "player-table" });
+  const head = el("tr");
+  for (const t of ["Stat", h.name, w.name, "Kind"]) head.appendChild(el("th", { scope: "col" }, t));
+  table.appendChild(el("thead")).appendChild(head);
+  const body = table.appendChild(el("tbody"));
+  for (const stat of p.stats) {
+    const tr = el("tr");
+    tr.appendChild(el("th", { scope: "row", title: stat.definition }, stat.label));
+    for (const [side, totals] of [["home", home], ["away", away]]) {
+      const td = el("td", { class: "num" });
+      const value = fmtValue(stat, totals ? totals[stat.name] : null);
+      const ids = totals ? passEvidence(side, stat.name, seq) : [];
+      if (ids.length) {
+        const b = el("button", { type: "button", class: "chip", "data-pass-stat": `${side}.${stat.name}`,
+          "aria-label": `${value}: show ${plural(ids.length, "pass", "passes")} for ${stat.label} on the pitch` }, value);
+        b.addEventListener("click", () => selectEvidence(ids));
+        td.appendChild(b);
+      } else {
+        td.textContent = value;
+      }
+      tr.appendChild(td);
+    }
+    const heuristic = stat.kind === "heuristic";
+    tr.appendChild(el("td", { class: `kind-${stat.kind}` }, heuristic ? "heuristic, not calibrated" : "fact"));
+    body.appendChild(tr);
+  }
+  $("passing-body").replaceChildren(table);
+  if (refocus) {
+    const target = panel.querySelector(`[data-pass-stat="${CSS.escape(refocus)}"]`);
+    if (target) target.focus();
+  }
+}
+
 // Player picker: both squads, grouped by team. ?player=<id> preselects one.
 function bindPlayerPicker(params) {
   const data = state.bundle.players;
@@ -800,6 +897,7 @@ function render() {
   const idx = indexAt(state.t);
   renderScoreboard(idx);
   renderPitch(idx);
+  renderPassing(idx);
   renderPlayer(idx);
   renderCards();
   $("seek").value = String(Math.floor(state.t));
@@ -834,6 +932,7 @@ function setMode(mode) {
   state.spotlight = null;
   state.cardsKey = "";
   state.playerKey = "";
+  state.passingKey = "";
   renderMarkers();
   render();
 }
@@ -1008,6 +1107,7 @@ function init(bundle, index, entry) {
         "server-side function (the key never reaches the browser), within per-visitor and daily limits."
       : "");
   drawMarkings();
+  $("stat-pass-tile").hidden = !bundle.passing;
   bindMatchPicker(index, entry);
   bindControls();
   bindShortcuts(bundle.highlights || {});

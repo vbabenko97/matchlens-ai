@@ -57,8 +57,9 @@ def test_xg_is_labelled_heuristic_and_adds_up(match, doc):
         )
     for p in doc["players"]:
         kinds = {s["name"]: s["kind"] for s in p["stats"]}
-        assert kinds.pop("xg_heuristic") == HEURISTIC
-        assert set(kinds.values()) == {"fact"}
+        heuristics = {k for k, v in kinds.items() if v == HEURISTIC}
+        assert heuristics == {"xg_heuristic", "xpass", "completed_minus_xpass"}
+        assert {v for k, v in kinds.items() if k not in heuristics} == {"fact"}
 
 
 def test_steps_are_causal_and_cite_the_players_own_events(match, doc):

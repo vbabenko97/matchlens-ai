@@ -16,6 +16,7 @@ from typing import Any
 
 from .metrics import FACT, HEURISTIC
 from .moments import detect_goals
+from .passing import PROGRESSIVE_M, pass_features
 from .schema import BALL_EVENTS, SIDES, Event, Match
 
 PLAYERS_SCHEMA = "matchlens.players/v1"
@@ -118,7 +119,50 @@ _INVOLVED = StatDef(
     "event by the player. Evidence: the player's events in the move and the goal.",
     lambda e: False,  # computed from the goal moments, not per event
 )
-STATS = (*_COUNTS, _COMPLETION, _XG, _INVOLVED)
+
+
+def _never(e: Event) -> bool:  # pass stats come from matchlens.passing, not per event
+    return False
+
+
+_PASSING = (
+    StatDef(
+        "avg_pass_length_m",
+        "Average pass length",
+        FACT,
+        "m",
+        "Mean start-to-end distance of the player's open-play passes, in metres.",
+        _never,
+    ),
+    StatDef(
+        "progressive_completed",
+        "Progressive passes completed",
+        FACT,
+        "count",
+        f"Completed open-play passes ending at least {PROGRESSIVE_M:.0f} m closer to the "
+        "opponent's goal.",
+        _never,
+    ),
+    StatDef(
+        "xpass",
+        "Synthetic xPass (heuristic)",
+        HEURISTIC,
+        "xpass",
+        "Expected completions of the player's open-play passes from length, pressure and "
+        "touchline distance; built from the generator's rules, not calibrated.",
+        _never,
+    ),
+    StatDef(
+        "completed_minus_xpass",
+        "Completed minus xPass (heuristic)",
+        HEURISTIC,
+        "xpass",
+        "Completed open-play passes minus synthetic xPass. The generator gives players no "
+        "passing skill, so this is luck, not quality.",
+        _never,
+    ),
+)
+STATS = (*_COUNTS, _COMPLETION, _XG, _INVOLVED, *_PASSING)
 
 
 def stat_id(player_id: str, name: str) -> str:
@@ -135,6 +179,25 @@ def _stat(player_id: str, d: StatDef, steps: list[list[Any]]) -> dict[str, Any]:
         "definition": d.definition,
         "steps": steps,
     }
+
+
+def _passing_stats(player_id: str, features: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    mine = [f for f in features if f["player_id"] == player_id]
+    steps: dict[str, list[list[Any]]] = {d.name: [] for d in _PASSING}
+    length = xp = 0.0
+    done = progressive = 0
+    for i, f in enumerate(mine):
+        ids = [f["event_id"]]
+        length += f["length_m"]
+        xp += f["xpass"]
+        done += f["completed"]
+        steps["avg_pass_length_m"].append([f["seq"], round(length / (i + 1), 1), ids])
+        if f["progressive"] and f["completed"]:
+            progressive += 1
+            steps["progressive_completed"].append([f["seq"], progressive, ids])
+        steps["xpass"].append([f["seq"], round(xp, 2), ids])
+        steps["completed_minus_xpass"].append([f["seq"], round(done - xp, 2), ids])
+    return [_stat(player_id, d, steps[d.name]) for d in _PASSING]
 
 
 def _player_stats(match: Match, player_id: str, goal_moves: Sequence[tuple[Event, list[str]]]):
@@ -193,6 +256,7 @@ def player_records(match: Match, cards_by_mode: dict[str, Sequence[Any]]) -> dic
     its evidence includes one of the player's events.
     """
     moves = _goal_moves(match)
+    features = pass_features(match)
     players = []
     for side in SIDES:
         team = match.meta.team(side)
@@ -203,6 +267,7 @@ def player_records(match: Match, cards_by_mode: dict[str, Sequence[Any]]) -> dic
                 if goal.team == side and p.player_id in per
             ]
             stats, own = _player_stats(match, p.player_id, own_moves)
+            stats += _passing_stats(p.player_id, features)
             own_ids = {e.event_id for e in own}
             featured = {
                 mode: [c.card_id for c in cards if own_ids & set(c.evidence_event_ids)]
@@ -225,7 +290,7 @@ def player_records(match: Match, cards_by_mode: dict[str, Sequence[Any]]) -> dic
 
 def value_at(stat: dict[str, Any], seq: int) -> Any:
     """The stat as it stood after the event with ``seq`` (0 or None before its first step)."""
-    value: Any = None if stat["unit"] == "ratio" else 0
+    value: Any = None if stat["unit"] in ("ratio", "m") else 0
     for s, v, _ in stat["steps"]:
         if s > seq:
             break

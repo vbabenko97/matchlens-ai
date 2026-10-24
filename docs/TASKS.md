@@ -10,7 +10,29 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): player focus mode (improvement 2 of 3)
+## Latest checkpoint (2026-10-24): pass quality and tempo (improvement 3 of 3)
+- **Player focus published:** PR #20 squash-merged as `8339d96`. SWA [run 40128356758](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128356758) and Pages [run 40128358841](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128358841) succeeded, including smoke.
+- **New `matchlens.passing` (`matchlens.passing/v1`, bundle key `passing`):** open-play passes only.
+  - Facts: length, band, progress toward the goal centre (progressive >= 10 m), pressed, tempo.
+  - Heuristic: xPass from length, pressure and touchline distance, plus completed minus xPass.
+  - Running team steps `[seq, *values]` (compact, about 85 KB per match) and per-pass rows for evidence.
+  - `compute_metrics` is unchanged, so the claim agent's tools and the recorded runs are untouched.
+- **Honest limits:**
+  - xPass is built from the generator's rules: the sum is within 1 % of completions over seeds 100–129. It matches by construction, not by calibration.
+  - The first version (length and pressure only) overestimated completions by 16 %, because passes near a touchline go out; the touchline term fixed that.
+  - Players have no passing skill in the generator, so "completed minus xPass" is labelled luck.
+  - Ball speed is deliberately not computed: event gaps are random and independent of distance.
+- **UI:**
+  - a Pass accuracy tile (both modes);
+  - an Analyst "Passing" table with heuristics labelled and each value a button showing its passes;
+  - the player panel gains average pass length, progressive passes completed, xPass and completed minus xPass.
+- **Verified:**
+  - `python -m pytest -q` -> 592 passed, 2 skipped (incl. e2e on local Chromium); `ruff` clean.
+  - New unit tests: features cover open-play passes only; geometry (progress <= length); pressed passes follow an opponent's pressure; team steps causal and consistent; heuristics labelled; the xPass sum within 3 % on seeds 100–129, with pressed completion below unpressed; xPass monotone; deterministic bundle.
+  - New e2e tests: the tile follows the match; the table labels heuristics and its button selects exactly the counted passes; 320 px reflow.
+- **Next:** PR -> merge -> deploy; then tag `v1.1-submission` (operator), video, screen reader, external test, `/submission-audit`, form.
+
+## Checkpoint (2026-10-24): player focus mode (improvement 2 of 3)
 - **Critic published:** PR #19 squash-merged as `6731fb0`. SWA [run 40127310562](https://github.com/vbabenko97/matchlens-ai/actions/runs/40127310562) and Pages [run 40127312193](https://github.com/vbabenko97/matchlens-ai/actions/runs/40127312193) succeeded, including smoke.
 - **New `matchlens.players` (`matchlens.players/v1`, bundle key `players`):** deterministic, no AI. For each of the 22 players it records:
   - running stats, one step `[seq, value, event_ids]` per contributing event: goals, shots, on target, passes, completed, ball wins, pressures, passes lost, completion rate, synthetic xG (`heuristic`), and goal moves involved in (evidence: the player's ball events in the scoring possession plus the goal);

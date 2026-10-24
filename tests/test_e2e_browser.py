@@ -893,3 +893,48 @@ def test_player_panel_reflows_at_320px(browser, base_url, bundle, mode):
     assert pg.locator("#player-panel").is_visible()
     assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     pg.close()
+
+
+# --- Passing ----------------------------------------------------------------------------------
+
+
+def _pass_final(bundle, side, name):
+    p = bundle["passing"]
+    names = [s["name"] for s in p["stats"]]
+    return p["teams"][side][-1][1 + names.index(name)]
+
+
+def test_pass_accuracy_tile_follows_the_match(page, bundle):
+    _open(page)
+    assert page.text_content("#stat-pass") == "– – –"
+    page.evaluate(f"window.matchlens.seek({bundle['duration_s']})")
+    home = round(100 * _pass_final(bundle, "home", "completion"))
+    away = round(100 * _pass_final(bundle, "away", "completion"))
+    assert page.text_content("#stat-pass") == f"{home}% – {away}%"
+    assert page.locator("#passing-panel").is_hidden()  # analyst only
+
+
+def test_passing_table_labels_heuristics_and_shows_its_passes(page, bundle):
+    _open(page, f"?mode=analyst&t={bundle['duration_s']}")
+    rows = page.locator("#passing-body tbody tr")
+    assert rows.count() == len(bundle["passing"]["stats"])
+    for label in ("Synthetic xPass", "Completed minus xPass"):
+        assert "heuristic, not calibrated" in rows.filter(has_text=label).text_content()
+    assert "Ball speed is not modelled" in page.text_content("#passing-panel")
+    n = _pass_final(bundle, "away", "progressive_completed")
+    page.click('[data-pass-stat="away.progressive_completed"]')
+    selected = page.evaluate("window.matchlens.state.selected")
+    assert len(selected) == n
+    rows_by_id = {r[1]: r for r in bundle["passing"]["passes"]}
+    assert all(
+        rows_by_id[i][2] == "away" and rows_by_id[i][3] and rows_by_id[i][6] for i in selected
+    )
+
+
+def test_passing_panel_reflows_at_320px(browser, base_url, bundle):
+    pg = browser.new_page(viewport={"width": 320, "height": 800})
+    pg.goto(base_url + f"?mode=analyst&t={bundle['duration_s']}")
+    pg.wait_for_selector("body[data-ready=true]")
+    assert pg.locator("#passing-panel").is_visible()
+    assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pg.close()

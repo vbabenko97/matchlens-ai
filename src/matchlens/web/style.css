@@ -212,6 +212,9 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .player-facts .heuristic { color: var(--away); }
 .player-table { width: 100%; border-collapse: collapse; margin-top: 0.4rem; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .table-wrap { overflow-x: auto; }
+.passing-panel { background: var(--panel-2); border-radius: 8px; padding: 0.55rem 0.7rem; margin: 0.8rem 0 0; }
+.passing-panel h2 { margin: 0 0 0.15rem; font-size: 1rem; }
+.player-table td.num { white-space: nowrap; }
 .player-table th, .player-table td { text-align: left; padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
 .player-table th { color: var(--muted); font-weight: 400; }
 .player-table td.kind-heuristic { color: var(--away); }

@@ -93,7 +93,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 
 ## Honest limits
 - The match is precomputed and replayed. Card selection and timing are causal (no card uses later events), but MatchLens does not ingest a live feed. Video auto-eventing, player speed and ball speed are not modelled.
-- The generator models event structure, not realistic football dynamics. Synthetic xG is an uncalibrated heuristic.
+- The generator models event structure, not realistic football dynamics. Synthetic xG is an uncalibrated heuristic. Synthetic xPass is built from the generator's own pass rules, so it matches the simulated outcomes by construction (within 1 % over seeds 100–129) and proves nothing about real football. The generator gives players no passing skill, so "completed minus xPass" is luck. Ball speed is not shown: event times are drawn at random, independent of distance.
 - The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent, personalizer and critic); the five extra matches use the offline proposer and template wording, with no AI at all.
 - The personalizer checker verifies numbers, score order, names, `xG` and script, not meaning. The critic reviews meaning but is a model too: it misses errors and raises false alarms (measured below), and it does not check tone. The page says so on every rewritten card.
 - An editorial review of the published run ([file](docs/evidence/personalize-review-v2-2026-10-24.json)), done by Claude Code (the AI coding assistant) and not checked by a human, rejected 12 lines that passed both the checker and the critic, mostly German and Ukrainian language errors. Those lines show the English fact. The recorded trace itself is unchanged.
@@ -128,6 +128,11 @@ python -m matchlens overlays match.jsonl --out overlays.json # timed overlay cue
 The replay UI has a scoreboard, a pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen.
 - **Controls.** Play, pause, seek, previous/next moment and speed (15×–240×). Keyboard: Space plays or pauses; ← / → seek 30 s.
 - **Analyst mode.** Every event and metric ID on a card opens in the evidence inspector and highlights on the pitch.
+- **Passing.** A pass-accuracy tile in both modes; in Analyst a table per team, as it stood at the current time:
+  - facts: open-play passes, completion, average length, long passes (≥ 30 m), progressive passes (≥ 10 m closer to the goal), passes under pressure (an opponent's pressure right before), and tempo (seconds between a team's touches);
+  - heuristics, labelled as such: synthetic xPass from length, pressure and touchline distance, and completed minus xPass.
+  - Each value is a button that shows its passes on the pitch.
+  - Computed in `src/matchlens/passing.py`; the player panel adds the same pass stats per player.
 - **Player focus.** The **Player** picker lists both squads. The chosen player's panel shows their numbers up to the current replay time:
   - goals, shots, passes and completion, ball wins, pressures, and the goal moves they were part of;
   - synthetic xG, labelled as a heuristic.
