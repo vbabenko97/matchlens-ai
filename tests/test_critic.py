@@ -10,6 +10,7 @@ from matchlens import narrative
 from matchlens.cards import build_cards
 from matchlens.cli import main
 from matchlens.critic import (
+    CRITIC_EVAL,
     EVAL_SCHEMA,
     FoundryCritic,
     critic_eval,
@@ -22,6 +23,8 @@ from matchlens.personalize import (
     KEPT,
     PERSONALIZE_REVIEW,
     PERSONALIZE_TRACE,
+    PUBLISHED_PERSONALIZE_REVIEW,
+    PUBLISHED_PERSONALIZE_TRACE,
     TITLE,
     TRACE_SCHEMA,
     TRACE_SCHEMA_V2,
@@ -309,3 +312,54 @@ def test_personalize_review_records_the_critic(tmp_path, monkeypatch, match):
     assert main([*args, "--out", str(out)]) == 0
     personalized = json.loads((out / "data" / "bundle.json").read_text())["personalized"]
     assert personalized["critics"] == ["recorded_foundry_critic"]
+
+
+# --- The committed runs -----------------------------------------------------------------------
+
+
+def test_the_recorded_evaluation_scores_as_documented(capsys):
+    doc = json.loads(Path(CRITIC_EVAL).read_text("utf-8"))
+    assert doc["schema"] == EVAL_SCHEMA and doc["review"] == PERSONALIZE_REVIEW
+    m = eval_metrics(doc, _labels())
+    assert (m["lines"], m["caught"], m["missed"], m["false_alarms"]) == (220, 8, 4, 13)
+    assert (m["recall"], m["precision"]) == (0.667, 0.381)
+    assert main(["critic-eval", "--from", CRITIC_EVAL]) == 0
+    assert '"caught": 8' in capsys.readouterr().out
+
+
+def _kept_by(lines):
+    by = {"checker": 0, "critic": 0, "editorial": 0}
+    for ln in lines:
+        if ln.status == KEPT:
+            first = ln.reasons[-1] if ln.reasons else ""
+            if any(x.startswith("editorial review:") for x in ln.reasons):
+                by["editorial"] += 1
+            elif first.startswith("critic:"):
+                by["critic"] += 1
+            else:
+                by["checker"] += 1
+    return by
+
+
+def test_the_published_run_replays_with_the_critic_and_the_review(match, cards):
+    from .test_personalize import BAD_PHRASES
+
+    trace = json.loads(Path(PUBLISHED_PERSONALIZE_TRACE).read_text("utf-8"))
+    review = json.loads(Path(PUBLISHED_PERSONALIZE_REVIEW).read_text("utf-8"))
+    assert trace["schema"] == TRACE_SCHEMA_V2 and trace_problems(trace) == []
+    assert (
+        review["trace"] == PUBLISHED_PERSONALIZE_TRACE
+        and "not checked by a human" in (review["reviewer"])
+    )
+    proposer = RecordedPersonalizer(trace, PUBLISHED_PERSONALIZE_TRACE, review)
+    results = personalize_cards(match, cards, proposer)
+    lines = [ln for r in results for ln in r.lines]
+    assert len(lines) == 232
+    assert _kept_by(lines) == {"checker": 4, "critic": 10, "editorial": 12}
+    assert all(r.critic == "recorded_foundry_critic" for r in results)
+    rewritten = [(r.lang, ln.text) for r in results for ln in r.lines if ln.status == VERIFIED]
+    bad = (*BAD_PHRASES, "precise passes", "ein Heuristik")
+    assert not [t for _, t in rewritten if any(p in t for p in bad)]
+    english = ("Full time:", "synthetic")  # fine in English variants, not in German or Ukrainian
+    assert not [t for lang, t in rewritten if lang != "en" and any(p in t for p in english)]
+    assert "critic agent" in proposer.label and "editorial review" in proposer.label

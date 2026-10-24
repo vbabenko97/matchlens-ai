@@ -36,6 +36,7 @@ RECORDED_CRITIC = "recorded_foundry_critic"
 ISSUES = ("none", "added_detail", "changed_meaning", "overstatement", "language", "other")
 MAX_OUTPUT_TOKENS = 600
 EVAL_SCHEMA = "matchlens.critic-eval/v1"
+CRITIC_EVAL = "docs/evidence/critic-eval-2026-10-24.json"  # the recorded evaluation run
 
 
 @dataclass(frozen=True)

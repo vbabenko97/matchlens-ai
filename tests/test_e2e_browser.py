@@ -24,7 +24,11 @@ import pytest
 
 from matchlens.agent import DEMO_TRACE, RecordedProposer
 from matchlens.generator import generate_match
-from matchlens.personalize import PERSONALIZE_REVIEW, PERSONALIZE_TRACE, RecordedPersonalizer
+from matchlens.personalize import (
+    PUBLISHED_PERSONALIZE_REVIEW,
+    PUBLISHED_PERSONALIZE_TRACE,
+    RecordedPersonalizer,
+)
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, demo_extra_bundles, dumps
 from matchlens.server import export_site, make_server
 
@@ -59,9 +63,9 @@ def target(request, tmp_path_factory):
     trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
     proposer = RecordedProposer(trace, DEMO_TRACE)
     personalizer = RecordedPersonalizer(
-        json.loads((ROOT / PERSONALIZE_TRACE).read_text(encoding="utf-8")),
-        PERSONALIZE_TRACE,
-        json.loads((ROOT / PERSONALIZE_REVIEW).read_text(encoding="utf-8")),
+        json.loads((ROOT / PUBLISHED_PERSONALIZE_TRACE).read_text(encoding="utf-8")),
+        PUBLISHED_PERSONALIZE_TRACE,
+        json.loads((ROOT / PUBLISHED_PERSONALIZE_REVIEW).read_text(encoding="utf-8")),
     )
     match = generate_match(DEFAULT_DEMO_SEED)
     bundle = json.loads(dumps(build_bundle(match, proposer=proposer, personalizer=personalizer)))

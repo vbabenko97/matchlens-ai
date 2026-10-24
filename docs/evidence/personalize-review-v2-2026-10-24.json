@@ -1,0 +1,106 @@
+{
+ "schema": "matchlens.personalize-review/v1",
+ "trace": "docs/evidence/personalize-trace-v2-2026-10-24.json",
+ "reviewed_on": "2026-10-24",
+ "reviewer": "Claude Code (AI coding assistant), at the operator's request; not checked by a human",
+ "scope": "Every line of the v2 trace (critic in the loop) that passed check_line and the critic (218 of 232), read against its English source fact.",
+ "rule": "Same rule as the first (v1) review: reject a rewrite that adds a detail not in the fact, changes its meaning, overstates the data, or is not correct, idiomatic language. Tone and point of view alone are allowed. A rejected line shows its English source on the page, marked as kept.",
+ "rejections": [
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "away",
+   "index": 3,
+   "text": "The goal started with a ball-winning tackle followed by 6 precise passes.",
+   "reason": "adds detail not in the fact (\"precise\" passes)"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "home",
+   "index": -1,
+   "text": "Full time: Eastvale Athletic drehen das Spiel und gewinnen 2-3",
+   "reason": "not correct language: English words (\"Full time\") in a German title"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "home",
+   "index": 1,
+   "text": "Ugo Vale erzielte den Siegtreffer in der 81. Minute, nachdem sein Schuss in der 38. Minute großartig pariert wurde.",
+   "reason": "adds detail not in the fact (\"großartig\" pariert)"
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "away",
+   "index": 2,
+   "text": "Das Tor entstand direkt aus einer abgefangenen Aktion.",
+   "reason": "not correct language: \"abgefangenen Aktion\" is not an idiomatic way to say interception"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "away",
+   "index": 3,
+   "text": "Northbridge Rovers hatten mehr Schüsse (14–11), aber Eastvale Athletic die besseren Chancen (synthetisches xG, ein Heuristik: 3.04 gegen 2.05).",
+   "reason": "not correct language: grammar error \"ein Heuristik\""
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "home",
+   "index": -1,
+   "text": "Майже для Eastvale Athletic!",
+   "reason": "not correct language: \"Майже для\" does not mean \"so close for\""
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "home",
+   "index": -1,
+   "text": "Нічия Eastvale Athletic",
+   "reason": "changes the meaning: \"Нічия\" reads as a drawn match, not as drawing level"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 1,
+   "text": "На 71-й хвилині Eastvale Athletic поступалися 2-1. Голі на 77-й і 81-й хвилинах змінили рахунок.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Northbridge Rovers поступалися 0-1 на 5-й хвилині. Голі на 56-й та 71-й хвилинах змінили хід гри.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Eastvale Athletic відставали 2-1 на 71-й хвилині. Голі на 77-й та 81-й хвилинах змінили хід матчу.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "away",
+   "index": 2,
+   "text": "Ведучий гол змінювався двічі.",
+   "reason": "changes the meaning: \"Ведучий гол змінювався двічі\" (the leading goal changed twice) for \"the lead changed hands twice\""
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 3,
+   "text": "Northbridge Rovers зробили більше ударів (14–11), але Eastvale Athletic мали кращі шанси за synthetic xG (3.04 проти 2.05).",
+   "reason": "not correct language: English \"synthetic\" in a Ukrainian line"
+  }
+ ]
+}

@@ -55,10 +55,14 @@ FOCUSES = (NEUTRAL, HOME, AWAY)
 VARIANTS = tuple((lang, f) for lang in LANGS for f in FOCUSES if (lang, f) != ("en", NEUTRAL))
 TRACE_SCHEMA = "matchlens.personalize-trace/v1"
 TRACE_SCHEMA_V2 = "matchlens.personalize-trace/v2"  # v1 plus the critic's review per attempt
-# The recorded run the public builds replay (deploy-pages.yml, deploy-swa.yml), and the
-# editorial review of that run: lines a reader rejected although they passed ``check_line``.
+# The first recorded run (personalizer only) and its editorial review: lines rejected
+# although they passed ``check_line``. The critic is measured against this pair.
 PERSONALIZE_TRACE = "docs/evidence/personalize-trace-2026-10-24.json"
 PERSONALIZE_REVIEW = "docs/evidence/personalize-review-2026-10-24.json"
+# The run the public builds replay (deploy-pages.yml, deploy-swa.yml): personalizer plus
+# critic (trace v2), and its editorial review.
+PUBLISHED_PERSONALIZE_TRACE = "docs/evidence/personalize-trace-v2-2026-10-24.json"
+PUBLISHED_PERSONALIZE_REVIEW = "docs/evidence/personalize-review-v2-2026-10-24.json"
 REVIEW_SCHEMA = "matchlens.personalize-review/v1"
 FOUNDRY = "foundry_personalizer"
 RECORDED = "recorded_foundry_personalizer"

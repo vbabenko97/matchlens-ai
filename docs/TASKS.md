@@ -10,7 +10,19 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): critic agent (improvement 1 of 3; code, no live run yet)
+## Latest checkpoint (2026-10-24): critic runs recorded and published (improvement 1 of 3)
+- **Operator runs** (Cloud Shell, `gpt-4.1-mini`): `critic-eval-2026-10-24.json` and `personalize-trace-v2-2026-10-24.json`; both pass `trace_problems`/schema checks and contain no key-like strings. Files were renamed from "-10-25" to their recorded UTC date.
+- **Critic vs. Claude Code's labels** (v1 run, 220 lines, 12 positives): 8 caught, 4 missed, 13 false alarms; recall 0.667, precision 0.381. A regression check on 12 lines, not proof of generalization; the prompt was not tuned on them.
+  - Missed: "dominated" for 14-11 shots, "6 quick passes", an added "перехоплення", the calque "Повний час".
+  - False alarms: mostly tone words; several plain misreadings.
+- **v2 run (critic in the loop):** 90 + 89 calls, ~91K tokens; 34 of 56 cards retried; 40 lines verified on attempt 2. Kept in English: 4 by the checker, 10 by the critic (some of them false alarms, so correct rewrites were lost).
+- **Editorial review of v2** (Claude Code, `personalize-review-v2-2026-10-24.json`): 12 of 218 rejected, the same count as v1 (12 of 220). English embellishments 5 -> 1; German/Ukrainian language errors remain ("Голі" x3, "Нічия", "Full time:" in German, "ein Heuristik"). Fallback share: 26 of 232 lines in English (v1: 24).
+- **Published:** `PUBLISHED_PERSONALIZE_TRACE`/`_REVIEW` (v2) in both deploy workflows and the e2e production fixture; `PERSONALIZE_TRACE`/`_REVIEW` (v1) stay as the evaluation input.
+- **Docs:** README (three agents, "The critic, measured", limits), DEPLOYMENT, VIDEO_SCRIPT, SUBMISSION.
+- **Verified:** `python -m pytest -q` -> 537 passed, 2 skipped (incl. e2e on local Chromium, now on the v2 run); `ruff`, `actionlint` clean. New tests replay the published run (232 lines; kept 4/10/12 by checker/critic/review; no rejected phrases in rewritten lines) and re-score the recorded evaluation (8/4/13).
+- **Next:** PR -> merge -> both deploys -> smoke; then player focus mode (improvement 2).
+
+## Checkpoint (2026-10-24): critic agent (improvement 1 of 3; code, no live run yet)
 - **Why:**
   - `check_line` cannot see meaning; the editorial review found 12 such lines by hand.
   - The multi-agent story lacked a handoff between agents (independent review).
@@ -154,7 +166,7 @@ Update this file after verified work. A task is done only when the acceptance ch
   - `ruff check .` and `ruff format --check .` clean.
   - Fake transports only; the fake translator keeps names and digits and swaps words. **Not** evidence of model quality.
 - **Next:**
-  1. Operator: `personalize-review --out docs/evidence/personalize-trace-2026-10-25.json` (docs/DEPLOYMENT.md), then wire the trace into both deploy workflows.
+  1. Operator: `personalize-review --out docs/evidence/personalize-trace-<date>.json` (docs/DEPLOYMENT.md), then wire the trace into both deploy workflows.
   2. Video, pitch, screen-reader pass, external test, audit (plan item 6).
 
 ## Checkpoint (2026-10-24): match picker (plan item 4, UI part)
