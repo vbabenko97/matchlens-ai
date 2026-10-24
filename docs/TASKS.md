@@ -11,6 +11,10 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
 ## Latest checkpoint (2026-10-24): match story, every goal, causal selection, visible Foundry check
+- **Merged and deployed:**
+  - PR #11 squash-merged as `c5b585e`; CI was green on the PR head `707d9f5` (3.11, 3.13, e2e).
+  - Pages redeployed from `main` @ `c5b585e` by [run 40103756908](https://github.com/vbabenko97/matchlens-ai/actions/runs/40103756908): `build`, `deploy` (14:43 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.
+  - The smoke job ran `pytest -q -m e2e` against https://vbabenko97.github.io/matchlens-ai/: 27 passed, including the new story, comeback-shortcut and AI-check tests. So the public demo serves this build.
 Driven by a judge's-eye review of the public build (seed 1). Casual cards repeated the scoreboard ("That puts Eastvale Athletic ahead, 2-3"), the same "move started with a tackle" line sat on all three goal cards, and two of the five goals (5' and 56') had no card at all. The real story went untold: Eastvale were 2-1 down at 71', scored at 77' and 81', and the 81' scorer had a big chance saved at 38'.
 - **Bug fixed: the stats panel lagged the scoreboard by up to 59 s.** At 76:46 the score read 2-2 and "Last event" was the goal, but shots/xG still showed 14–9 / 1.31; they updated per minute. The bundle now has `stat_steps` (one per shot), and the panel shows the last step at or before the current event. A new browser test fails on the old code (`'0 – 0' == '0 – 1'`).
 - **Causal selection.** Every goal, every missed big chance and the final whistle get a card; press wins get none. This replaces "top 4 ranked over the whole match", which used later events. Seed 1 now has 7 cards per mode. `test_selection_never_depends_on_later_events` cuts each match (seeds 1-20) right after each moment and gets the same choices.
@@ -39,11 +43,10 @@ Driven by a judge's-eye review of the public build (seed 1). Casual cards repeat
   - `python -m pytest -q` -> 402 passed (incl. 54 e2e on local Chromium);
   - `ruff check .` and `ruff format --check .` clean;
   - axe-core 4.10.2 -> 0 WCAG violations in 5 states (see `docs/ACCESSIBILITY.md`).
-- **Next (approval needed):**
-  1. Merge, redeploy Pages, and confirm the public smoke job.
-  2. Optional: re-record the agent trace for all 7 cards.
-  3. Three-person 30-second test: "what changed in the match?"
-  4. Video: comeback shortcut → 81' card → full time → AI check at 77' → recorded response IDs.
+- **Next:**
+  1. Three-person 30-second test on the public URL: "what happened in the match, and how did MatchLens help?"
+  2. Video, 110-115 s: comeback shortcut → 81' card → Casual/Analyst switch → the real Foundry rejection and retry at 77' → Overlay JSON export.
+  3. Optional, needs operator Azure credentials: re-record the agent trace for all 7 cards into a **new** file, and keep `agent-trace-2026-10-24.json` (it holds the real self-correction). Measure agent latency then: the trace has no call timestamps, and 0.1 s is offline build time only.
 
 ## Checkpoint (2026-10-24): live Foundry claim-agent run recorded and wired in
 - **Live run (operator, 11:10 UTC):** `agent-review --seed 1` exited 0 on the fifth attempt. Committed as `docs/evidence/agent-trace-2026-10-24.json`.
