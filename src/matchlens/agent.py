@@ -419,8 +419,9 @@ class RecordedProposer:
     name = RECORDED
 
     def __init__(self, trace: dict[str, Any], source: str):
-        if trace.get("schema") != TRACE_SCHEMA:
-            raise ValueError(f"not a {TRACE_SCHEMA} trace")
+        problems = trace_problems(trace)
+        if problems:
+            raise ValueError("not acceptable evidence: " + "; ".join(problems))
         self.match_id = trace["match_id"]
         self._attempts = {r["card_id"]: r["attempts"] for r in trace["reviews"]}
         self.label = (
@@ -570,7 +571,12 @@ def build_trace(
                     for a in r.attempts
                 ],
                 "verdicts": [
-                    {"claim": claim_record(v.claim), "source": v.source, "status": v.status}
+                    {
+                        "claim": claim_record(v.claim),
+                        "source": v.source,
+                        "attempt": v.attempt,
+                        "status": v.status,
+                    }
                     for v in r.verdicts
                 ],
             }
@@ -581,6 +587,50 @@ def build_trace(
             "deterministically on replay; claim values are model output, not evidence."
         ),
     }
+
+
+def _positive_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def trace_problems(trace: dict[str, Any]) -> list[str]:
+    """Why a recorded live run is not acceptable evidence (empty when it is).
+
+    A successful run is not enough: every model call needs a response ID and positive token
+    usage, the agent must have made at least one real tool call, no card may hold offline
+    fallback claims, and each card needs at least one model claim the validator accepted in
+    its final attempt.
+    """
+    if trace.get("schema") != TRACE_SCHEMA:
+        return [f"not a {TRACE_SCHEMA} trace"]
+    reviews = trace.get("reviews") or []
+    problems = [] if reviews else ["trace has no reviews"]
+    tool_calls = 0
+    for r in reviews:
+        card_id, attempts = r.get("card_id"), r.get("attempts") or []
+        verdicts = r.get("verdicts") or []
+        calls = [c for a in attempts for c in a.get("calls") or []]
+        if not calls:
+            problems.append(f"{card_id}: no model calls")
+        for c in calls:
+            if not isinstance(c.get("response_id"), str) or not c["response_id"]:
+                problems.append(f"{card_id}: a model call has no response ID")
+            usage = c.get("usage") or {}
+            if not all(_positive_int(usage.get(k)) for k in ("input_tokens", "output_tokens")):
+                problems.append(f"{card_id}: {c.get('response_id')} lacks positive token usage")
+            tool_calls += len(c.get("tool_calls") or [])
+        if any(v.get("source") == OFFLINE for v in verdicts):
+            problems.append(f"{card_id}: holds offline fallback claims")
+        if not any(
+            v.get("source") == FOUNDRY
+            and v.get("status") == VERIFIED
+            and v.get("attempt") == len(attempts)
+            for v in verdicts
+        ):
+            problems.append(f"{card_id}: no model claim was accepted")
+    if reviews and not tool_calls:
+        problems.append("the agent made no tool calls")
+    return problems
 
 
 def live_review(

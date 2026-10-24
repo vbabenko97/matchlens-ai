@@ -19,10 +19,12 @@ Update this file after verified work. A task is done only when the acceptance ch
   - `python -m matchlens agent-review --seed 1 [--offline] [--out trace.json]`. The live path is strict (no fallback; exit 1 on failure) and writes a redacted `matchlens.agent-trace/v1`.
   - `export-site/serve --agent-trace FILE` replays a recorded run with recomputed verdicts, labelled "not a live call".
   - The bundle has `reviews`; analyst cards show a "Claim check" section (source, ✓/✗, reasons, correction, chips into the inspector).
-- **Verified:** `python -m pytest -q` -> 311 passed, incl. 44 e2e on local Chromium.
+- **Live-run acceptance is enforced:** `trace_problems` requires per-call response IDs, positive token usage, ≥ 1 real tool call, no fallback claims, and ≥ 1 accepted model claim per card. Otherwise `agent-review` exits 1 and records nothing. `--agent-trace` refuses such a trace.
+- **Verified:** `python -m pytest -q` -> 314 passed, incl. 44 e2e on local Chromium.
   - The Foundry loop is tested against a scripted fake Responses API. It covers tool rounds, echo without item IDs, `store: false`, the causal tool results, a retry carrying the validator's reasons, fallbacks (HTTP, network, malformed answer, call limit), strict mode, and a key-free trace. These tests are **not** integration evidence.
   - `ruff check .` and `ruff format --check .` clean.
-- **Blocked on the operator:** record a live run per `docs/AZURE_VERIFICATION.md` §5b (`agent-review --seed 1 --out agent-trace.json`) and commit it as `docs/evidence/agent-trace-<date>.json`.
+- **Blocked on the operator:** record a live run per `docs/AZURE_VERIFICATION.md` §5b (`set -o pipefail`, `agent-review --seed 1 --out agent-trace.json`, literal `grep -F -c --` key check). The trace goes into the same draft PR as `docs/evidence/agent-trace-<date>.json`; merge and deploy wait until the recording is checked.
+- **For the video:** the injected wrong score is checked after the agent's attempts and corrected by the validator. Model self-correction may only be shown if the recording has a real `attempt 2`.
 - **Next:**
   1. Point the Pages workflow at the recorded trace (`--agent-trace`).
   2. Redeploy (needs approval).

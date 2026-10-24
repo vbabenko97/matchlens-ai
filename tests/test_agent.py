@@ -5,6 +5,7 @@ handling only and is not integration evidence.
 """
 
 import json
+import re
 import urllib.error
 
 import pytest
@@ -33,6 +34,7 @@ from matchlens.agent import (
     review_cards,
     review_context,
     run_tool,
+    trace_problems,
 )
 from matchlens.cards import build_cards
 from matchlens.claims import VERIFIED, Claim
@@ -376,19 +378,86 @@ def test_cli_live_review_needs_azure_settings(capsys, monkeypatch):
     assert main(["agent-review", "--seed", "1", "--offline", "--out", "x.json"]) == 2
 
 
-def test_cli_live_review_writes_redacted_trace(capsys, monkeypatch, tmp_path):
-    for var, value in zip(
-        narrative.ENV_VARS, ("https://example.openai.azure.com", KEY, "gpt-4.1-mini"), strict=True
-    ):
+class EvidenceAgent:
+    """Fake agent: looks up the card's evidence events, then cites them (or claims nothing)."""
+
+    def __init__(self, claims=True, usage=30):
+        self.claims, self.usage = claims, usage
+        self.calls = 0
+
+    def __call__(self, url, headers, body, timeout):
+        self.calls += 1
+        items = json.loads(body)["input"]
+        brief = items[1]["content"]
+        events = re.search(r"Evidence events: (.*)\.", brief).group(1).split(", ")
+        if not any(i.get("type") == "function_call_output" for i in items):
+            output = [_call("get_events", {"event_ids": events}, f"c{self.calls}")]
+        else:
+            output = [_final([_claim(cited=events)] if self.claims else [])]
+        reply = _response(f"resp_{self.calls}", output)
+        reply["usage"]["output_tokens"] = self.usage
+        return json.dumps(reply).encode()
+
+
+def _azure_env(monkeypatch):
+    values = ("https://example.openai.azure.com", KEY, "gpt-4.1-mini")
+    for var, value in zip(narrative.ENV_VARS, values, strict=True):
         monkeypatch.setenv(var, value)
-    final = _response("resp_f", [_final([_claim(SHOTS, 3)])])
-    monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses([final] * 8))
+
+
+def test_cli_live_review_writes_redacted_trace(capsys, monkeypatch, tmp_path):
+    _azure_env(monkeypatch)
+    monkeypatch.setattr(narrative, "_urllib_transport", EvidenceAgent())
     out = tmp_path / "trace.json"
-    assert main(["agent-review", "--seed", "1", "--limit", "2", "--out", str(out)]) == 0
+    assert main(["agent-review", "--seed", "1", "--out", str(out)]) == 0
     text = out.read_text(encoding="utf-8")
     assert KEY not in text and KEY not in capsys.readouterr().out
-    assert json.loads(text)["reviews"]
+    trace = json.loads(text)
+    assert len(trace["reviews"]) == 4 and trace_problems(trace) == []
+    # The committed trace is what a public build would replay.
+    site = tmp_path / "site"
+    assert main(["export-site", "--offline", "--agent-trace", str(out), "--out", str(site)]) == 0
+    bundle = json.loads((site / "data" / "bundle.json").read_text(encoding="utf-8"))
+    assert {r["proposer"] for r in bundle["reviews"].values()} == {RECORDED}
 
     monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses([OSError("down")]))
     assert main(["agent-review", "--seed", "1", "--limit", "1"]) == 1  # strict: no fallback
     assert "live agent run failed: OSError" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "agent, problem",
+    [
+        (EvidenceAgent(claims=False), ": no model claim was accepted"),  # empty claim list
+        (EvidenceAgent(usage=0), "lacks positive token usage"),
+    ],
+)
+def test_cli_live_run_that_is_not_evidence_records_nothing(
+    capsys, monkeypatch, tmp_path, agent, problem
+):
+    _azure_env(monkeypatch)
+    monkeypatch.setattr(narrative, "_urllib_transport", agent)
+    out = tmp_path / "trace.json"
+    assert main(["agent-review", "--seed", "1", "--limit", "1", "--out", str(out)]) == 1
+    err = capsys.readouterr().err
+    assert "live run is not acceptable evidence" in err and problem in err
+    assert not out.exists()
+
+
+def test_trace_problems_need_tool_calls_and_no_fallback(match, card_set):
+    goal_only = type(card_set)(
+        card_set.mode, tuple(c for c in card_set.cards if c.card_id == GOAL), ()
+    )
+    _, trace = live_review(match, goal_only, _config(), FakeResponses(_goal_script()))
+    assert trace_problems(trace) == []
+    no_tools = json.loads(json.dumps(trace))
+    for attempt in no_tools["reviews"][0]["attempts"]:
+        for call in attempt["calls"]:
+            call["tool_calls"] = []
+    assert trace_problems(no_tools) == ["the agent made no tool calls"]
+    fallback = json.loads(json.dumps(trace))
+    fallback["reviews"][0]["verdicts"][0]["source"] = OFFLINE
+    assert f"{GOAL}: holds offline fallback claims" in trace_problems(fallback)
+    with pytest.raises(ValueError, match="not acceptable evidence"):
+        RecordedProposer(no_tools, "x.json")
+    assert trace_problems({"schema": "other"}) == [f"not a {TRACE_SCHEMA} trace"]

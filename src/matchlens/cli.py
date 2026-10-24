@@ -17,6 +17,7 @@ from .agent import (
     format_review,
     live_review,
     review_cards,
+    trace_problems,
 )
 from .azure_check import run_check
 from .cards import build_cards, format_card
@@ -56,7 +57,9 @@ def _proposer(offline: bool, trace: Path | None):
         try:
             return RecordedProposer(json.loads(trace.read_text(encoding="utf-8")), trace.as_posix())
         except (OSError, ValueError, KeyError) as exc:
-            raise ConfigError(f"cannot read agent trace {trace}: {type(exc).__name__}") from None
+            raise ConfigError(
+                f"cannot use agent trace {trace}: {type(exc).__name__}: {exc}"
+            ) from None
     config = None if offline else _azure_config()
     return FoundryAgentProposer(config) if config else OfflineProposer()
 
@@ -261,6 +264,12 @@ def _agent_review(args: argparse.Namespace) -> int:
             return 1
         except Exception as exc:  # never echo exception text that could contain headers
             print(f"live agent run failed: {type(exc).__name__}", file=sys.stderr)
+            return 1
+        problems = trace_problems(trace)
+        if problems:  # completed, but not acceptable evidence: show it, record nothing
+            print("\n\n".join(format_review(r) for r in reviews))
+            print("live run is not acceptable evidence:", file=sys.stderr)
+            print("\n".join(f"- {p}" for p in problems), file=sys.stderr)
             return 1
         if args.out:
             args.out.write_text(json.dumps(trace, indent=1, ensure_ascii=False) + "\n", "utf-8")
