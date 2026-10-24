@@ -11,6 +11,10 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
 ## Latest checkpoint (2026-10-24): live Foundry claim-agent run recorded and wired in
+- **Merged and deployed:**
+  - PR #10 squash-merged as `f5634df`; CI was green on the PR head `a9e3eb8` (3.11, 3.13, e2e).
+  - Pages redeployed from `main` @ `f5634df` by [run 40089354567](https://github.com/vbabenko97/matchlens-ai/actions/runs/40089354567). `build` (with `--agent-trace docs/evidence/agent-trace-2026-10-24.json`), `deploy` (11:18 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.
+  - The smoke job ran `pytest -q -m e2e` from `f5634df` against the public URL, including the claim-check test (rejected injected claim, published correction, metric inspector, "sent back to the agent" on the 77' card, recorded-run disclosure). So the public demo serves the replayed Foundry agent run.
 - **Live run (operator, 11:10 UTC):** `agent-review --seed 1` exited 0 on the fifth attempt. Committed as `docs/evidence/agent-trace-2026-10-24.json`.
   - 4 analyst cards; 19 Responses API calls, each with its own response ID and positive usage (≈ 40K input / 1.8K output tokens); 27 real tool calls; 13 HTTP 429 waits absorbed; no fallback; `trace_problems` passes.
   - **Model self-correction (77' card):** the validator rejected `away.pressures:asof:ml1-01206 = 131` because it cited the goal-move events, not pressure events. The retry cited real pressure events and was verified.
@@ -28,10 +32,11 @@ Update this file after verified work. A task is done only when the acceptance ch
   - The e2e tests use the same bundle as production.
   - The UI and CLI no longer call a superseded attempt-1 correction "published"; it reads "sent back to the agent". The raw CLI text of the run used the old wording, so only the JSON trace is committed as evidence.
 - **Verified:** `python -m pytest -q` -> 323 passed (incl. 44 e2e on local Chromium); `ruff check .` and `ruff format --check .` clean.
-- **Next (approval needed):**
-  1. Merge PR #10 and redeploy Pages in one go; until then the daily public smoke test would fail on the new e2e checks.
-  2. Confirm the public smoke job.
-  3. Video: card → Casual/Analyst → evidence → claim check (77' self-correction, 71' injected rejection) → recorded response IDs.
+- **Next:**
+  1. Screen-reader pass (`docs/ACCESSIBILITY.md`).
+  2. Demo rehearsal on the public URL.
+  3. Video, 110–115 s: card → Casual/Analyst → evidence → claim check (77' model self-correction, 71' injected rejection with correction) → recorded response IDs.
+  4. M6 audit and submission (operator approval).
 
 ## Checkpoint (2026-10-24): cards no longer look ahead
 - **Merged and deployed:**
