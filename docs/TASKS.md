@@ -10,7 +10,25 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): critic runs recorded and published (improvement 1 of 3)
+## Latest checkpoint (2026-10-24): player focus mode (improvement 2 of 3)
+- **Critic published:** PR #19 squash-merged as `6731fb0`. SWA [run 40127310562](https://github.com/vbabenko97/matchlens-ai/actions/runs/40127310562) and Pages [run 40127312193](https://github.com/vbabenko97/matchlens-ai/actions/runs/40127312193) succeeded, including smoke.
+- **New `matchlens.players` (`matchlens.players/v1`, bundle key `players`):** deterministic, no AI. For each of the 22 players it records:
+  - running stats, one step `[seq, value, event_ids]` per contributing event: goals, shots, on target, passes, completed, ball wins, pressures, passes lost, completion rate, synthetic xG (`heuristic`), and goal moves involved in (evidence: the player's ball events in the scoring possession plus the goal);
+  - `featured_cards` per mode: cards whose evidence includes one of the player's events.
+- **UI:**
+  - a **Player** picker (both squads, `?player=`);
+  - a panel under the timeline: a casual summary line, or an analyst table with kind and an "N events" button that shows the events on the pitch;
+  - a "Features <name>" badge on cards and a ring at the player's last touch.
+  - Everything counts only up to the current replay time.
+  - Narrow layout fix: the single-column grid is now `minmax(0, 1fr)`, so a long select can no longer widen the stage.
+- **Verified:**
+  - `python -m pytest -q` -> 573 passed, 2 skipped (incl. e2e on local Chromium);
+  - new unit tests (seeds 1 and 106): players add up to the team metrics (goals, shots, on target, passes, completed, pressures, xG); steps causal and citing the player's own events; completion and `value_at`; goal involvements inside the goal moves; featured cards; deterministic bundle;
+  - new e2e tests: nothing counted before it happens; the analyst evidence button selects the goal; picker groups and clearing; 320 px reflow in both modes;
+  - `ruff` clean.
+- **Next:** PR -> merge -> deploy; then pass quality and speed metrics (improvement 3).
+
+## Checkpoint (2026-10-24): critic runs recorded and published (improvement 1 of 3)
 - **Operator runs** (Cloud Shell, `gpt-4.1-mini`): `critic-eval-2026-10-24.json` and `personalize-trace-v2-2026-10-24.json`; both pass `trace_problems`/schema checks and contain no key-like strings. Files were renamed from "-10-25" to their recorded UTC date.
 - **Critic vs. Claude Code's labels** (v1 run, 220 lines, 12 positives): 8 caught, 4 missed, 13 false alarms; recall 0.667, precision 0.381. A regression check on 12 lines, not proof of generalization; the prompt was not tuned on them.
   - Missed: "dominated" for 14-11 shots, "6 quick passes", an added "перехоплення", the calque "Повний час".

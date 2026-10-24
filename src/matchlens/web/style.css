@@ -66,7 +66,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   flex: 1; display: grid; gap: 1rem; padding: 1rem;
   grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
 }
-@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
 
 .stage, .side { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.9rem; }
 .side { display: flex; flex-direction: column; gap: 0.6rem; max-height: calc(100vh - 7rem); overflow: auto; }
@@ -113,7 +113,8 @@ summary:focus-visible, [tabindex]:focus-visible {
 #stat-last { font-size: 0.85rem; overflow-wrap: anywhere; } /* wrap, never truncate (WCAG 1.4.10) */
 
 .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-.controls .speed { display: inline-flex; gap: 0.35rem; align-items: center; color: var(--muted); font-size: 0.85rem; }
+.controls .speed { display: inline-flex; gap: 0.35rem; align-items: center; color: var(--muted); font-size: 0.85rem; max-width: 100%; }
+.controls .speed select { min-width: 0; }
 .controls #download { margin-left: auto; }
 .controls .keys { flex-basis: 100%; }
 
@@ -202,6 +203,23 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .personalized-note { font-size: 0.78rem; margin: 0 0 0.45rem; }
 .footer { padding: 0.6rem 1rem 1rem; color: var(--muted); font-size: 0.8rem; }
 .footer p { margin: 0; max-width: 70rem; }
+.player-panel { background: var(--panel-2); border-radius: 8px; padding: 0.55rem 0.7rem; margin: 0.8rem 0 0; border-left: 4px solid var(--line); }
+.player-panel.home { border-left-color: var(--home); }
+.player-panel.away { border-left-color: var(--away); }
+.player-panel h2 { margin: 0 0 0.15rem; font-size: 1rem; }
+.player-panel .team-line { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+.player-facts { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.player-facts .heuristic { color: var(--away); }
+.player-table { width: 100%; border-collapse: collapse; margin-top: 0.4rem; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.table-wrap { overflow-x: auto; }
+.player-table th, .player-table td { text-align: left; padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
+.player-table th { color: var(--muted); font-weight: 400; }
+.player-table td.kind-heuristic { color: var(--away); }
+.ev.mine { stroke-width: 0.9; }
+.dot.mine { stroke: #fff; stroke-width: 0.3; }
+.player-pos { fill: none; stroke: #fff; stroke-width: 0.45; stroke-dasharray: 0.8 0.5; }
+.features { font-size: 0.7rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--accent); color: var(--text); }
+#player { max-width: 100%; }
 [hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
