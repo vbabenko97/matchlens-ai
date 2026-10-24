@@ -31,6 +31,7 @@ from .metrics import DEFAULT_WINDOW_S, compute_metrics
 from .moments import describe_moment, detect_moments, select_key_moments
 from .narrative import (
     ANALYST,
+    CASUAL,
     MODES,
     AzureOpenAIConfig,
     OfflineTemplateProvider,
@@ -38,6 +39,9 @@ from .narrative import (
     provider_from_env,
 )
 from .overlays import build_overlay_document
+from .personalize import VARIANTS, FoundryPersonalizer, RecordedPersonalizer, personalize_cards
+from .personalize import build_trace as personalize_trace
+from .personalize import trace_problems as personalize_trace_problems
 from .replay import DEFAULT_DEMO_SEED, DEMO_EXTRA_SEEDS, build_bundle, demo_extra_bundles, dumps
 from .server import export_site, make_server
 from .validate import assert_valid, validate_match
@@ -73,6 +77,34 @@ def _proposer(offline: bool, trace: Path | None):
             ) from None
     config = None if offline else _azure_config()
     return FoundryAgentProposer(config) if config else OfflineProposer()
+
+
+def _personalizer(trace: Path | None):
+    """Only a recorded run: a build never makes the 56 live personalizer calls by itself."""
+    if trace is None:
+        return None
+    try:
+        doc = json.loads(trace.read_text(encoding="utf-8"))
+        return RecordedPersonalizer(doc, trace.as_posix())
+    except (OSError, ValueError, KeyError) as exc:
+        raise ConfigError(
+            f"cannot use personalize trace {trace}: {type(exc).__name__}: {exc}"
+        ) from None
+
+
+def _variants(spec: str) -> list[tuple[str, str]]:
+    if spec == "all":
+        return list(VARIANTS)
+    out = []
+    for item in spec.split(","):
+        lang, _, focus = item.strip().partition("|")
+        if (lang, focus) not in VARIANTS:
+            raise ConfigError(
+                f"unknown variant {item!r}; choose from "
+                + ", ".join(f"{a}|{b}" for a, b in VARIANTS)
+            )
+        out.append((lang, focus))
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -126,6 +158,19 @@ def _main(argv: list[str] | None = None) -> int:
     agr.add_argument("--offline", action="store_true", help="deterministic offline proposer")
     agr.add_argument("--out", type=Path, help="write the redacted trace of a live run (JSON)")
     agr.add_argument("--timeout", type=float, default=30.0)
+    prs = sub.add_parser(
+        "personalize-review",
+        help="Foundry personalizer on the casual cards (language, club); every line is checked",
+    )
+    prs.add_argument("--seed", type=int, default=DEFAULT_DEMO_SEED)
+    prs.add_argument("--limit", type=int, default=None, help="first N cards")
+    prs.add_argument(
+        "--variants",
+        default="all",
+        help="comma-separated lang|focus, e.g. de|neutral,uk|away (default: all 8)",
+    )
+    prs.add_argument("--out", type=Path, help="write the redacted trace of the live run (JSON)")
+    prs.add_argument("--timeout", type=float, default=30.0)
     ovl = sub.add_parser("overlays", help="timed overlay cues (both modes) as JSON")
     ovl.add_argument("path", type=Path)
     ovl.add_argument("--out", type=Path, help="output path (default: stdout)")
@@ -139,6 +184,9 @@ def _main(argv: list[str] | None = None) -> int:
         p.add_argument("--file", type=Path, help="replay a JSONL match instead of a seed")
         p.add_argument("--offline", action="store_true", help="ignore Azure settings")
         p.add_argument("--agent-trace", type=Path, help="replay a recorded agent-review trace")
+        p.add_argument(
+            "--personalize-trace", type=Path, help="replay a recorded personalize-review trace"
+        )
         p.add_argument(
             "--live-api",
             action="store_true",
@@ -180,6 +228,9 @@ def _main(argv: list[str] | None = None) -> int:
     if args.command == "agent-review":
         return _agent_review(args)
 
+    if args.command == "personalize-review":
+        return _personalize_review(args)
+
     if args.command in ("serve", "export-site"):
         if args.file:
             try:
@@ -191,7 +242,12 @@ def _main(argv: list[str] | None = None) -> int:
         else:
             match = assert_valid(generate_match(args.seed))
         provider = _provider(args.offline)
-        bundle = build_bundle(match, provider, proposer=_proposer(args.offline, args.agent_trace))
+        bundle = build_bundle(
+            match,
+            provider,
+            proposer=_proposer(args.offline, args.agent_trace),
+            personalizer=_personalizer(args.personalize_trace),
+        )
         extras = []
         if not (args.file or args.single_match) and args.seed == DEFAULT_DEMO_SEED:
             extras = demo_extra_bundles()
@@ -352,4 +408,48 @@ def _agent_review(args: argparse.Namespace) -> int:
             args.out.write_text(json.dumps(trace, indent=1, ensure_ascii=False) + "\n", "utf-8")
             print(f"wrote agent trace to {args.out}", file=sys.stderr)
     print("\n\n".join(format_review(r) for r in reviews))
+    return 0
+
+
+def _live_failure(what: str, exc: Exception) -> int:
+    """Report a failed live run without echoing anything that could hold a header or key."""
+    if isinstance(exc, urllib.error.HTTPError):
+        print(f"live {what} failed: HTTP {exc.code}{_http_detail(exc)}", file=sys.stderr)
+    elif isinstance(exc, urllib.error.URLError):  # no HTTP response; the reason holds no headers
+        reason = exc.reason
+        detail = f"{type(reason).__name__}: {reason}" if isinstance(reason, Exception) else reason
+        print(f"live {what} failed: URLError ({str(detail)[:200]})", file=sys.stderr)
+    elif isinstance(exc, ResponseFormatError):  # fixed messages, no content
+        print(f"live {what} failed: {type(exc).__name__} ({exc})", file=sys.stderr)
+    else:
+        print(f"live {what} failed: {type(exc).__name__}", file=sys.stderr)
+    return 1
+
+
+def _personalize_review(args: argparse.Namespace) -> int:
+    match = assert_valid(generate_match(args.seed))
+    card_set = build_cards(match, CASUAL, OfflineTemplateProvider(), args.limit)
+    variants = _variants(args.variants)
+    config = _azure_config()
+    if config is None:
+        raise ConfigError("set AZURE_OPENAI_ENDPOINT, _API_KEY and _DEPLOYMENT")
+    proposer = FoundryPersonalizer(config, timeout_s=args.timeout, log=_progress)
+    try:
+        results = personalize_cards(match, card_set, proposer, variants, strict=True, log=_progress)
+    except Exception as exc:
+        return _live_failure("personalizer run", exc)
+    trace = personalize_trace(match, results, config)
+    for r in results:
+        print(f"{r.lang}|{r.focus} {r.card_id}")
+        for line in r.lines:
+            mark = "✓" if line.status == "verified" else "kept (" + "; ".join(line.reasons) + ")"
+            print(f"  {mark} {line.text}")
+    problems = personalize_trace_problems(trace)
+    if problems:  # completed, but not acceptable evidence: record nothing
+        print("live run is not acceptable evidence:", file=sys.stderr)
+        print("\n".join(f"- {p}" for p in problems), file=sys.stderr)
+        return 1
+    if args.out:
+        args.out.write_text(json.dumps(trace, indent=1, ensure_ascii=False) + "\n", "utf-8")
+        print(f"wrote personalize trace to {args.out}", file=sys.stderr)
     return 0

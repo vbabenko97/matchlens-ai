@@ -22,6 +22,15 @@ Deployment (static export on GitHub Pages) and the public-URL Playwright smoke t
 
 It runs fully offline without Azure credentials (deterministic, labelled template wording). Other options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`. `python -m matchlens export-site --out site/` writes the same UI as a static folder (no server code needed to host it).
 
+### Language and club (personalizer agent)
+
+In Casual mode, **Language** (English, Deutsch, Українська) and **Follow** (neutral or either team) rewrite the cards for that audience. A second agent does the rewriting: a Microsoft Foundry deployment, called once per card through the Responses API with structured JSON output. A deterministic checker (`src/matchlens/personalize.py`) compares every rewritten line with its verified English fact:
+- the same numbers, as digits;
+- the same player and team names in Latin script, and no new ones;
+- `xG` kept, the right script, no markup or links.
+
+A rejected line goes back to the agent once with the reasons; if it fails again, the English fact is shown, marked `lang="en"`. The rewritten lines keep the facts' event IDs. The page labels them as AI wording with numbers and names checked, because tone is not checked. The public build replays a recorded run (`python -m matchlens personalize-review --out <trace>`, then `export-site --personalize-trace <trace>`); without one, the picker is hidden.
+
 ### More matches
 
 The **Match** picker switches between the demo match (seed 1, the only one with the recorded Foundry run and the live check) and five untuned seeds from the checked range 100–129: 121, 106, 103, 123 and 124. They were chosen for different stories: a 3–4 comeback, a 3–3 draw, a 4–1 comeback, a 0–5 rout and a 0–1 with little to say. Labels show the seed only, so the picker never spoils a result. Every extra match is built offline (template wording, offline claim proposer), and its page says so. A link can name a match: `?seed=121`; the on-air graphic takes the same parameter.

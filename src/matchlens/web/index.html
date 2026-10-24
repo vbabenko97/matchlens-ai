@@ -87,6 +87,22 @@
 
     <aside class="side" aria-labelledby="cards-heading" tabindex="0">
       <h2 id="cards-heading">Key moments</h2>
+      <div class="personalize" id="personalize" role="group" aria-label="Language and club" hidden>
+        <label>Language
+          <select id="p-lang">
+            <option value="en">English</option>
+            <option value="de" lang="de">Deutsch</option>
+            <option value="uk" lang="uk">Українська</option>
+          </select>
+        </label>
+        <label>Follow
+          <select id="p-focus">
+            <option value="neutral">Neutral</option>
+            <option value="home" id="p-focus-home">Home</option>
+            <option value="away" id="p-focus-away">Away</option>
+          </select>
+        </label>
+      </div>
       <div class="shortcuts" id="shortcuts" role="group" aria-label="Demo shortcuts" hidden>
         <button type="button" id="jump-turning" class="primary" hidden></button>
         <button type="button" id="jump-ai" hidden></button>

@@ -41,7 +41,43 @@ const state = {
   announced: { cards: -1, mode: "", fullTime: false }, announceTimer: null,
   live: {}, // card_id -> { pending } | { ok, message, review? }: live Foundry checks this visit
   index: null, entry: null, // data/matches.json and the match shown (null on older exports)
+  variant: "en|neutral", // personalizer variant "lang|focus" (casual cards); en|neutral = source
 };
+
+const LANG_NAME = { en: "English", de: "Deutsch", uk: "Українська" };
+const TITLE_INDEX = -1;
+
+// A casual card in the chosen language and point of view, from the recorded personalizer run.
+// Each line is either the checked rewrite or, when the checker rejected it twice, the English
+// source (marked lang="en"). The facts keep their own kind, role and event IDs.
+function localized(card) {
+  const p = state.bundle.personalized;
+  if (state.mode !== "casual" || !p || state.variant === "en|neutral") return null;
+  const v = p.variants[state.variant];
+  const rec = v && v.cards[card.card_id];
+  if (!rec) return null;
+  const byIndex = new Map(rec.lines.map((ln) => [ln.index, ln]));
+  const langOf = (ln) => (ln && ln.status === "verified" ? v.lang : "en");
+  const title = byIndex.get(TITLE_INDEX);
+  return {
+    lang: v.lang, focus: v.focus, label: p.label,
+    title: title ? title.text : card.title, titleLang: langOf(title),
+    facts: card.facts.map((f, i) => {
+      const ln = byIndex.get(i);
+      const rewritten = !!ln && ln.status === "verified";
+      return ln ? { ...f, text: ln.text, lang: langOf(ln), rewritten } : { ...f, lang: "en" };
+    }),
+    kept: rec.lines.filter((ln) => ln.status !== "verified").length,
+  };
+}
+
+function personalizedNote(loc) {
+  const team = loc.focus === "neutral" ? "" : `, for ${state.bundle.meta[loc.focus].name} fans`;
+  const kept = loc.kept ? ` ${loc.kept} line(s) kept in English: the checker rejected the rewrite.` : "";
+  return `${LANG_NAME[loc.lang]}${team}: AI wording by the Microsoft Foundry personalizer ` +
+    `(${state.bundle.personalized.proposers.includes("recorded_foundry_personalizer") ? "recorded run" : "live"}); ` +
+    `numbers and names checked against the English facts, tone not checked.${kept}`;
+}
 
 // One polite status region for screen readers; only the latest message is spoken.
 function announce(text) {
@@ -274,9 +310,14 @@ function metricChip(id) {
 function factItem(f, analyst) {
   const heuristic = f.kind === "heuristic";
   const li = el("li", { class: [f.role === "why" ? "why" : "", heuristic ? "heuristic" : ""].join(" ").trim() });
-  li.appendChild(el("span", { class: "check", title: "Verified from structured event data", "aria-hidden": "true" }, "✓"));
+  if (f.lang) li.setAttribute("lang", f.lang);
+  const checkTitle = f.rewritten
+    ? "AI rewrite of a verified fact: numbers and names checked against it"
+    : "Verified from structured event data";
+  li.appendChild(el("span", { class: "check", title: checkTitle, "aria-hidden": "true" }, "✓"));
   const body = el("div");
-  body.appendChild(el("span", { class: "sr-only" }, heuristic ? "Verified, heuristic value: " : "Verified: "));
+  const prefix = f.rewritten ? "AI rewrite, numbers and names checked" : "Verified";
+  body.appendChild(el("span", { class: "sr-only", lang: "en" }, heuristic ? `${prefix}, heuristic value: ` : `${prefix}: `));
   body.appendChild(el("span", {}, f.text));
   if (analyst && (f.event_ids.length || f.metric_ids.length)) body.appendChild(factChips(f));
   li.appendChild(body);
@@ -286,15 +327,17 @@ function factItem(f, analyst) {
 function renderCard(card, isActive) {
   const analyst = state.mode === "analyst";
   const art = el("article", { class: `card ${card.team} ${card.kind}${isActive ? " active" : ""}`, "data-card-id": card.card_id });
+  const loc = localized(card);
   const head = el("header");
   head.appendChild(el("span", { class: "kind" }, KIND_LABEL[card.kind] || card.kind));
   head.appendChild(el("span", { class: "minute" }, whenOf(card)));
-  head.appendChild(el("h3", {}, card.title));
+  head.appendChild(el("h3", loc ? { lang: loc.titleLang } : {}, loc ? loc.title : card.title));
   art.appendChild(head);
 
   const facts = el("ul", { class: "facts", "aria-label": "Verified facts" });
-  card.facts.filter((f) => f.role !== "chain").forEach((f) => facts.appendChild(factItem(f, analyst)));
+  (loc ? loc.facts : card.facts).filter((f) => f.role !== "chain").forEach((f) => facts.appendChild(factItem(f, analyst)));
   art.appendChild(facts);
+  if (loc) art.appendChild(el("p", { class: "hint personalized-note" }, personalizedNote(loc)));
 
   // Analyst: the move event by event, folded so the card reads as an explanation first.
   const chain = card.facts.filter((f) => f.role === "chain");
@@ -331,12 +374,18 @@ function renderCard(card, isActive) {
   const nar = el("div", { class: "narrative", "data-status": n.status });
   const unverified = n.status === "unverified_ai_wording";
   nar.appendChild(el("span", { class: "verified-note" }, "✓ checked against match events"));
-  nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}`, title: n.label },
-    unverified ? "AI wording · NOT VERIFIED" : "Offline template · not an Azure response"));
+  if (loc) {
+    nar.appendChild(el("span", { class: "status template", title: state.bundle.personalized.label },
+      "AI wording (Foundry personalizer) · numbers & names checked"));
+  } else {
+    nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}`, title: n.label },
+      unverified ? "AI wording · NOT VERIFIED" : "Offline template · not an Azure response"));
+  }
   const duplicate = n.text === card.facts.map((f) => f.text).join(" ");
-  if (unverified) {
+  // A rewritten card hides the English narrative: the note above already names its wording.
+  if (!loc && unverified) {
     nar.appendChild(el("p", { class: "text" }, n.text));
-  } else if (!duplicate) {
+  } else if (!loc && !duplicate) {
     const det = el("details");
     det.appendChild(el("summary", {}, "Wording"));
     det.appendChild(el("p", { class: "text" }, n.text));
@@ -510,7 +559,7 @@ function renderCards() {
   // A card appears only once its last evidence event has happened (publish_clock_s).
   const visible = cardsForMode().filter((c) => c.publish_clock_s <= state.t);
   announceCards(visible);
-  const key = [state.mode, visible.length, active ? active.card_id : "", state.selected.join(",")].join("|");
+  const key = [state.mode, state.variant, visible.length, active ? active.card_id : "", state.selected.join(",")].join("|");
   if (key !== state.cardsKey) {
     state.cardsKey = key;
     const box = $("cards");
@@ -527,9 +576,11 @@ function renderCards() {
   if (active) {
     lt.hidden = false;
     $("lt-kind").textContent = KIND_LABEL[active.kind] || active.kind;
-    $("lt-title").textContent = active.title;
+    const loc = localized(active);
+    $("lt-title").textContent = loc ? loc.title : active.title;
     // The caption says why the moment matters; evidence brackets are dropped on the graphic.
-    const summary = active.facts.find((f) => f.role === "why") || active.facts[0];
+    const facts = loc ? loc.facts : active.facts;
+    const summary = facts.find((f) => f.role === "why") || facts[0];
     $("lt-fact").textContent = summary ? summary.text.replace(EVIDENCE_RE, "") : "";
   } else {
     lt.hidden = true;
@@ -603,6 +654,7 @@ function setMode(mode) {
     b.tabIndex = on ? 0 : -1; // roving tabindex: one tab stop for the radio group
   }
   document.body.dataset.mode = mode;
+  $("personalize").hidden = !(state.bundle && state.bundle.personalized && mode === "casual");
   $("broadcast").href = `broadcast.html?mode=${mode}&rundown=1&bg=dark${seedQuery()}`;
   $("inspector").hidden = mode !== "analyst";
   state.selected = [];
@@ -701,6 +753,30 @@ function bindControls() {
   });
 }
 
+// Language and club for the casual cards; only variants the bundle has can be chosen.
+function bindPersonalize(params) {
+  const p = state.bundle.personalized;
+  if (!p) return;
+  const has = (lang, focus) => (lang === "en" && focus === "neutral") || `${lang}|${focus}` in p.variants;
+  const lang = $("p-lang");
+  const focus = $("p-focus");
+  $("p-focus-home").textContent = state.bundle.meta.home.name;
+  $("p-focus-away").textContent = state.bundle.meta.away.name;
+  const sync = () => {
+    for (const o of lang.options) o.disabled = !["neutral", "home", "away"].some((f) => has(o.value, f));
+    for (const o of focus.options) o.disabled = !has(lang.value, o.value);
+    if (!has(lang.value, focus.value)) focus.value = [...focus.options].find((o) => !o.disabled).value;
+    state.variant = `${lang.value}|${focus.value}`;
+    state.cardsKey = "";
+  };
+  if (params.has("lang")) lang.value = params.get("lang");
+  if (!lang.value || lang.selectedOptions[0].disabled) lang.value = "en";
+  if (params.has("follow")) focus.value = params.get("follow");
+  if (!focus.value) focus.value = "neutral";
+  sync();
+  for (const s of [lang, focus]) s.addEventListener("change", () => { sync(); render(); });
+}
+
 // Match picker from data/matches.json. Labels name the seed only: no score, no spoilers.
 function bindMatchPicker(index, entry) {
   if (!index || index.matches.length < 2) return;
@@ -762,6 +838,7 @@ function init(bundle, index, entry) {
   bindControls();
   bindShortcuts(bundle.highlights || {});
   const params = new URLSearchParams(location.search);
+  bindPersonalize(params);
   const speed = Number(params.get("speed"));
   if ([15, 30, 60, 120, 240].includes(speed)) { state.speed = speed; $("speed").value = String(speed); }
   setMode(params.get("mode") === "analyst" ? "analyst" : "casual");

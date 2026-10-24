@@ -704,3 +704,87 @@ def test_broadcast_plays_the_picked_match(page, index, base_url):
     page.expected_errors.append("status of 404")  # none expected, but a bad index would 404
     _open_broadcast(page, "?seed=999999")
     assert "no match with seed 999999" in page.text_content("#status-line")
+
+
+# --- Personalizer: language and club (fake recorded run behind a local app server) ---
+
+
+@pytest.fixture(scope="module")
+def personalized_base(bundle):
+    if PUBLIC_URL:
+        pytest.skip("uses a fake personalizer trace")
+    from matchlens.cards import build_cards
+    from matchlens.personalize import (
+        FoundryPersonalizer,
+        RecordedPersonalizer,
+        build_trace,
+        known_names,
+        personalize_cards,
+    )
+    from tests.test_personalize import FakeTranslator, _config
+
+    match = generate_match(DEFAULT_DEMO_SEED)
+    cards = build_cards(match, "casual")
+    # Line 0 of every card fails both attempts, so each card shows one line kept in English.
+    fake = FakeTranslator(known_names(match), spoil={1: (0,), 2: (0,)})
+    live = personalize_cards(match, cards, FoundryPersonalizer(_config(), fake), strict=True)
+    trace = build_trace(match, live, _config())
+    trace_proposer = RecordedProposer(json.loads((ROOT / DEMO_TRACE).read_text()), DEMO_TRACE)
+    doc = build_bundle(
+        match, proposer=trace_proposer, personalizer=RecordedPersonalizer(trace, "fake.json")
+    )
+    srv = _start(make_server(json.loads(dumps(doc)), port=0))
+    yield f"http://127.0.0.1:{srv.server_address[1]}/", json.loads(dumps(doc))
+    srv.shutdown()
+    srv.server_close()
+
+
+def test_no_language_picker_without_a_personalizer_run(page, bundle):
+    if "personalized" in bundle:
+        pytest.skip("this deployment has a personalizer run")
+    _open(page, "?t=5400")
+    assert page.locator("#personalize").is_hidden()
+
+
+def test_language_and_club_rewrite_the_casual_cards(page, personalized_base):
+    base, doc = personalized_base
+    page.base = base
+    _open(page, "?t=5400")
+    assert page.locator("#personalize").is_visible()
+    assert page.text_content("#p-focus-away") == doc["meta"]["away"]["name"]
+    page.select_option("#p-lang", "uk")
+    page.select_option("#p-focus", "away")
+    card = doc["cards"]["casual"][-1]
+    lines = doc["personalized"]["variants"]["uk|away"]["cards"][card["card_id"]]["lines"]
+    art = page.locator(f"#cards [data-card-id='{card['card_id']}']")
+    assert art.locator("h3").get_attribute("lang") == "uk"
+    assert art.locator("h3").text_content() == lines[0]["text"] != card["title"]
+    items = art.locator("ul.facts > li")
+    assert items.nth(0).get_attribute("lang") == "en"  # rejected twice: the English source
+    assert card["facts"][0]["text"] in items.nth(0).text_content()
+    assert items.nth(1).get_attribute("lang") == "uk"
+    assert lines[2]["text"] in items.nth(1).text_content()
+    note = art.locator(".personalized-note").text_content()
+    assert "Українська, for Eastvale Athletic fans" in note and "recorded run" in note
+    assert "tone not checked" in note and "1 line(s) kept in English" in note
+    chip = art.locator(".narrative .status").text_content()
+    assert chip == "AI wording (Foundry personalizer) · numbers & names checked"
+    assert "Offline template" not in art.text_content()
+    assert "AI rewrite" in items.nth(1).locator(".sr-only").text_content()
+    assert items.nth(0).locator(".sr-only").text_content().startswith("Verified")
+    page.click(".mode-toggle button[data-mode=analyst]")  # analyst cards are never rewritten
+    assert page.locator("#personalize").is_hidden()
+    assert page.locator("#cards .personalized-note").count() == 0
+
+
+def test_language_can_be_set_by_url(page, personalized_base):
+    base, doc = personalized_base
+    page.base = base
+    _open(page, "?t=5400&lang=de&follow=home")
+    assert page.eval_on_selector("#p-lang", "s => s.value") == "de"
+    assert page.eval_on_selector("#p-focus", "s => s.value") == "home"
+    note = page.locator("#cards .personalized-note").first.text_content()
+    assert note.startswith("Deutsch, for Northbridge Rovers fans")
+    _open(page, "?t=5400&lang=fr")  # unknown: the English source
+    assert page.eval_on_selector("#p-lang", "s => s.value") == "en"
+    assert page.locator("#cards .personalized-note").count() == 0

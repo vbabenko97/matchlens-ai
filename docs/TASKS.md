@@ -10,7 +10,36 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): match picker (plan item 4, UI part)
+## Latest checkpoint (2026-10-24): personalizer agent (plan item 3, code; run not recorded)
+- **Merged and deployed:** PR #14 (match picker) squash-merged as `c0b0263`. SWA [run 40113944392](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113944392) and Pages [run 40113946363](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113946363) succeeded, including their smoke jobs (GitHub Actions API).
+- **New `matchlens.personalize`**, a second agent with a different role: it rewrites verified casual cards for a language (en, de, uk) and a point of view (neutral, home, away), 8 variants.
+  - One Responses API v1 call per card and attempt: structured JSON (`title`, `lines[index,text]`), no tools, `store: false`. The brief holds only the title and fact texts, no IDs.
+  - `check_line` per line: same multiset of numbers (decimal comma, `2:3` allowed); every source name verbatim and no other name (longest-first matching, so "Rafe Pembrook" is not "Sami Pembrook"); `xG` kept; script per language; no markup or links; bounded length; "not translated".
+  - Rejected lines go back once with reasons; still rejected -> the English source, marked kept, with its reasons.
+  - Lines keep the facts' kind, role and IDs.
+  - `post_with_retries` was extracted from the claim agent and is shared by both agents.
+- **Evidence path:**
+  - `personalize-review` (strict live run, prints each line, refuses weak evidence) writes `matchlens.personalize-trace/v1`;
+  - `RecordedPersonalizer` replays it and re-checks every line;
+  - `export-site/serve --personalize-trace` adds `personalized` to the bundle;
+  - the build never calls the personalizer live by itself.
+- **UI (Casual only):**
+  - Language/Follow pickers; options exist only for recorded variants; `?lang=&follow=`;
+  - titles and lines get `lang` attributes, kept lines `lang="en"`;
+  - a per-card note: AI wording by the Foundry personalizer (recorded run), numbers and names checked, tone not checked, N line(s) kept in English;
+  - the label chip says "AI wording (Foundry personalizer) · numbers & names checked" instead of "Offline template";
+  - rewritten lines read "AI rewrite, numbers and names checked" to screen readers, not "Verified";
+  - the lower third follows the variant.
+- **Verified:**
+  - `python -m pytest -q` -> 513 passed (incl. e2e on local Chromium);
+  - new: 30 unit tests (checker accept/reject cases, retry with reasons, kept lines, missing lines, broken replies strict/non-strict, request carries no IDs, trace replay equality, trace_problems, bundle, CLI record -> export round trip) and 6 e2e runs;
+  - `ruff check .` and `ruff format --check .` clean.
+  - Fake transports only; the fake translator keeps names and digits and swaps words. **Not** evidence of model quality.
+- **Next:**
+  1. Operator: `personalize-review --out docs/evidence/personalize-trace-2026-10-25.json` (docs/DEPLOYMENT.md), then wire the trace into both deploy workflows.
+  2. Video, pitch, screen-reader pass, external test, audit (plan item 6).
+
+## Checkpoint (2026-10-24): match picker (plan item 4, UI part)
 - **Merged and deployed:**
   - PR #13 (on-air graphic, live check endpoint, shared daily cap) squash-merged as `d881639`; CI was green on the PR head `8645d54`.
   - From `main` @ `d881639`, Azure Static Web Apps [run 40113074677](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113074677) (`deploy`, `smoke / smoke`) and GitHub Pages [run 40113076559](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113076559) (`build`, `deploy`, `smoke / smoke`) all succeeded. Verified via the GitHub Actions API.
