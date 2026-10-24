@@ -22,7 +22,8 @@ Target: **WCAG 2.2 AA** for the replay UI (`src/matchlens/web/`). The audit was 
   - the slider speaks the match clock;
   - shortcuts leave native controls alone;
   - interactive targets are at least 24px;
-  - the page reflows at 320px and 390px with no horizontal scroll and no overlapping markers.
+  - the page reflows at 320, 390 and 500px with no horizontal scroll, no overlapping markers or dots, and no truncated stat values;
+  - a goal dot is drawn only for goals without a card.
   - 12 of the 14 new test runs failed on the pre-fix UI.
 
 ## Fixes
@@ -40,6 +41,8 @@ Target: **WCAG 2.2 AA** for the replay UI (`src/matchlens/web/`). The audit was 
 | 10 | `aria-label` was set on plain `div`s (stats, controls). | 4.1.2 | Changed to `role="group"`. |
 | 11 | Horizontal scroll at 320px (long team names in the scoreboard). | 1.4.10 | The scoreboard wraps. |
 | 12 | Shortcuts were only documented in the README. | 3.3.2 | Visible hint under the controls. |
+| 13 | "Last event" was cut off with an ellipsis when zoomed ("1' Northbridge Rovers: …" at 400%). Found in the operator zoom check. | 1.4.10 | The value wraps (`overflow-wrap: anywhere`) and is never truncated. |
+| 14 | A plain goal dot overlapped a "G" marker once that marker stacked into a second row (400% zoom). | 1.4.10 | No dot is drawn for goals that already have a "G" card marker; overlap tests now include the dots. |
 
 Also: the lower-third graphic is `aria-hidden`, because it duplicates the active card. Reduced-motion users get no transitions or animations; playback only ever starts on request.
 
@@ -53,4 +56,4 @@ Also: the lower-third graphic is `aria-hidden`, because it duplicates the active
   2. Press Play at 240× and check that each new moment is spoken once and the clock is never read on its own.
   3. In Analyst mode, activate a chip and check that focus stays on it and the inspector content is reachable.
   4. Check that the narrative's "not verified" / "offline template" label is read with each card.
-- [ ] **Zoom check:** zoom to 200% and 400% in a desktop browser and confirm nothing is cut off.
+- [x] **Zoom check (operator, 2026-10-24, Chrome on macOS, live site):** at 200% and 400% the page reflows to one column with no horizontal scroll, and every region is reachable: scoreboard, mode toggle, pitch, stats, controls, timeline, Key moments and footer. Two defects were found and fixed (#13, #14 above). Regression tests: 320/390/500px with a long "Last event", no clipped stat values, and no overlapping timeline markers or dots.

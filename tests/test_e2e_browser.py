@@ -287,7 +287,7 @@ def test_interactive_targets_are_at_least_24px(page):
     assert small == 0
 
 
-@pytest.mark.parametrize("width", [320, 390])
+@pytest.mark.parametrize("width", [320, 390, 500])
 def test_narrow_screens_reflow_without_overlapping_markers(browser, base_url, width):
     pg = browser.new_page(viewport={"width": width, "height": 800})  # 320px = 1280px at 400%
     pg.goto(base_url + "?t=5400")
@@ -295,7 +295,7 @@ def test_narrow_screens_reflow_without_overlapping_markers(browser, base_url, wi
     assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     overlaps = pg.evaluate(
         """(() => {
-             const r = [...document.querySelectorAll('#markers button')]
+             const r = [...document.querySelectorAll('#markers .marker')]
                .map((e) => e.getBoundingClientRect());
              let n = 0;
              for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++)
@@ -304,5 +304,20 @@ def test_narrow_screens_reflow_without_overlapping_markers(browser, base_url, wi
              return n;
            })()"""
     )
-    assert overlaps == 0
+    assert overlaps == 0  # buttons and non-interactive goal dots alike
+    pg.goto(base_url + "?t=60")  # long "Last event": 1' <team>: kick off (complete)
+    pg.wait_for_selector("body[data-ready=true]")
+    clipped = pg.evaluate(
+        """[...document.querySelectorAll('.stats > div > span:last-child')]
+             .filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.id)"""
+    )
+    assert clipped == []  # stat values wrap instead of being cut off with an ellipsis
     pg.close()
+
+
+def test_goal_dot_only_for_goals_without_a_card(page, bundle):
+    _open(page)
+    goals = [e for e in bundle["events"] if e["type"] == "shot" and e.get("outcome") == "goal"]
+    carded = {c["anchor_clock_s"] for c in bundle["cards"]["casual"] if c["kind"] == "goal"}
+    expected = sum(1 for e in goals if e["clock_s"] not in carded)
+    assert page.locator("#markers .goal-tick").count() == expected

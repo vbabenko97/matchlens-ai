@@ -342,8 +342,10 @@ function renderMarkers() {
   const box = $("markers");
   box.replaceChildren();
   const d = state.bundle.duration_s;
+  // A goal with its own card already has a "G" button; a second dot would only collide with it.
+  const goalCards = new Set(cardsForMode().filter((c) => c.kind === "goal").map((c) => c.anchor_clock_s));
   for (const e of state.bundle.events) {
-    if (e.type === "shot" && e.outcome === "goal") {
+    if (e.type === "shot" && e.outcome === "goal" && !goalCards.has(e.clock_s)) {
       const tick = el("span", { class: "marker goal-tick", title: `Goal ${e.minute}'` });
       tick.style.left = `${(100 * e.clock_s) / d}%`;
       box.appendChild(tick);
