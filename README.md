@@ -22,6 +22,10 @@ Deployment (static export on GitHub Pages) and the public-URL Playwright smoke t
 
 It runs fully offline without Azure credentials (deterministic, labelled template wording). Other options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`. `python -m matchlens export-site --out site/` writes the same UI as a static folder (no server code needed to host it).
 
+### Live Foundry check (Azure Static Web Apps build)
+
+On the Azure Static Web Apps deployment, each analyst card has **Check this card live with Microsoft Foundry**. The server-side function (`api/`, `src/matchlens/live.py`) takes only the card ID, runs the bounded claim agent and the validator against Foundry, and shows the live result with its response IDs. Per-visitor, daily and Azure-side limits apply. When no live call is made, the page keeps the recorded run and says so. Setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Locally: `python -m matchlens serve --live-api`.
+
 ### On-air graphic (broadcast lower-third)
 
 `broadcast.html` reads the same `data/overlays.json` and draws the active cue as a lower-third on a transparent page, so it can be added as a **browser source** in OBS or vMix (1920×1080 or 1280×720) and composited over video. Only the verified "why" fact goes on air, never the narrative wording; analyst cues also show the source event IDs. **▣ On-air graphic** in the replay UI opens a preview in the current mode.

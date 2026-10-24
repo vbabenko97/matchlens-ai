@@ -10,7 +10,31 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): on-air graphic page (plan item 5)
+## Latest checkpoint (2026-10-24): live Foundry check endpoint (plan item 1, code only)
+- **New `matchlens.live`:** `POST /api/live-check` with `{"card_id"}` only.
+  - The server builds the Foundry request for that demo card and runs the existing bounded agent (`FoundryAgentProposer`, strict) and the validator.
+  - The reply carries the review, its metrics, response IDs, usage and latency. The proposer label says it is a live call, with a UTC timestamp.
+- **Fuses:**
+  - analyst card IDs of the demo match only (404), JSON POST only (415, no CORS preflight granted), body ≤ 1 KB, no other fields (400);
+  - 3 checks per client per 10 min (client = first of `X-Forwarded-For`, `X-Azure-ClientIP`, `X-Client-IP`, hashed; which one SWA sends is unverified until deploy); `MATCHLENS_LIVE_DAILY_LIMIT` (default 100) per UTC day, in memory per instance;
+  - one run at a time ("busy", costs no quota);
+  - 30 s deadline over calls and 429 waits.
+  - Fallback reasons are machine-readable, and the page keeps the recorded run, saying "not a live call".
+- **Hosts:**
+  - `api/live_check/` is the Azure Functions adapter (v1 `function.json` model), configured with `apiRuntime: python:3.11`;
+  - the SWA workflow builds with `--live-api` and ships `api/` (the package is copied in at deploy time);
+  - `matchlens serve --live-api` serves the same route locally;
+  - Pages builds have no button.
+- **UI:** "Check this card live with Microsoft Foundry" on analyst claim checks. A live reply replaces the recorded check and focus moves to the result line; a fallback says why. The disclosure adds a line when the API exists.
+- **Python 3.10 check** (in case SWA rejects 3.11): only `datetime.UTC` blocks it; the package runs on 3.10.20 with that shim (not applied).
+- **Verified:**
+  - `python -m pytest -q` -> 444 passed (incl. e2e on local Chromium; 25 new endpoint/adapter tests, 8 live-button e2e runs);
+  - `ruff check .` and `ruff format --check .` clean.
+  - All Azure traffic in tests is faked and is **not** evidence of a live call.
+- **Blocked on operator** (docs/DEPLOYMENT.md, "Live Foundry check"): create the SWA Free app and token, set the app settings, raise the deployment's TPM limit, set a budget alert, run the SWA workflow, then one `curl` to verify.
+- **Next:** match selector in the UI (plan item 4, no credentials needed).
+
+## Checkpoint (2026-10-24): on-air graphic page (plan item 5)
 - **New:** `broadcast.html` + `broadcast.js` + `broadcast.css`, exported with the site (hash-versioned like `index.html`).
   - Reads `data/overlays.json` (`matchlens.overlays/v1`) and draws the active cue as a lower-third on a transparent page, for an OBS/vMix browser source.
   - Shows the verified "why" fact only (narrative wording never goes on air); analyst cues add up to 3 source event IDs; a heuristic fact is labelled "Synthetic xG heuristic". A permanent "Synthetic match" bug stays in the corner.

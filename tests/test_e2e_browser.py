@@ -97,8 +97,9 @@ def page(browser, base_url):
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     pg.base = base_url
+    pg.expected_errors = []  # substrings of console errors a test provokes on purpose
     yield pg
-    assert errors == []
+    assert [e for e in errors if not any(x in e for x in pg.expected_errors)] == []
     pg.close()
 
 
@@ -541,3 +542,88 @@ def test_replay_links_to_the_broadcast_graphic_in_the_current_mode(page):
     assert link.get_attribute("href") == "broadcast.html?mode=casual&rundown=1&bg=dark"
     page.click("[data-mode=analyst]")
     assert link.get_attribute("href") == "broadcast.html?mode=analyst&rundown=1&bg=dark"
+
+
+# --- Live Foundry check button (fake Responses API behind the local app server) ---
+
+LIVE_CARD = "analyst:goal:ml1-01112"  # the 71' card scripted in tests/test_agent.py
+
+
+class _ScriptedFoundry:
+    """Fake Responses API: every live check replays the scripted 71' agent run."""
+
+    def __init__(self):
+        from tests.test_agent import _goal_script
+
+        self._script, self.replies = _goal_script, []
+
+    def __call__(self, url, headers, body, timeout):
+        if not self.replies:
+            self.replies = self._script()
+        return json.dumps(self.replies.pop(0)).encode()
+
+
+@pytest.fixture(scope="module")
+def live_base(request, bundle):
+    """App server with the live route: configured (fake Foundry) or not configured."""
+    if PUBLIC_URL:
+        pytest.skip("live-check tests use a fake Foundry; never spend real calls on smoke runs")
+    from matchlens.live import LIVE_PATH, LiveChecker
+    from tests.test_agent import _config
+
+    servers = {}
+    for name, checker in (
+        ("fake", LiveChecker(_config(), transport=_ScriptedFoundry())),
+        ("off", LiveChecker(None)),
+    ):
+        srv = _start(
+            make_server({**bundle, "live_check": {"path": LIVE_PATH}}, port=0, checker=checker)
+        )
+        servers[name] = srv
+    yield {n: f"http://127.0.0.1:{s.server_address[1]}/" for n, s in servers.items()}
+    for srv in servers.values():
+        srv.shutdown()
+        srv.server_close()
+
+
+def _card(page, card_id):
+    return page.locator(f"#cards [data-card-id='{card_id}']")
+
+
+def test_no_live_button_without_a_live_api(page, bundle):
+    if "live_check" in bundle:
+        pytest.skip("this deployment has a live-check API")
+    _open(page, "?mode=analyst&t=5400")
+    assert page.locator(".live-check").count() == 0
+
+
+def test_live_check_replaces_the_recorded_run_with_the_live_reply(page, live_base):
+    page.base = live_base["fake"]
+    _open(page, "?mode=analyst&t=5400")
+    card = _card(page, LIVE_CARD)
+    assert "Recorded Microsoft Foundry agent run" in card.locator(".review").text_content()
+    card.locator(".live-check").click()
+    status = card.locator(".live-ok")
+    status.wait_for(timeout=10000)
+    assert (
+        "Live result from Microsoft Foundry: 4 model call(s), 600 tokens" in status.text_content()
+    )
+    assert page.evaluate("document.activeElement.dataset.liveStatus") == LIVE_CARD
+    review = card.locator(".review").text_content()
+    assert "Live Microsoft Foundry agent call" in review and "Recorded" not in review
+    assert "resp_1, resp_2, resp_3, resp_4" in review
+    assert "Attempt 1: 3 of 4" not in review  # the recorded run's verdicts are gone
+    assert "server-side function" in page.text_content("#disclosure")
+
+
+def test_live_check_fallback_keeps_the_recorded_run_and_says_so(page, live_base):
+    page.base = live_base["off"]
+    page.expected_errors.append("status of 503")  # the fallback reply is an HTTP 503
+    _open(page, "?mode=analyst&t=5400")
+    card = _card(page, LIVE_CARD)
+    card.locator(".live-check").click()
+    warn = card.locator(".live .warn")
+    warn.wait_for(timeout=10000)
+    text = warn.text_content()
+    assert "not configured" in text and "not a live call" in text
+    assert "Recorded Microsoft Foundry agent run" in card.locator(".review").text_content()
