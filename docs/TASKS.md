@@ -10,7 +10,26 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): recorded personalizer run wired in; stricter checker
+## Latest checkpoint (2026-10-24): README rewritten for the judging criteria (plan item 6, part 1)
+- **Merged and deployed:** PR #16 squash-merged as `14f1b88`. SWA [run 40118847924](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118847924) and Pages [run 40118849873](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118849873) succeeded, including their smoke jobs.
+- **Source:** the official rules, §6.2. Five equally weighted criteria (20% each): Technological Implementation, Agentic Design & Innovation, Real-World Impact & Applicability, User Experience & Presentation, Adherence to Hackathon Category. Challenge §4.1: the five-stage pipeline and multi-language storytelling. Categories §4.2.
+- **README now leads with what a judge needs:**
+  - the pitch (§4.4: what, Microsoft tech, problem);
+  - both demo URLs (SWA with live check, Pages mirror);
+  - a 60-second tour with deep links;
+  - the five-stage pipeline table with code paths;
+  - one section per criterion with evidence links;
+  - a category fit table and an "Honest limits" section.
+  - Reference material (CLI, UI, on-air parameters, Foundry setup, repo map) follows.
+- **Claims checked against the code and evidence before writing;** three were corrected:
+  - the personalizer *rejected* (did not fix) a transliterated name;
+  - "never the wording" applies to the claim agent only;
+  - `azure-functions` is an Azure-only dependency.
+  - All relative links resolve. `docs/DEPLOYMENT.md` now records SWA as deployed.
+- **Open for the README:** the demo video link (added at submission).
+- **Next:** video script and recording, screen-reader pass, external 30-second test, `/submission-audit`, Innovation Studio form.
+
+## Checkpoint (2026-10-24): recorded personalizer run wired in; stricter checker
 - **Merged and deployed:** PR #15 squash-merged as `33e14e3`. SWA [run 40115744751](https://github.com/vbabenko97/matchlens-ai/actions/runs/40115744751) and Pages [run 40115746503](https://github.com/vbabenko97/matchlens-ai/actions/runs/40115746503) succeeded, including their smoke jobs.
 - **Live run (operator, 17:53 UTC, `gpt-4.1-mini`):** `personalize-review` exited 0. Committed as `docs/evidence/personalize-trace-2026-10-24.json`.
   - 56 card runs, 62 calls (6 retries), ≈ 22K input / 6.8K output tokens;

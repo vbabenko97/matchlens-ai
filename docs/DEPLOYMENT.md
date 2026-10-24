@@ -1,6 +1,6 @@
 # Deployment and Microsoft integration
 
-Status (2026-10-24): **public demo live on GitHub Pages at <https://vbabenko97.github.io/matchlens-ai/>.** Every step marked **[operator]** needs your account, credentials or approval.
+Status (2026-10-24): **public demo live on Azure Static Web Apps at <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/> (with the live-check API) and on GitHub Pages at <https://vbabenko97.github.io/matchlens-ai/> (static mirror).** Every step marked **[operator]** needs your account, credentials or approval.
 
 | check | result |
 |---|---|
@@ -10,7 +10,7 @@ Status (2026-10-24): **public demo live on GitHub Pages at <https://vbabenko97.g
 | Manual replay test of the public URL | **passed** (operator-reported, 2026-10-24) |
 | Redeploy with cache-busting | [run 40082219742](https://github.com/vbabenko97/matchlens-ai/actions/runs/40082219742) on `main` @ `0aa672c`: build, deploy and post-deploy smoke **success** (2026-10-24 09:30 UTC) |
 | Redeploy with accessibility pass | [run 40081567480](https://github.com/vbabenko97/matchlens-ai/actions/runs/40081567480) on `main` @ `2731814`: build, deploy and post-deploy smoke **success** (2026-10-24 09:21 UTC) |
-| Azure Static Web Apps | **proposed** for the live Foundry check (see below); not created yet. GitHub Pages stays the fallback host. |
+| Azure Static Web Apps | **deployed** (operator created `matchlens-demo` in `rg-matchlens-demo`); latest from `main` @ `14f1b88` by [run 40118847924](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118847924), deploy and smoke **success**. The managed API builds on Python 3.11. GitHub Pages stays the static mirror. |
 
 The deployed site is the offline static export of `main` @ `0aa672c`. It does not depend on the Responses API migration (the public site never calls Azure). Re-run the Pages workflow after merges only if the UI or bundle changes.
 
@@ -79,7 +79,7 @@ Verified locally against independent static hosts: the app server, a plain stati
 2. Check the output (no key in the file: `grep -c "$AZURE_OPENAI_API_KEY" <file>` prints 0), commit it, then add `--personalize-trace docs/evidence/personalize-trace-2026-10-25.json` to the `export-site` lines of `deploy-pages.yml` and `deploy-swa.yml` (one PR), merge and redeploy.
 
 ## Live Foundry check on the public demo (Azure Static Web Apps managed API)
-**Status (2026-10-24): code ready, not deployed.** Needs the operator steps below.
+**Status (2026-10-24): deployed on SWA; the Foundry app settings are set (the operator read them back for `personalize-review`). Not yet verified: one live call and a forced `daily_limit` (step 7), and whether `MATCHLENS_LIVE_COUNTER_URL` is set.**
 
 What it is: on Azure Static Web Apps, each analyst card gets a **Check this card live with Microsoft Foundry** button. It sends `POST /api/live-check` with `{"card_id": ...}` and nothing else. The function in `api/live_check/` (code: `src/matchlens/live.py`) builds the request itself from the demo match and runs the same bounded agent and validator as `agent-review`. The reply replaces the recorded claim check on that card and is labelled as a live call, with response IDs, token use and latency. The key stays in the app settings; the browser never sees it. GitHub Pages builds have no button (no server side).
 
@@ -137,7 +137,7 @@ The public static demo never calls Azure at runtime (that would need the key in 
 | item | status |
 |---|---|
 | Azure subscription | **active** (hosts the Foundry deployment) |
-| Static Web App (Free) + `AZURE_STATIC_WEB_APPS_API_TOKEN` secret | **not created** (needed for the live check) |
+| Static Web App (Free) + `AZURE_STATIC_WEB_APPS_API_TOKEN` secret | **created and in use** |
 | GitHub Pages source = GitHub Actions | **enabled**; site deployed |
 | Foundry / Azure OpenAI model deployment + key | **created** (`gpt-4.1-mini`), verified by `azure-check` 2026-10-24; key held by the operator only |
 | `PUBLIC_DEMO_URL` repository variable | **set** to `https://vbabenko97.github.io/matchlens-ai/` |
