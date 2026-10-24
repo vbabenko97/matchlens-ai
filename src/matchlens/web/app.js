@@ -500,7 +500,7 @@ function init(bundle) {
 
 window.matchlens = { state, seek, setMode, setPlaying };
 
-fetch("data/bundle.json")
+fetch("data/bundle.json", { cache: "no-cache" }) // revalidate: the bundle changes per deploy
   .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
   .then(init)
   .catch((err) => { $("disclosure").textContent = `Could not load match data: ${err.message}`; });

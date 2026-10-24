@@ -8,9 +8,10 @@ Status (2026-10-24): **public demo live on GitHub Pages at <https://vbabenko97.g
 | `PUBLIC_DEMO_URL` | set to `https://vbabenko97.github.io/matchlens-ai/` (operator) |
 | Public smoke test (Playwright e2e against the URL) | [run 1](https://github.com/vbabenko97/matchlens-ai/actions/runs/39478441723) (manual, 2026-10-20) and daily scheduled runs [2](https://github.com/vbabenko97/matchlens-ai/actions/runs/39604056321), [3](https://github.com/vbabenko97/matchlens-ai/actions/runs/39783144846), [4](https://github.com/vbabenko97/matchlens-ai/actions/runs/39955061358) (2026-10-21 to 2026-10-23): **all success**. The `pytest -q -m e2e` step ran in each run and was not skipped. Verified via the GitHub Actions API on 2026-10-24. |
 | Manual replay test of the public URL | **passed** (operator-reported, 2026-10-24) |
+| Redeploy with accessibility pass | [run 40081567480](https://github.com/vbabenko97/matchlens-ai/actions/runs/40081567480) on `main` @ `2731814`: build, deploy and post-deploy smoke **success** (2026-10-24 09:21 UTC) |
 | Azure Static Web Apps | **not used**. Option A below stays documented as an alternative only; no resource will be created. |
 
-The deployed site is the offline static export of `main` @ `e7dc926`. It does not depend on the Responses API migration (the public site never calls Azure). Re-run the Pages workflow after merges only if the UI or bundle changes.
+The deployed site is the offline static export of `main` @ `2731814`. It does not depend on the Responses API migration (the public site never calls Azure). Re-run the Pages workflow after merges only if the UI or bundle changes.
 
 ## What gets deployed
 The public demo is the **static export** of the replay UI: `python -m matchlens export-site --offline --out site`. It has:
@@ -19,6 +20,8 @@ The public demo is the **static export** of the replay UI: `python -m matchlens 
 - `data/overlays.json`.
 
 It runs entirely in the browser, needs no server code or account, and contains **no credentials**. Its wording comes from the deterministic offline template, labelled as such. It therefore stays fully functional without Azure, and hosting costs nothing beyond the free tier.
+
+Caching: GitHub Pages serves assets with a 10-minute cache. `index.html` therefore loads `style.css?v=<hash>` and `app.js?v=<hash>` (content hashes added by `export-site`), so a new deploy never pairs new HTML with old cached CSS/JS. `bundle.json` is fetched with `cache: "no-cache"`.
 
 Security on static hosts:
 - `index.html` carries a CSP meta tag (`script-src 'self'`, no inline script or eval).
