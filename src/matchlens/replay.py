@@ -25,6 +25,7 @@ from .generator import generate_match
 from .moments import detect_goals
 from .narrative import ANALYST, CASUAL, MODES, NarrativeProvider, OfflineTemplateProvider
 from .overlays import build_overlay_document
+from .passing import passing_record
 from .personalize import Personalizer, personalize_cards, personalized_record
 from .players import player_records
 from .schema import AWAY, HOME, Match, minute_of
@@ -155,6 +156,7 @@ def build_bundle(
         "overlays": build_overlay_document(match, card_sets),
         "highlights": highlights(match, reviews),
         "players": player_records(match, {cs.mode: cs.cards for cs in card_sets}),
+        "passing": passing_record(match),
     }
     if personalized is not None:
         doc["personalized"] = personalized
