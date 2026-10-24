@@ -79,13 +79,16 @@ def _proposer(offline: bool, trace: Path | None):
     return FoundryAgentProposer(config) if config else OfflineProposer()
 
 
-def _personalizer(trace: Path | None):
+def _personalizer(trace: Path | None, review: Path | None = None):
     """Only a recorded run: a build never makes the 56 live personalizer calls by itself."""
     if trace is None:
+        if review is not None:
+            raise ConfigError("--editorial-review needs --personalize-trace")
         return None
     try:
         doc = json.loads(trace.read_text(encoding="utf-8"))
-        return RecordedPersonalizer(doc, trace.as_posix())
+        rev = json.loads(review.read_text(encoding="utf-8")) if review else None
+        return RecordedPersonalizer(doc, trace.as_posix(), rev)
     except (OSError, ValueError, KeyError) as exc:
         raise ConfigError(
             f"cannot use personalize trace {trace}: {type(exc).__name__}: {exc}"
@@ -188,6 +191,11 @@ def _main(argv: list[str] | None = None) -> int:
             "--personalize-trace", type=Path, help="replay a recorded personalize-review trace"
         )
         p.add_argument(
+            "--editorial-review",
+            type=Path,
+            help="lines of the personalize trace rejected in an editorial review (JSON)",
+        )
+        p.add_argument(
             "--live-api",
             action="store_true",
             help=f"show 'Check live' buttons that POST to {LIVE_PATH} (demo seed only)"
@@ -246,7 +254,7 @@ def _main(argv: list[str] | None = None) -> int:
             match,
             provider,
             proposer=_proposer(args.offline, args.agent_trace),
-            personalizer=_personalizer(args.personalize_trace),
+            personalizer=_personalizer(args.personalize_trace, args.editorial_review),
         )
         extras = []
         if not (args.file or args.single_match) and args.seed == DEFAULT_DEMO_SEED:

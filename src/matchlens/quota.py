@@ -34,9 +34,20 @@ class CounterError(RuntimeError):
     """The quota store could not be read or updated. Messages never include the SAS token."""
 
 
+class CounterTimeout(CounterError):
+    """The caller's time ran out before the reservation finished; no unit was taken."""
+
+
+MIN_CALL_S = 1.0  # do not start a store call with less time than this left
+TimeLeft = Callable[[], float]  # seconds left of the caller's deadline
+
+
 class DailyCounter(Protocol):
-    def reserve(self, day: str, limit: int) -> int | None:
-        """Take one unit for ``day``: the new count, or ``None`` when ``limit`` is reached."""
+    def reserve(self, day: str, limit: int, time_left: TimeLeft | None = None) -> int | None:
+        """Take one unit for ``day``: the new count, or ``None`` when ``limit`` is reached.
+
+        ``time_left`` bounds the whole reservation; when it runs out, ``CounterTimeout``.
+        """
         ...
 
 
@@ -45,8 +56,8 @@ class MemoryCounter:
         self._counts: dict[str, int] = {}
         self._lock = threading.Lock()
 
-    def reserve(self, day: str, limit: int) -> int | None:
-        with self._lock:
+    def reserve(self, day: str, limit: int, time_left: TimeLeft | None = None) -> int | None:
+        with self._lock:  # in memory: nothing to wait for
             used = self._counts.get(day, 0)
             if used >= limit:
                 return None
@@ -92,7 +103,14 @@ class TableCounter:
     def __repr__(self) -> str:  # never show the SAS token
         return f"TableCounter({self._base})"
 
-    def _call(self, method: str, url: str, headers: dict[str, str], body: dict | None = None):
+    def _call(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: dict | None = None,
+        time_left: TimeLeft | None = None,
+    ):
         headers = {
             "Accept": "application/json;odata=nometadata",
             "x-ms-version": "2019-02-02",
@@ -103,20 +121,30 @@ class TableCounter:
         if body is not None:
             data = json.dumps(body).encode()
             headers["Content-Type"] = "application/json"
+        timeout = self._timeout
+        if time_left is not None:
+            left = time_left()
+            if left <= MIN_CALL_S:
+                raise CounterTimeout("no time left to reserve quota")
+            timeout = min(timeout, left)
         try:
-            return self._http(method, f"{url}?{self._query}", headers, data, self._timeout)
+            return self._http(method, f"{url}?{self._query}", headers, data, timeout)
         except Exception as exc:  # network: the type only, the URL carries the token
+            if time_left is not None and time_left() <= MIN_CALL_S:
+                raise CounterTimeout("quota store too slow for the deadline") from None
             raise CounterError(f"quota store unreachable ({type(exc).__name__})") from None
 
-    def reserve(self, day: str, limit: int) -> int | None:
+    def reserve(self, day: str, limit: int, time_left: TimeLeft | None = None) -> int | None:
         if limit <= 0:
             return None
         entity = f"{self._base}(PartitionKey='{day}',RowKey='{ROW_KEY}')"
         for _ in range(MAX_CONFLICTS):
-            status, headers, raw = self._call("GET", entity, {})
+            status, headers, raw = self._call("GET", entity, {}, time_left=time_left)
             if status == 404:
                 row = {"PartitionKey": day, "RowKey": ROW_KEY, "Count": 1}
-                status, _, _ = self._call("POST", self._base, {"Prefer": "return-no-content"}, row)
+                status, _, _ = self._call(
+                    "POST", self._base, {"Prefer": "return-no-content"}, row, time_left
+                )
                 if status in (201, 204):
                     return 1
                 if status == 409:  # another instance created it first: read again
@@ -136,7 +164,7 @@ class TableCounter:
             if not etag:
                 raise CounterError("quota store reply has no ETag")
             row = {"PartitionKey": day, "RowKey": ROW_KEY, "Count": used + 1}
-            status, _, _ = self._call("PUT", entity, {"If-Match": etag}, row)
+            status, _, _ = self._call("PUT", entity, {"If-Match": etag}, row, time_left)
             if status == 204:
                 return used + 1
             if status == 412:  # changed since the read: another reservation won, read again

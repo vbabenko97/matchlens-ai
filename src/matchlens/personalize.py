@@ -33,7 +33,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
@@ -53,8 +53,11 @@ FOCUSES = (NEUTRAL, HOME, AWAY)
 # Every variant but the source itself (English, neutral).
 VARIANTS = tuple((lang, f) for lang in LANGS for f in FOCUSES if (lang, f) != ("en", NEUTRAL))
 TRACE_SCHEMA = "matchlens.personalize-trace/v1"
-# The recorded run the public builds replay (deploy-pages.yml, deploy-swa.yml).
+# The recorded run the public builds replay (deploy-pages.yml, deploy-swa.yml), and the
+# editorial review of that run: lines a reader rejected although they passed ``check_line``.
 PERSONALIZE_TRACE = "docs/evidence/personalize-trace-2026-10-24.json"
+PERSONALIZE_REVIEW = "docs/evidence/personalize-review-2026-10-24.json"
+REVIEW_SCHEMA = "matchlens.personalize-review/v1"
 FOUNDRY = "foundry_personalizer"
 RECORDED = "recorded_foundry_personalizer"
 VERIFIED = "verified"
@@ -292,7 +295,7 @@ class RecordedPersonalizer:
 
     name = RECORDED
 
-    def __init__(self, trace: dict[str, Any], source: str):
+    def __init__(self, trace: dict[str, Any], source: str, review: dict[str, Any] | None = None):
         problems = trace_problems(trace)
         if problems:
             raise ValueError("not acceptable evidence: " + "; ".join(problems))
@@ -303,6 +306,9 @@ class RecordedPersonalizer:
             f"deployment {trace['deployment']}), replayed from {source} — not a live call. "
             "Numbers and names are re-checked line by line when this output is built."
         )
+        self.review = load_review(review) if review is not None else {}
+        if self.review:
+            self.label += f" {len(self.review)} line(s) were rejected in an editorial review."
 
     def covers(self, card_id: str, lang: str, focus: str) -> bool:
         return (card_id, lang, focus) in self._runs
@@ -406,6 +412,13 @@ def personalize_cards(
 ) -> list[PersonalizedCard]:
     """Every card in every variant; a recorded run is replayed only where it has the card."""
     out = []
+    if isinstance(proposer, RecordedPersonalizer) and proposer.review:
+        ids = {c.card_id for c in card_set.cards}
+        stale = sorted(
+            k for k in proposer.review if k[0] not in ids or (k[1], k[2]) not in variants
+        )
+        if stale:
+            raise ValueError(f"editorial review names lines this run does not have: {stale[:3]}")
     for lang, focus in variants:
         for card in card_set.cards:
             if isinstance(proposer, RecordedPersonalizer) and not proposer.covers(
@@ -413,11 +426,60 @@ def personalize_cards(
             ):
                 continue
             result = personalize_card(match, card, lang, focus, proposer, strict)
+            if isinstance(proposer, RecordedPersonalizer) and proposer.review:
+                result = apply_review(result, proposer.review)
             kept = sum(line.status == KEPT for line in result.lines)
             ok = len(result.lines) - kept
             log(f"{variant_key(lang, focus)} {card.card_id}: {ok} ok, {kept} kept")
             out.append(result)
     return out
+
+
+ReviewKey = tuple[str, str, str, int]  # card_id, lang, focus, line index
+
+
+def load_review(doc: dict[str, Any]) -> dict[ReviewKey, tuple[str, str]]:
+    """Editorial rejections by line: the exact text rejected and the reason."""
+    if doc.get("schema") != REVIEW_SCHEMA or not isinstance(doc.get("rejections"), list):
+        raise ValueError(f"not a {REVIEW_SCHEMA} document")
+    out: dict[ReviewKey, tuple[str, str]] = {}
+    for r in doc["rejections"]:
+        key = (r["card_id"], r["lang"], r["focus"], int(r["index"]))
+        if (r["lang"], r["focus"]) not in VARIANTS or key in out:
+            raise ValueError(f"bad or repeated review entry: {key}")
+        if not str(r.get("text", "")).strip() or not str(r.get("reason", "")).strip():
+            raise ValueError(f"review entry without text or reason: {key}")
+        out[key] = (r["text"], r["reason"])
+    return out
+
+
+def apply_review(
+    result: PersonalizedCard, review: dict[ReviewKey, tuple[str, str]]
+) -> PersonalizedCard:
+    """Turn editorially rejected lines into kept English lines.
+
+    An entry applies only to the exact text it rejected: if the replay shows a different text
+    (another trace, or the checker now rejects or keeps that line), the build fails rather than
+    silently reviewing something else.
+    """
+    lines = []
+    for line in result.lines:
+        entry = review.get((result.card_id, result.lang, result.focus, line.index))
+        if entry is None:
+            lines.append(line)
+            continue
+        text, reason = entry
+        if line.status != VERIFIED or line.text != text:
+            raise ValueError(
+                f"editorial review of {result.card_id} {result.lang}|{result.focus} line "
+                f"{line.index} does not match the replayed line"
+            )
+        lines.append(
+            LineResult(
+                line.index, line.source, line.source, KEPT, 0, (f"editorial review: {reason}",)
+            )
+        )
+    return replace(result, lines=tuple(lines))
 
 
 def personalized_record(results: Sequence[PersonalizedCard], label: str) -> dict[str, Any]:

@@ -73,7 +73,7 @@ function localized(card) {
 
 function personalizedNote(loc) {
   const team = loc.focus === "neutral" ? "" : `, for ${state.bundle.meta[loc.focus].name} fans`;
-  const kept = loc.kept ? ` ${loc.kept} line(s) kept in English: the checker rejected the rewrite.` : "";
+  const kept = loc.kept ? ` ${loc.kept} line(s) kept in English: the checker or the editorial review rejected the rewrite.` : "";
   return `${LANG_NAME[loc.lang]}${team}: AI wording by the Microsoft Foundry personalizer ` +
     `(${state.bundle.personalized.proposers.includes("recorded_foundry_personalizer") ? "recorded run" : "live"}); ` +
     `numbers and names checked against the English facts; meaning and tone not checked.${kept}`;

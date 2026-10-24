@@ -17,7 +17,8 @@ Fuses, in the order they apply:
    spend cap. It is a shared, durable count (``quota.TableCounter``), reserved before any
    model call; a reservation is never returned, even when the call fails. If the count
    cannot be read or updated, no live call is made.
-5. A deadline (``DEADLINE_S``) over all model calls, rate-limit waits included.
+5. One deadline (``DEADLINE_S``) over the whole request: the quota reservation, every model
+   call and every rate-limit wait. Each store or model call gets at most the time left.
 
 Whenever the live call is not made or does not finish, the reply says why and tells the
 page to keep showing the recorded run, which it labels as recorded. A fallback is never
@@ -46,7 +47,15 @@ from .narrative import (
     Transport,
     _urllib_transport,
 )
-from .quota import COUNTER_URL_ENV, CounterError, DailyCounter, MemoryCounter, TableCounter
+from .quota import (
+    COUNTER_URL_ENV,
+    CounterError,
+    CounterTimeout,
+    DailyCounter,
+    MemoryCounter,
+    TableCounter,
+    TimeLeft,
+)
 from .replay import DEFAULT_DEMO_SEED as DEMO_SEED  # the match the public demo replays
 from .schema import Match
 
@@ -92,8 +101,12 @@ class Budget:
     _remaining: int | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def take(self, client: str) -> str | None:
-        """Reserve one check for ``client``; return a fallback reason instead of reserving."""
+    def take(self, client: str, time_left: TimeLeft | None = None) -> str | None:
+        """Reserve one check for ``client``; return a fallback reason instead of reserving.
+
+        ``time_left`` is the request's deadline: a slow quota store ends the check with
+        ``DEADLINE`` before any model call, instead of eating the model's time.
+        """
         with self._lock:
             if self.counter is None:
                 return NOT_CONFIGURED
@@ -104,7 +117,9 @@ class Budget:
                 return CLIENT_LIMIT
             day = datetime.fromtimestamp(t, UTC).date().isoformat()
             try:
-                used = self.counter.reserve(day, self.daily)
+                used = self.counter.reserve(day, self.daily, time_left)
+            except CounterTimeout:
+                return DEADLINE
             except CounterError:
                 return COUNTER_UNAVAILABLE
             if used is None:
@@ -144,9 +159,9 @@ def client_key(forwarded_for: str | None, fallback: str = "") -> str:
 class _Deadline:
     """Wraps the transport and the rate-limit sleep so no call or wait crosses the deadline."""
 
-    def __init__(self, transport: Transport, sleep: Callable[[float], None], clock, limit_s):
+    def __init__(self, transport: Transport, sleep: Callable[[float], None], clock, end: float):
         self._transport, self._sleep, self._clock = transport, sleep, clock
-        self._end = clock() + limit_s
+        self._end = end  # the request's deadline, on ``clock``
 
     def remaining(self) -> float:
         return self._end - self._clock()
@@ -202,17 +217,21 @@ class LiveChecker:
         if not self._busy.acquire(blocking=False):
             return self._fallback(card_id, BUSY, 503)  # turned away before it costs any quota
         try:
-            over = self.budget.take(client)
+            # One deadline for the whole request: the quota reservation counts against it.
+            started = self._clock()
+            end = started + self._deadline_s
+            over = self.budget.take(client, lambda: end - self._clock())
+            if over == DEADLINE:
+                return self._fallback(card_id, DEADLINE, 504)
             if over is not None:
                 return self._fallback(card_id, over, 429)
-            return self._run(card_id)
+            return self._run(card_id, started, end)
         finally:
             self._busy.release()
 
-    def _run(self, card_id: str) -> tuple[int, dict[str, Any]]:
+    def _run(self, card_id: str, started: float, end: float) -> tuple[int, dict[str, Any]]:
         assert self.config is not None
-        started = self._clock()
-        deadline = _Deadline(self._transport, self._sleep, self._clock, self._deadline_s)
+        deadline = _Deadline(self._transport, self._sleep, self._clock, end)
         proposer = FoundryAgentProposer(
             self.config, deadline.transport, timeout_s=self._deadline_s, sleep=deadline.sleep
         )

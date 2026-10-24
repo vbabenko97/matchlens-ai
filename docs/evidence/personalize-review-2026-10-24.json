@@ -1,0 +1,105 @@
+{
+ "schema": "matchlens.personalize-review/v1",
+ "trace": "docs/evidence/personalize-trace-2026-10-24.json",
+ "reviewed_on": "2026-10-24",
+ "scope": "Every line of the trace that passed check_line (220 of 232), read against its English source fact.",
+ "rule": "Reject a rewrite that adds a detail not in the fact, changes its meaning, overstates the data, or is not correct, idiomatic language. Tone and point of view alone (\"Heartbreak\", \"crucial\") are allowed. A rejected line shows its English source on the page, marked as kept.",
+ "rejections": [
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "en",
+   "focus": "home",
+   "index": 2,
+   "text": "The equalizer started with a fierce tackle winning the ball, followed by 2 quick passes.",
+   "reason": "adds detail not in the fact (\"fierce\" tackle, \"quick\" passes)"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "en",
+   "focus": "home",
+   "index": 3,
+   "text": "Northbridge Rovers dominated shots (14–11), but Eastvale Athletic had the edge in quality chances (synthetic xG 3.04 vs 2.05).",
+   "reason": "overstates the data: 14–11 is not \"dominated\""
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "en",
+   "focus": "away",
+   "index": 2,
+   "text": "The goal sprung immediately from a sharp interception.",
+   "reason": "adds detail not in the fact (\"sharp\" interception); ungrammatical \"sprung\""
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "en",
+   "focus": "away",
+   "index": 2,
+   "text": "The move started with a tough tackle winning the ball back, followed by 2 sharp passes.",
+   "reason": "adds detail not in the fact (\"tough\" tackle, \"sharp\" passes)"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "away",
+   "index": 3,
+   "text": "The comeback move started with a tackle winning possession, followed by 6 quick passes.",
+   "reason": "adds detail not in the fact (\"quick\" passes)"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "away",
+   "index": 1,
+   "text": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem er in der 38. Minute eine große Chance knapp vergeben hatte.",
+   "reason": "changes the meaning: the chance was saved, not \"knapp vergeben\" (narrowly missed)"
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": -1,
+   "text": "Нічия Northbridge Rovers",
+   "reason": "changes the meaning: \"Нічия\" reads as a drawn match, not as drawing level"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 1,
+   "text": "Northbridge Rovers програвали 0-1 на 5-й хвилині. Голі на 56-й та 71-й хвилинах змінили хід гри.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")"
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 2,
+   "text": "Гол почався з перехоплення м’яча після відбору, потім було 2 передачі.",
+   "reason": "adds an interception that is not in the fact"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": -1,
+   "text": "Повний час: Eastvale Athletic відігралася та виграла 2-3",
+   "reason": "unidiomatic calque: \"Повний час\" for \"Full time\""
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Northbridge Rovers зрівнюють рахунок 1-1 через 51 хвилину після того, як відійшли назад.",
+   "reason": "changes the meaning: \"після того, як відійшли назад\" (after stepping back) for \"after going behind\""
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "home",
+   "index": 2,
+   "text": "Впевненість у перемозі переходила з одних в інші руки двічі.",
+   "reason": "changes the meaning: \"confidence in victory changed hands\" for \"the lead changed hands\""
+  }
+ ]
+}

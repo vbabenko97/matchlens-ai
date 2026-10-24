@@ -400,3 +400,78 @@ def test_the_committed_run_replays_with_the_flipped_scores_kept_in_english(match
     assert "3-2" not in title.text and title.text == title.source
     assert all("3-2" not in ln.text for _, ln in lines)
     assert not any("ы" in ln.text for _, ln in lines)
+
+
+# --- Editorial review of the recorded run -----------------------------------------------------
+
+
+def _committed():
+    from pathlib import Path
+
+    from matchlens.personalize import PERSONALIZE_REVIEW, PERSONALIZE_TRACE
+
+    root = Path(__file__).parents[1]
+    trace = json.loads((root / PERSONALIZE_TRACE).read_text("utf-8"))
+    review = json.loads((root / PERSONALIZE_REVIEW).read_text("utf-8"))
+    return trace, review
+
+
+BAD_PHRASES = (
+    "fierce",
+    "quick passes",
+    "sharp",
+    "dominated",
+    "knapp vergeben",
+    "Нічия",
+    "Голі",
+    "Повний час",
+    "відійшли назад",
+    "Впевненість",
+)
+
+
+def test_the_editorial_review_keeps_the_rejected_lines_in_english(match, cards):
+    trace, review = _committed()
+    proposer = RecordedPersonalizer(trace, "trace", review)
+    results = personalize_cards(match, cards, proposer)
+    lines = [ln for r in results for ln in r.lines]
+    reviewed = [ln for ln in lines if any(x.startswith("editorial review:") for x in ln.reasons)]
+    assert len(lines) == 232 and len(reviewed) == len(review["rejections"]) == 12
+    assert sum(ln.status == KEPT for ln in lines) == 24
+    assert all(ln.text == ln.source and ln.attempt == 0 for ln in reviewed)
+    shown = " ".join(ln.text for ln in lines)
+    assert not [p for p in BAD_PHRASES if p in shown]
+    assert "editorial review" in proposer.label
+
+
+def test_a_review_must_match_the_replayed_text(match, cards):
+    trace, review = _committed()
+    changed = json.loads(json.dumps(review))
+    changed["rejections"][0]["text"] += " (edited)"
+    with pytest.raises(ValueError, match="does not match"):
+        personalize_cards(match, cards, RecordedPersonalizer(trace, "t", changed))
+    stale = json.loads(json.dumps(review))
+    stale["rejections"][0]["card_id"] = "casual:goal:ml1-99999"
+    with pytest.raises(ValueError, match="does not have"):
+        personalize_cards(match, cards, RecordedPersonalizer(trace, "t", stale))
+
+
+def test_review_documents_are_validated():
+    from matchlens.personalize import load_review
+
+    _, review = _committed()
+    with pytest.raises(ValueError):
+        load_review({"schema": "other", "rejections": []})
+    twice = {**review, "rejections": review["rejections"][:1] * 2}
+    with pytest.raises(ValueError, match="repeated"):
+        load_review(twice)
+    no_reason = {**review, "rejections": [{**review["rejections"][0], "reason": " "}]}
+    with pytest.raises(ValueError, match="reason"):
+        load_review(no_reason)
+
+
+def test_editorial_review_needs_a_trace(tmp_path):
+    from matchlens.personalize import PERSONALIZE_REVIEW
+
+    args = ["export-site", "--offline", "--single-match", "--editorial-review", PERSONALIZE_REVIEW]
+    assert main([*args, "--out", str(tmp_path / "s")]) == 2

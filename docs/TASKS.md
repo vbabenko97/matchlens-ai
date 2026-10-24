@@ -10,7 +10,37 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): README rewritten for the judging criteria (plan item 6, part 1)
+## Latest checkpoint (2026-10-24): review fixes before the video (translations, one deadline, docs)
+- **Source:** an independent review of `main` @ `ff20751`.
+  - Reported: tests and CI green; both hosts HTTP 200; one live Foundry call on the Azure host (7.2 s, 3 model calls, 8,058 tokens, 4 claims verified); overlay and match picker checked in a browser.
+  - Found: meaning errors in accepted personalizer lines; a deadline gap; stale docs.
+- **Translations: editorial review**, `docs/evidence/personalize-review-2026-10-24.json` (`matchlens.personalize-review/v1`).
+  - All 220 lines that passed `check_line` were read against their source.
+  - 12 were rejected with reasons:
+    - added details ("fierce tackle", "quick/sharp passes", "sharp interception");
+    - changed meaning ("knapp vergeben" for a saved chance, "Нічия" for drawing level, "відійшли назад", "Впевненість у перемозі");
+    - overstatement ("dominated" for 14–11);
+    - wrong language ("Голі", the calque "Повний час").
+  - The recorded trace is unchanged. `--editorial-review` applies each entry to the exact text it names, and the build fails on a mismatch or a stale entry.
+  - On the page, 24 of 232 lines show the English fact. The card note says "the checker or the editorial review rejected the rewrite".
+  - Both deploy workflows pass the review.
+- **One deadline per live request.**
+  - The 30 s budget now starts before the quota reservation.
+  - Every Table Storage call gets at most the time left (`CounterTimeout` -> `deadline`, 504), and the model gets only what remains.
+  - The reproduced gap (model part starting at 31 s behind a slow store) is a regression test that fails on the old code.
+- **Monitoring.** The daily smoke test now runs on both hosts, Pages via `PUBLIC_DEMO_URL` and Azure via `AZURE_DEMO_URL` or the default SWA URL, through 2026-11-10. `actionlint` is clean.
+- **Docs.**
+  - DEPLOYMENT records the verified live call; a successful live reply also shows the quota store is configured.
+  - Only the forced `daily_limit` check remains open.
+  - "The public demo never calls Azure" is gone.
+  - README: the extra matches use the offline proposer (they do not replay recorded runs), and the editorial review is described.
+- **Verified:**
+  - `python -m pytest -q` -> 524 passed, 2 skipped (incl. e2e on local Chromium);
+  - `ruff check .` and `ruff format --check .` clean;
+  - `actionlint` clean.
+- **Next:** freeze the submission version after merge and deploy (tag), then video, screen-reader pass, external test, `/submission-audit`, Innovation Studio form.
+
+## Checkpoint (2026-10-24): README rewritten for the judging criteria (plan item 6, part 1)
 - **Merged and deployed:** PR #16 squash-merged as `14f1b88`. SWA [run 40118847924](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118847924) and Pages [run 40118849873](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118849873) succeeded, including their smoke jobs.
 - **Source:** the official rules, §6.2. Five equally weighted criteria (20% each): Technological Implementation, Agentic Design & Innovation, Real-World Impact & Applicability, User Experience & Presentation, Adherence to Hackathon Category. Challenge §4.1: the five-stage pipeline and multi-language storytelling. Categories §4.2.
 - **README now leads with what a judge needs:**

@@ -1,7 +1,8 @@
 name: Public demo smoke test
 
 # Runs the Playwright e2e suite against a deployed URL. Called after each deploy, runnable by
-# hand, and scheduled daily through 2026-11-10 to confirm the public demo stays reachable.
+# hand, and scheduled daily through 2026-11-10 (the end of judging) against both public hosts:
+# GitHub Pages (PUBLIC_DEMO_URL) and Azure Static Web Apps (AZURE_DEMO_URL, else the default).
 on:
   workflow_call:
     inputs:
@@ -23,17 +24,28 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Scheduled runs watch both public hosts; a deploy or manual run checks the URL it names.
+        host: ${{ github.event_name == 'schedule' && fromJSON('["pages", "azure"]') || fromJSON('["given"]') }}
     steps:
       - name: Resolve target URL
         id: target
         env:
+          HOST: ${{ matrix.host }}
           INPUT_URL: ${{ inputs.url }}
           VAR_URL: ${{ vars.PUBLIC_DEMO_URL }}
+          AZURE_URL: ${{ vars.AZURE_DEMO_URL || 'https://wonderful-hill-04967dd0f.5.azurestaticapps.net/' }}
           EVENT: ${{ github.event_name }}
         run: |
-          url="${INPUT_URL:-$VAR_URL}"
+          case "$HOST" in
+            azure) url="$AZURE_URL" ;;
+            pages) url="$VAR_URL" ;;
+            *) url="${INPUT_URL:-$VAR_URL}" ;;
+          esac
           if [ -z "$url" ]; then
-            echo "No public URL configured (set repository variable PUBLIC_DEMO_URL); skipping."
+            echo "No public URL configured for $HOST (set repository variable PUBLIC_DEMO_URL); skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           if [ "$EVENT" = "schedule" ] && [ "$(date -u +%F)" \> "2026-11-10" ]; then
