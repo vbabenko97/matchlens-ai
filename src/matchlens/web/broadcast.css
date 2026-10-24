@@ -1,0 +1,67 @@
+/* Broadcast graphics: sized in vw so a 1920×1080 or 1280×720 browser source scales alike,
+   kept inside the 5% title-safe margin, opaque panels so text stays legible over any video. */
+:root {
+  --panel: rgba(11, 18, 32, 0.94);
+  --panel-2: #18233a;
+  --text: #ffffff;
+  --muted: #c3cee0;
+  --home: #38bdf8;
+  --away: #fbbf24;
+  --accent: #a78bfa;
+  --ok: #34d399;
+  --safe: 5vw;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background: transparent; color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.6vw; line-height: 1.25;
+}
+body[data-bg="green"] { background: #00b140; }
+body[data-bg="dark"] { background: #0b1220; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.bug {
+  position: absolute; top: var(--safe); right: var(--safe);
+  background: var(--panel); border-radius: 0.4em; padding: 0.3em 0.7em;
+  font-size: 0.7em; color: var(--muted); letter-spacing: 0.02em;
+}
+.bug strong { color: var(--accent); }
+
+.lower-third {
+  position: absolute; left: var(--safe); bottom: var(--safe); max-width: 62vw;
+  display: flex; flex-direction: column; filter: drop-shadow(0 0.3vw 0.8vw rgba(0, 0, 0, 0.45));
+}
+.lt-tag {
+  align-self: flex-start; display: flex; gap: 0.6em; align-items: baseline;
+  background: var(--accent); color: #111; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; font-size: 0.72em; padding: 0.3em 0.8em; border-radius: 0.4em 0.4em 0 0;
+}
+.lower-third[data-team="home"] .lt-tag { background: var(--home); }
+.lower-third[data-team="away"] .lt-tag { background: var(--away); }
+.lt-team { font-weight: 600; letter-spacing: 0.04em; }
+.lt-body {
+  background: var(--panel); border-left: 0.35em solid var(--accent);
+  border-radius: 0 0.4em 0.4em 0.4em; padding: 0.55em 1em 0.6em;
+}
+.lower-third[data-team="home"] .lt-body { border-left-color: var(--home); }
+.lower-third[data-team="away"] .lt-body { border-left-color: var(--away); }
+.lt-body p { margin: 0; }
+.lt-title { font-size: 1.35em; font-weight: 800; text-wrap: balance; }
+.lt-fact { margin-top: 0.2em !important; font-size: 1em; font-weight: 600; }
+.lt-note { margin-top: 0.35em !important; font-size: 0.62em; color: var(--ok); font-variant-numeric: tabular-nums; }
+
+.status-line {
+  position: absolute; left: var(--safe); top: var(--safe); max-width: 60vw; margin: 0;
+  background: #3b0d0d; color: #fecaca; border: 2px solid #f87171; border-radius: 0.4em;
+  padding: 0.4em 0.8em; font-size: 0.8em;
+}
+
+.lower-third.enter { animation: lt-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes lt-in { from { opacity: 0; transform: translateX(-3vw); } to { opacity: 1; transform: none; } }
+
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) { .lower-third.enter { animation: none; } }

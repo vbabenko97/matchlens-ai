@@ -15,6 +15,7 @@ import functools
 import http.server
 import json
 import os
+import re
 import threading
 import urllib.request
 from pathlib import Path
@@ -464,3 +465,79 @@ def test_event_chain_stays_open_while_inspecting(page):
     again = page.locator(f'#cards .card[data-card-id="{card_id}"] details.chain')
     assert again.evaluate("(d) => d.open")
     assert page.evaluate("document.activeElement.dataset.eventId") == event_id
+
+
+# --- Broadcast lower-third (broadcast.html): a browser source fed by data/overlays.json ---
+
+
+def _open_broadcast(page, query):
+    page.goto(page.base + "broadcast.html" + query)
+    page.wait_for_selector("body[data-ready=true]")
+
+
+def _cues(bundle, mode):
+    return [c for c in bundle["overlays"]["cues"] if c["mode"] == mode]
+
+
+def _on_air(text):
+    """The graphic's text with evidence brackets dropped and the score's hyphen unbreakable."""
+    return re.sub(r"(\d)-(\d)", "\\1\u2011\\2", text.split(" [evidence")[0])
+
+
+def _why(cue):
+    return next((f for f in cue["facts"] if f["role"] == "why"), cue["facts"][0])
+
+
+def test_broadcast_cue_shows_the_verified_why_line_on_a_transparent_page(page, bundle):
+    cue = next(c for c in _cues(bundle, "casual") if c["kind"] == "goal")
+    _open_broadcast(page, f"?cue={cue['cue_id']}")
+    lt = page.locator("#lower-third")
+    assert lt.is_visible() and lt.get_attribute("data-cue") == cue["cue_id"]
+    assert page.text_content("#lt-title") == _on_air(cue["title"])
+    assert page.text_content("#lt-fact") == _on_air(_why(cue)["text"])
+    assert page.text_content("#lt-team") == bundle["overlays"]["teams"][cue["team"]]
+    assert "Checked against match events" in page.text_content("#lt-note")
+    assert cue["narrative"]["text"] not in page.text_content("body")  # wording never goes on air
+    bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert bg == "rgba(0, 0, 0, 0)"  # composited over video
+    assert "Synthetic match" in page.text_content("#bug")
+
+
+def test_broadcast_analyst_cue_cites_events_without_evidence_brackets(page, bundle):
+    cue = next(c for c in _cues(bundle, "analyst") if c["kind"] == "goal")
+    _open_broadcast(page, f"?mode=analyst&cue={cue['cue_id']}&bg=green")
+    fact = page.text_content("#lt-fact")
+    assert "[evidence" not in fact and fact == _on_air(_why(cue)["text"])
+    note = page.text_content("#lt-note")
+    assert f"Events {_why(cue)['event_ids'][0]}" in note
+    bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert bg == "rgb(0, 177, 64)"
+
+
+def test_broadcast_follows_the_match_clock_and_never_shows_a_cue_early(page, bundle):
+    cue = next(c for c in _cues(bundle, "casual") if c["kind"] == "goal")
+    _open_broadcast(page, f"?from={cue['start_s'] - 1.5}&speed=1")
+    assert page.locator("#lower-third").is_hidden()  # not before its publication time
+    page.wait_for_selector(f"#lower-third[data-cue='{cue['cue_id']}']", timeout=5000)
+    assert float(page.get_attribute("body", "data-clock")) >= cue["start_s"]
+
+
+def test_broadcast_rundown_plays_each_cue_in_order(page, bundle):
+    cues = sorted(_cues(bundle, "analyst"), key=lambda c: c["start_s"])
+    _open_broadcast(page, "?mode=analyst&rundown=1&hold=2")
+    page.wait_for_selector(f"#lower-third[data-cue='{cues[0]['cue_id']}']", timeout=2000)
+    page.wait_for_selector(f"#lower-third[data-cue='{cues[1]['cue_id']}']", timeout=5000)
+
+
+def test_broadcast_unknown_cue_reports_instead_of_guessing(page):
+    _open_broadcast(page, "?cue=casual:goal:nope")
+    assert page.locator("#lower-third").is_hidden()
+    assert 'No cue "casual:goal:nope"' in page.text_content("#status-line")
+
+
+def test_replay_links_to_the_broadcast_graphic_in_the_current_mode(page):
+    _open(page)
+    link = page.locator("#broadcast")
+    assert link.get_attribute("href") == "broadcast.html?mode=casual&rundown=1&bg=dark"
+    page.click("[data-mode=analyst]")
+    assert link.get_attribute("href") == "broadcast.html?mode=analyst&rundown=1&bg=dark"

@@ -10,7 +10,18 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): match story, every goal, causal selection, visible Foundry check
+## Latest checkpoint (2026-10-24): on-air graphic page (plan item 5)
+- **New:** `broadcast.html` + `broadcast.js` + `broadcast.css`, exported with the site (hash-versioned like `index.html`).
+  - Reads `data/overlays.json` (`matchlens.overlays/v1`) and draws the active cue as a lower-third on a transparent page, for an OBS/vMix browser source.
+  - Shows the verified "why" fact only (narrative wording never goes on air); analyst cues add up to 3 source event IDs; a heuristic fact is labelled "Synthetic xG heuristic". A permanent "Synthetic match" bug stays in the corner.
+  - Modes: `cue=<id>` (hold one cue), `rundown=1&hold=<s>` (loop every cue), default follows the match clock (`from`, `speed`); a cue never shows before its `start_s`. Unknown cue or bad file -> visible error line, nothing drawn.
+  - Score hyphens are non-breaking on the graphic ("2-3" no longer wraps as "2-" / "3", found in the 1280×720 screenshot).
+  - Replay UI: **▣ On-air graphic** link opens the rundown preview in the current mode.
+- **Verified:** `python -m pytest -q` -> 414 passed (incl. 66 e2e on local Chromium; 12 new broadcast e2e across app-server and static sub-path); `ruff check .` and `ruff format --check .` clean. Screenshots checked at 1920×1080 (casual, analyst) and 1280×720 (green).
+- **Not done:** axe-core run on `broadcast.html`; no real OBS test yet (operator: add the URL above as a browser source, 1920×1080).
+- **Next:** plan item 1 code (card-ID-only live Foundry endpoint with recorded fallback, fake-transport tests); match selector in the UI.
+
+## Checkpoint (2026-10-24): match story, every goal, causal selection, visible Foundry check
 - **Merged and deployed:**
   - PR #11 squash-merged as `c5b585e`; CI was green on the PR head `707d9f5` (3.11, 3.13, e2e).
   - Pages redeployed from `main` @ `c5b585e` by [run 40103756908](https://github.com/vbabenko97/matchlens-ai/actions/runs/40103756908): `build`, `deploy` (14:43 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.

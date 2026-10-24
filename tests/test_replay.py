@@ -141,18 +141,23 @@ def css_source():
 
 def test_assets_are_referenced_by_content_hash(tmp_path, bundle):
     files = site_files(bundle)
-    html = files["index.html"].decode()
-    for name in ("style.css", "app.js"):
-        assert f"{name}?v={asset_version(files[name])}" in html
-    assert 'href="style.css"' not in html and 'src="app.js"' not in html
+    for page, names in (
+        ("index.html", ("style.css", "app.js")),
+        ("broadcast.html", ("broadcast.css", "broadcast.js")),
+    ):
+        html = files[page].decode()
+        for name in names:
+            assert f"{name}?v={asset_version(files[name])}" in html
+            assert f'="{name}"' not in html
     assert site_files(bundle) == files  # deterministic
     out = tmp_path / "site"
     export_site(bundle, out)
     assert (out / "index.html").read_bytes() == files["index.html"]
+    assert (out / "broadcast.html").read_bytes() == files["broadcast.html"]
 
 
-def test_versioned_index_rejects_a_template_without_the_reference():
-    from matchlens.server import _versioned_index
+def test_versioned_page_rejects_a_template_without_the_reference():
+    from matchlens.server import _versioned_page
 
     files = {
         "index.html": b'<link href="style.css"><script src="main.js">',
@@ -160,7 +165,7 @@ def test_versioned_index_rejects_a_template_without_the_reference():
         "app.js": b"",
     }
     with pytest.raises(ValueError, match="app.js"):
-        _versioned_index(files)
+        _versioned_page(files, "index.html")
 
 
 def test_export_site_never_deletes_user_files(tmp_path, bundle):

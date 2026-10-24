@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="MatchLens AI broadcast lower-third: draws the timed overlay cues on a transparent page for use as a browser source.">
+  <title>MatchLens AI — Broadcast overlay</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="broadcast.css">
+  <script src="broadcast.js" defer></script>
+</head>
+<body>
+  <h1 class="sr-only">MatchLens AI broadcast overlay</h1>
+  <div class="bug" id="bug"><span aria-hidden="true">◎</span> MatchLens AI · <strong>Synthetic match</strong></div>
+  <section class="lower-third" id="lower-third" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div class="lt-tag"><span id="lt-kind"></span><span class="lt-team" id="lt-team"></span></div>
+    <div class="lt-body">
+      <p class="lt-title" id="lt-title"></p>
+      <p class="lt-fact" id="lt-fact"></p>
+      <p class="lt-note" id="lt-note"></p>
+    </div>
+  </section>
+  <p class="status-line" id="status-line" hidden></p>
+</body>
+</html>

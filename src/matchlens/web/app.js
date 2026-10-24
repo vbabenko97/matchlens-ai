@@ -540,6 +540,7 @@ function setMode(mode) {
     b.tabIndex = on ? 0 : -1; // roving tabindex: one tab stop for the radio group
   }
   document.body.dataset.mode = mode;
+  $("broadcast").href = `broadcast.html?mode=${mode}&rundown=1&bg=dark`;
   $("inspector").hidden = mode !== "analyst";
   state.selected = [];
   state.spotlight = null;
