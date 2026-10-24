@@ -337,7 +337,7 @@ def test_personalize_review_records_a_trace_the_site_can_replay(tmp_path, monkey
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4.1-mini")
     monkeypatch.setattr(narrative, "_urllib_transport", FakeTranslator(names))
     trace = tmp_path / "trace.json"
-    args = ["personalize-review", "--variants", "de|neutral,uk|away", "--limit", "2"]
+    args = ["personalize-review", "--variants", "de|neutral,uk|away", "--limit", "2", "--no-critic"]
     assert main([*args, "--out", str(trace)]) == 0
     doc = json.loads(trace.read_text())
     assert {(r["lang"], r["focus"]) for r in doc["runs"]} == {("de", "neutral"), ("uk", "away")}

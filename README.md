@@ -1,6 +1,6 @@
 # MatchLens AI
 
-**Explainable match intelligence from synthetic football events, checked line by line.** MatchLens turns a synthetic match event stream into cards that say *why* a moment matters, timed overlay cues a broadcast graphic can play, and two genuinely different experiences: one for a casual fan (in English, German or Ukrainian, from either club's side) and one for an analyst. Two Microsoft Foundry agents do the language work. The claim agent proposes what an analyst card may assert; the personalizer rewrites fan cards for a language and a club. A deterministic validator decides what is published, and every published line cites the events it came from.
+**Explainable match intelligence from synthetic football events, checked line by line.** MatchLens turns a synthetic match event stream into cards that say *why* a moment matters, timed overlay cues a broadcast graphic can play, and two genuinely different experiences: one for a casual fan (in English, German or Ukrainian, from either club's side) and one for an analyst. Three Microsoft Foundry agents do the language work. The claim agent proposes what an analyst card may assert; the personalizer rewrites fan cards for a language and a club; the critic reviews each rewrite for meaning. Deterministic checks decide what is published, and every published line cites the events it came from.
 
 Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon. Project page: <https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828>
 
@@ -16,7 +16,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 1. Open the [demo](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/) and press **▶ Watch the comeback (77'–81')**. Cards appear as the moments happen: never before the events they cite, and each one leads with why the moment matters.
 2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. You see a recorded Foundry agent run: the validator rejects a claim that cited the wrong events, and the agent's retry is verified. The response IDs are in the disclosure.
 3. On the Azure demo, an analyst card offers **Check this card live with Microsoft Foundry**. It runs the same agent live behind a shared daily cap, or says why it did not.
-4. Back in **Casual Fan**, set **Language: Українська** and **Follow: Eastvale Athletic** ([direct link](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away)). Each line the personalizer agent rewrote is checked against the English fact; the lines that failed the check stay in English, marked as such.
+4. Back in **Casual Fan**, set **Language: Українська** and **Follow: Eastvale Athletic** ([direct link](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away)). Each line the personalizer agent rewrote is checked against the English fact, then reviewed for meaning by the critic agent; the lines that failed stay in English, marked as such.
 5. Open **▣ On-air graphic**: a broadcast lower-third fed by the same overlay JSON, ready for an OBS or vMix browser source ([rundown](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&bg=dark)). The **Match** picker offers five more matches that were not tuned for the demo.
 
 ## The five-stage pipeline
@@ -27,7 +27,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 | **Interpret** | Metrics with stable IDs, full-match and 15-minute windows (passes, completion, shots, on target, goals, pressures, turnovers, possessions, synthetic xG), each listing its source event IDs. Key moments: every goal, every missed big chance, full time. | `metrics.py`, `moments.py` |
 | **Explain** | Match-story lines say why a moment matters (opener, equaliser, comeback, back in front, redemption, what a missed chance would have meant, how the match was won). Each line cites events and is re-rendered from those events alone before it is published. | `story.py`, `cards.py` |
 | **Render** | A card is published at its last evidence event, never earlier. Timed, machine-readable overlay cues (`matchlens.overlays/v1`, both modes); a transparent broadcast lower-third that plays them; a replay UI with pitch view, timeline and scoreboard. | `overlays.py`, `web/` |
-| **Personalize** | Casual and Analyst are different experiences: story-first cards versus event chains, metric chips, an evidence inspector and the claim check. Fans also pick a language (en/de/uk) and a club, rewritten by the personalizer agent and checked line by line. | `narrative.py`, `personalize.py`, `web/app.js` |
+| **Personalize** | Casual and Analyst are different experiences: story-first cards versus event chains, metric chips, an evidence inspector and the claim check. Fans also pick a language (en/de/uk) and a club, rewritten by the personalizer agent, checked line by line and reviewed by the critic agent. | `narrative.py`, `personalize.py`, `web/app.js` |
 
 ## How MatchLens meets the judging criteria
 
@@ -42,7 +42,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
   - No runtime dependencies (stdlib only); the Azure Functions adapter adds `azure-functions` on Azure.
   - Deterministic seeds, and no secrets in the repository or the redacted evidence files.
 - **Microsoft platform.**
-  - Foundry through the Responses API v1, with function calling (the claim agent's read-only tools) and strict JSON-schema outputs (both agents). Every call is made with `store: false`.
+  - Foundry through the Responses API v1, with function calling (the claim agent's read-only tools) and strict JSON-schema outputs (all three agents). Every call is made with `store: false`.
   - Azure Static Web Apps hosts the site and a managed Azure Functions API (`api/`).
   - Azure Table Storage holds the shared daily quota.
   - GitHub Actions builds, deploys and smoke-tests both hosts.
@@ -52,18 +52,19 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
   - The daily cap is reserved in Azure Table Storage **before** any model call with ETag concurrency. If the store fails, no call is made.
 
 ### Agentic design and innovation
-- **Two agents, distinct roles, one shared state.**
+- **Three agents, distinct roles, one shared state.**
   - The **claim agent** (analyst cards) explores the match through three read-only tools that only see events up to the card's publication. It proposes structured claims: metric ID, value, cited event IDs; never free text.
   - The **personalizer agent** (fan cards) rewrites already verified facts for a language and a club.
-  - Both work from the same verified card state and hand off to the same kind of deterministic critic.
+  - The **critic agent** reads each rewrite next to its English fact and returns a structured verdict per line: faithful or not, the kind of problem (added detail, changed meaning, overstatement, language) and a reason.
+  - All three work from the same verified card state. The deterministic checks run first; the critic only sees lines that already passed them, and a missing verdict counts as a rejection.
 - **The model proposes, the validator decides.**
-  - Rejections go back to the agent once, with machine-readable reasons; the recorded runs show real recoveries. The claim agent re-cited the right events at 77'; the personalizer fixed an added number and an added club name, and the checker rejected a transliterated player name.
+  - Rejections go back to the agent once, with machine-readable reasons; the recorded runs show real recoveries. The claim agent re-cited the right events at 77'; the personalizer fixed an added number and an added club name, and the checker rejected a transliterated player name. In the published fan run the critic sent 36 lines back at the first attempt; 40 lines were verified on the second attempt.
   - Still-rejected output is dropped (claims) or replaced by the English fact (personalizer). The claim agent's facts are rendered from templates, so that agent chooses *what* to claim, never the wording. The personalizer does write wording, which is why its lines are labelled as AI wording.
 - **Failure recovery throughout.** HTTP 429 waits per `Retry-After`, bounded network retries, a forced final answer when the tool budget runs out, and one resend when an answer is cut off. Every fallback is labelled: the page never presents a fallback as a live response.
 - **Evidence, not screenshots.**
-  - Live runs are recorded as redacted traces ([claim agent](docs/evidence/agent-trace-2026-10-24.json), [personalizer](docs/evidence/personalize-trace-2026-10-24.json), [connectivity check](docs/evidence/azure-check-2026-10-24.json)) with response IDs and token usage.
+  - Live runs are recorded as redacted traces ([claim agent](docs/evidence/agent-trace-2026-10-24.json), [personalizer with critic](docs/evidence/personalize-trace-v2-2026-10-24.json), [critic evaluation](docs/evidence/critic-eval-2026-10-24.json), [connectivity check](docs/evidence/azure-check-2026-10-24.json)) with response IDs and token usage.
   - Each public build replays them and re-runs every check, so a stricter checker applies to old runs too.
-  - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English. Meaning drift that no deterministic check can see was handled by an editorial review of the same run: 12 more lines rejected, with reasons in a versioned file the build applies to the exact text.
+  - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English. Meaning drift that no deterministic check can see led to the critic agent; an editorial review (done by Claude Code, the AI coding assistant, not checked by a human) still rejects what the critic misses, with reasons in a versioned file the build applies to the exact text. See [the critic's results](#the-critic-measured), including what it does not catch.
 
 ### Real-world impact and applicability
 - **For broadcasters.** Overlay cues are timed in match seconds, carry their facts and evidence IDs, and are published only once their evidence exists. That makes them usable on a live feed. The on-air page is a working browser source today.
@@ -86,16 +87,16 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 | Category | How MatchLens fits |
 |---|---|
 | Grand Prize (explainable match intelligence, narratives, personalized experiences for fans, analysts and broadcasters) | All five pipeline stages, both audiences, broadcast output, multi-language storytelling (challenge §4.1 vi) |
-| Best Use of Microsoft Foundry | Two Foundry agents (tools, structured outputs), recorded and live runs with response IDs, validator-gated publishing |
-| Best Multi-Agent System | A claim agent and a personalizer with distinct roles, shared verified state, validator handoffs, retries and labelled fallbacks |
+| Best Use of Microsoft Foundry | Three Foundry agents (tools, structured outputs), recorded and live runs with response IDs, validator-gated publishing |
+| Best Multi-Agent System | A claim agent, a personalizer and a critic with distinct roles, shared verified state, validator and critic handoffs, retries and labelled fallbacks |
 | Best Azure Cloud Native Integration | Static Web Apps + managed Functions + Table Storage quota, CI/CD with post-deploy smoke tests |
 
 ## Honest limits
 - The match is precomputed and replayed. Card selection and timing are causal (no card uses later events), but MatchLens does not ingest a live feed. Video auto-eventing, player speed and ball speed are not modelled.
 - The generator models event structure, not realistic football dynamics. Synthetic xG is an uncalibrated heuristic.
-- The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent and personalizer); the five extra matches use the offline proposer and template wording, with no AI at all.
-- The personalizer checker verifies numbers, score order, names, `xG` and script, **not meaning or tone**. The page says so on every rewritten card.
-- An editorial review of the recorded personalizer run ([file](docs/evidence/personalize-review-2026-10-24.json)) rejected 12 lines that passed the checker but added details, changed the meaning or were not correct language. Those lines show the English fact. The recorded trace itself is unchanged.
+- The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent, personalizer and critic); the five extra matches use the offline proposer and template wording, with no AI at all.
+- The personalizer checker verifies numbers, score order, names, `xG` and script, not meaning. The critic reviews meaning but is a model too: it misses errors and raises false alarms (measured below), and it does not check tone. The page says so on every rewritten card.
+- An editorial review of the published run ([file](docs/evidence/personalize-review-v2-2026-10-24.json)), done by Claude Code (the AI coding assistant) and not checked by a human, rejected 12 lines that passed both the checker and the critic, mostly German and Ukrainian language errors. Those lines show the English fact. The recorded trace itself is unchanged.
 - The per-visitor limit relies on forgeable headers. The spend cap is the shared daily count.
 - Microsoft Agent Framework, MCP and Fabric are not used; the agents call the Responses API directly.
 
@@ -134,10 +135,14 @@ The replay UI has a scoreboard, a pitch view of the latest ball events, a timeli
 - the same names in Latin script, and no new ones;
 - `xG` kept, the right script, no Russian-only letters in Ukrainian, no markup.
 
-A rejected line goes back once with the reasons; still rejected, the English fact is shown with `lang="en"`.
-- **Editorial review.** Every line of the recorded run that passed the checker was also read against its source. 12 lines that add details ("fierce tackle", "quick passes"), change the meaning ("the lead changed hands" becoming "confidence changed hands") or are not correct language are listed with reasons in [personalize-review-2026-10-24.json](docs/evidence/personalize-review-2026-10-24.json). The build applies the review to the exact text it names and fails if it no longer matches.
-- **On the page.** 24 of 232 lines show the English fact.
-- **Recording:** `python -m matchlens personalize-review --out <trace>`; replay with `--personalize-trace <trace> --editorial-review <review>`.
+Lines that pass go to the critic agent (`src/matchlens/critic.py`, one call per card and attempt). A line rejected by the checker or the critic goes back once with the reasons; still rejected, the English fact is shown with `lang="en"`.
+- **Editorial review.** Claude Code (the AI coding assistant that built this project) also read every line that passed the checker and the critic against its source. No human has checked this review. The 12 lines it rejected are listed with reasons in [personalize-review-v2-2026-10-24.json](docs/evidence/personalize-review-v2-2026-10-24.json). The build applies the review to the exact text it names and fails if it no longer matches.
+- **On the page.** 26 of 232 lines show the English fact: 4 rejected by the checker, 10 by the critic, 12 by the editorial review.
+- **Recording:** `python -m matchlens personalize-review --out <trace>` (critic on; `--no-critic` for the personalizer alone); replay with `--personalize-trace <trace> --editorial-review <review>`. The published run took 90 personalizer calls and 89 critic calls (about 91,000 tokens in total).
+
+<a id="the-critic-measured"></a>**The critic, measured.** Two checks, both small; neither proves the critic generalizes.
+- **Against a labelled run** ([critic-eval-2026-10-24.json](docs/evidence/critic-eval-2026-10-24.json); `python -m matchlens critic-eval --from <file>` re-scores it). The critic judged the 220 lines of the first, critic-free run that passed the checker. Claude Code's review had rejected 12 of them. The critic caught 8 (recall 0.67) and raised 13 false alarms (precision 0.38); most false alarms object to tone words, a few are plain misreadings. The prompt names categories of error only and was not tuned on these lines, so this is a regression check, not a benchmark.
+- **In the loop.** With the critic, the editorial review still rejected 12 lines (of 218), as many as without it (12 of 220), but of a different kind: added details in English went from 5 to 1, while German and Ukrainian language errors remain (for example "Голі" for "Голи"). The critic's own 10 kept lines include some of its false alarms, so a correct rewrite sometimes falls back to English.
 
 **Claim agent.** `python -m matchlens agent-review --seed 1` runs one bounded Foundry agent per analyst card, with tools `list_metrics`, `get_metric` and `get_events`. In the [recorded run](docs/evidence/agent-trace-2026-10-24.json) (`gpt-4.1-mini`, 19 calls, 27 tool calls), the validator rejected a claim at 77' that cited the wrong events, and the retry was verified.
 
@@ -173,7 +178,7 @@ Calls go to `POST {endpoint}/openai/v1/responses` with `store: false`. Without c
 
 | Path | Contents |
 |---|---|
-| `src/matchlens/` | generator, validator, metrics, moments, story, cards, overlays, both agents, live endpoint, quota, replay bundle, static export |
+| `src/matchlens/` | generator, validator, metrics, moments, story, cards, overlays, the three agents, live endpoint, quota, replay bundle, static export |
 | `src/matchlens/web/` | replay UI (`index.html`, `app.js`) and on-air graphic (`broadcast.*`) |
 | `api/` | Azure Functions adapter for `/api/live-check` |
 | `tests/` | unit and Playwright end-to-end tests |

@@ -23,6 +23,7 @@ from .agent import (
 )
 from .azure_check import run_check
 from .cards import build_cards, format_card
+from .critic import EVAL_SCHEMA, FoundryCritic, critic_eval, eval_metrics
 from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
 from .live import DEMO_SEED as LIVE_DEMO_SEED
@@ -39,10 +40,19 @@ from .narrative import (
     provider_from_env,
 )
 from .overlays import build_overlay_document
-from .personalize import VARIANTS, FoundryPersonalizer, RecordedPersonalizer, personalize_cards
+from .personalize import (
+    LANGS,
+    PERSONALIZE_REVIEW,
+    PERSONALIZE_TRACE,
+    VARIANTS,
+    FoundryPersonalizer,
+    RecordedPersonalizer,
+    personalize_cards,
+)
 from .personalize import build_trace as personalize_trace
 from .personalize import trace_problems as personalize_trace_problems
 from .replay import DEFAULT_DEMO_SEED, DEMO_EXTRA_SEEDS, build_bundle, demo_extra_bundles, dumps
+from .schema import AWAY, HOME
 from .server import export_site, make_server
 from .validate import assert_valid, validate_match
 
@@ -174,6 +184,20 @@ def _main(argv: list[str] | None = None) -> int:
     )
     prs.add_argument("--out", type=Path, help="write the redacted trace of the live run (JSON)")
     prs.add_argument("--timeout", type=float, default=30.0)
+    prs.add_argument(
+        "--no-critic", action="store_true", help="skip the critic agent's meaning review"
+    )
+    cev = sub.add_parser(
+        "critic-eval",
+        help="measure the critic agent against the editorial review of a recorded run",
+    )
+    cev.add_argument("--trace", type=Path, default=Path(PERSONALIZE_TRACE))
+    cev.add_argument("--review", type=Path, default=Path(PERSONALIZE_REVIEW))
+    cev.add_argument("--out", type=Path, help="write the redacted evaluation run (JSON)")
+    cev.add_argument(
+        "--from", dest="from_file", type=Path, help="score a recorded evaluation; no live call"
+    )
+    cev.add_argument("--timeout", type=float, default=30.0)
     ovl = sub.add_parser("overlays", help="timed overlay cues (both modes) as JSON")
     ovl.add_argument("path", type=Path)
     ovl.add_argument("--out", type=Path, help="output path (default: stdout)")
@@ -238,6 +262,9 @@ def _main(argv: list[str] | None = None) -> int:
 
     if args.command == "personalize-review":
         return _personalize_review(args)
+
+    if args.command == "critic-eval":
+        return _critic_eval(args)
 
     if args.command in ("serve", "export-site"):
         if args.file:
@@ -442,8 +469,13 @@ def _personalize_review(args: argparse.Namespace) -> int:
     if config is None:
         raise ConfigError("set AZURE_OPENAI_ENDPOINT, _API_KEY and _DEPLOYMENT")
     proposer = FoundryPersonalizer(config, timeout_s=args.timeout, log=_progress)
+    critic = (
+        None if args.no_critic else FoundryCritic(config, timeout_s=args.timeout, log=_progress)
+    )
     try:
-        results = personalize_cards(match, card_set, proposer, variants, strict=True, log=_progress)
+        results = personalize_cards(
+            match, card_set, proposer, variants, strict=True, log=_progress, critic=critic
+        )
     except Exception as exc:
         return _live_failure("personalizer run", exc)
     trace = personalize_trace(match, results, config)
@@ -460,4 +492,71 @@ def _personalize_review(args: argparse.Namespace) -> int:
     if args.out:
         args.out.write_text(json.dumps(trace, indent=1, ensure_ascii=False) + "\n", "utf-8")
         print(f"wrote personalize trace to {args.out}", file=sys.stderr)
+    return 0
+
+
+def _critic_eval(args: argparse.Namespace) -> int:
+    """Score the critic against the editorial review (labels by Claude Code, not a human)."""
+    review = json.loads(args.review.read_text(encoding="utf-8"))
+    labelled = {
+        (r["card_id"], r["lang"], r["focus"], int(r["index"]), r["text"])
+        for r in review["rejections"]
+    }
+    if args.from_file:
+        doc = json.loads(args.from_file.read_text(encoding="utf-8"))
+        if doc.get("schema") != EVAL_SCHEMA:
+            raise ConfigError(f"{args.from_file} is not a {EVAL_SCHEMA} document")
+    else:
+        config = _azure_config()
+        if config is None:
+            raise ConfigError("set AZURE_OPENAI_ENDPOINT, _API_KEY and _DEPLOYMENT, or use --from")
+        match = assert_valid(generate_match(DEFAULT_DEMO_SEED))
+        trace = json.loads(args.trace.read_text(encoding="utf-8"))
+        replay = personalize_cards(
+            match,
+            build_cards(match, CASUAL, OfflineTemplateProvider()),
+            RecordedPersonalizer(trace, args.trace.as_posix()),
+        )
+        teams = {HOME: match.meta.home.name, AWAY: match.meta.away.name}
+        cards = []
+        for r in replay:
+            items = [
+                {"index": ln.index, "source": ln.source, "text": ln.text}
+                for ln in r.lines
+                if ln.status == "verified"
+            ]
+            if items:
+                audience = (
+                    "neutral viewers" if r.focus == "neutral" else f"fans of {teams[r.focus]}"
+                )
+                cards.append(((r.card_id, r.lang, r.focus), items, LANGS[r.lang], audience))
+        critic = FoundryCritic(config, timeout_s=args.timeout, log=_progress)
+        try:
+            doc = critic_eval(
+                cards, critic, config, args.trace.as_posix(), args.review.as_posix(), _progress
+            )
+        except Exception as exc:
+            return _live_failure("critic evaluation", exc)
+        problems = [
+            f"{run['card_id']} {run['lang']}|{run['focus']}: call without ID or usage"
+            for run in doc["runs"]
+            for c in run["calls"]
+            if not str(c.get("response_id", "")).startswith("resp")
+            or not all((c.get("usage") or {}).get(k) for k in ("input_tokens", "output_tokens"))
+        ]
+        if problems:
+            print("evaluation is not acceptable evidence:", file=sys.stderr)
+            print("\n".join(f"- {p}" for p in problems), file=sys.stderr)
+            return 1
+        if args.out:
+            args.out.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", "utf-8")
+            print(f"wrote critic evaluation to {args.out}", file=sys.stderr)
+    metrics = eval_metrics(doc, labelled)
+    summary = {k: v for k, v in metrics.items() if k not in ("misses", "false_alarm_lines")}
+    print(json.dumps(summary, indent=1))
+    for m in metrics["misses"]:
+        print(f"missed: {m['line']} {m['text']}")
+    for f in metrics["false_alarm_lines"]:
+        reason = f["critic"]["reason"] if f["critic"] else "no verdict"
+        print(f"false alarm: {f['line']} {f['text']} -- {reason}")
     return 0

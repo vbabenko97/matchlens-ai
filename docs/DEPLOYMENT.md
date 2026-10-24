@@ -69,20 +69,51 @@ Verified locally against independent static hosts: the app server, a plain stati
 - `trace_problems` passes and the file has no key-like strings.
 - Both deploy workflows replay it with `--personalize-trace`.
 - On replay, the stricter checker added after reading the run (score order, Russian-only letters) keeps 12 of 232 lines in English, among them "Eastvale Athletic перемагають 3-2" on a 2-3 scoreboard.
+- **Superseded (2026-10-24, later):** the public builds now replay the v2 run with the critic (next section). This v1 run stays as the critic's evaluation input.
 
 1. **[operator]** With the same `AZURE_OPENAI_*` variables as for `azure-check`, record all 8 variants of the 7 demo casual cards:
    ```bash
-   python -m matchlens personalize-review --out docs/evidence/personalize-trace-2026-10-25.json
+   python -m matchlens personalize-review --out docs/evidence/personalize-trace-<date>.json
    ```
    - That is 56 Responses API calls, plus one retry per card with a rejected line; at the recorded run's sizes, about 50K tokens in total.
    - The command prints every line with ✓ or "kept (reason)" and exits 1 without writing a file if the trace is not acceptable evidence.
-2. Check the output (no key in the file: `grep -c "$AZURE_OPENAI_API_KEY" <file>` prints 0), commit it, then add `--personalize-trace docs/evidence/personalize-trace-2026-10-25.json` to the `export-site` lines of `deploy-pages.yml` and `deploy-swa.yml` (one PR), merge and redeploy.
+2. Check the output (no key in the file: `grep -c "$AZURE_OPENAI_API_KEY" <file>` prints 0), commit it, then add `--personalize-trace <that file>` to the `export-site` lines of `deploy-pages.yml` and `deploy-swa.yml` (one PR), merge and redeploy.
+
+## Critic agent runs (meaning review) — operator step
+**Status (2026-10-24): both runs recorded and wired in.** The operator ran both in Azure Cloud Shell (`gpt-4.1-mini`, Responses API v1); `trace_problems` passes and neither file has key-like strings.
+- `docs/evidence/critic-eval-2026-10-24.json` (19:23 UTC): 56 critic calls over 220 lines; against the 12 editorial rejections, 8 caught, 4 missed, 13 false alarms (recall 0.667, precision 0.381). `critic-eval --from` reproduces these numbers.
+- `docs/evidence/personalize-trace-v2-2026-10-24.json` (19:40 UTC): 90 personalizer calls (35,444 in / 9,934 out tokens) and 89 critic calls (37,906 in / 7,620 out); 34 of 56 cards retried. Of 232 lines, 4 are kept by the checker and 10 by the critic.
+- Its editorial review, `docs/evidence/personalize-review-v2-2026-10-24.json` (by Claude Code, not checked by a human), rejects 12 of the 218 accepted lines, so 26 of 232 lines show English.
+- Both deploy workflows replay the v2 trace with that review.
+
+The steps, for a re-run. Two runs, with the same `AZURE_OPENAI_*` variables as for `personalize-review`. Both print what they find, and neither writes a file unless the run is acceptable evidence.
+
+1. **Measure the critic against the editorial review** (about 56 calls, one per card variant, roughly 30K tokens):
+   ```bash
+   python -m matchlens critic-eval --out docs/evidence/critic-eval-<date>.json
+   ```
+   - It replays the recorded personalizer run, sends the 220 lines that passed `check_line` to the critic, and compares the verdicts with the 12 rejections of the editorial review. That review was made by Claude Code, not a human, so the scores measure agreement with it. The critic's prompt names error categories only, with no examples from those lines.
+   - It prints lines, caught, missed, false alarms, recall and precision, and each miss and false alarm.
+   - `--from <file>` re-scores a recorded evaluation without a call.
+2. **Record a new personalizer run with the critic in the loop:**
+   ```bash
+   python -m matchlens personalize-review --out docs/evidence/personalize-trace-v2-<date>.json
+   ```
+   - The critic is now on by default; `--no-critic` records the old v1 format.
+   - Expect 56 personalizer calls, about 56 critic calls and one retry pair per card with a rejected line: roughly 130–170 calls and 60–80K tokens.
+   - The trace is `matchlens.personalize-trace/v2` and holds the critic's verdicts and response IDs per attempt.
+
+After the runs: the new trace gets its own editorial review, then the deploy workflows switch to it in one PR.
 
 ## Live Foundry check on the public demo (Azure Static Web Apps managed API)
 **Status: deployed and verified with one live call.**
 - **Live call.** An independent review of `main` @ `ff20751`, after the deploy, reported one live call on the Azure host: 7.2 s, 3 model calls, 8,058 tokens, 4 claims verified by the validator.
 - **Quota store.** A live reply also shows that `MATCHLENS_LIVE_COUNTER_URL` is set and the Table Storage reservation works: without it the API answers `not_configured` and makes no model call.
-- **Still open:** the forced `daily_limit` fallback (step 7).
+- **Forced `daily_limit` fallback (step 7): done by the operator on the previous deploy.** The API refused the call with `daily_limit` and the table's `Count` stayed at 2. Repeating it on `2b9da2a` would only re-check the same code after the update.
+- **Re-check of tag `v1.0-submission` (`2b9da2a`), independent review:**
+  - published HTML, JS, CSS and data match a build from the tag;
+  - a fresh live request: HTTP 200, 8,051 tokens, 4 claims verified, 7.5 s on the server and 13.1 s end to end;
+  - the API then reported `remaining_today: 1`, kept for the video.
 
 What it is: on Azure Static Web Apps, each analyst card gets a **Check this card live with Microsoft Foundry** button. It sends `POST /api/live-check` with `{"card_id": ...}` and nothing else. The function in `api/live_check/` (code: `src/matchlens/live.py`) builds the request itself from the demo match and runs the same bounded agent and validator as `agent-review`. The reply replaces the recorded claim check on that card and is labelled as a live call, with response IDs, token use and latency. The key stays in the app settings; the browser never sees it. GitHub Pages builds have no button (no server side).
 

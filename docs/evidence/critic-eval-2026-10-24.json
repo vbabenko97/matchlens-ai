@@ -1,0 +1,2562 @@
+{
+ "schema": "matchlens.critic-eval/v1",
+ "recorded_at_utc": "2026-10-24T19:23:13Z",
+ "api": "responses-v1",
+ "deployment": "gpt-4.1-mini",
+ "trace": "docs/evidence/personalize-trace-2026-10-24.json",
+ "review": "docs/evidence/personalize-review-2026-10-24.json",
+ "runs": [
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "Eastvale Athletic strike first",
+    "0": "Rafe Pembrook scores in minute 5: 0-1.",
+    "1": "First goal of the match: Eastvale Athletic lead 0-1.",
+    "2": "It came straight from an interception."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_05a97d3f1187733c016add05585aa88195bacf29cfc102e609",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 426,
+      "output_tokens": 93
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "So close for Eastvale Athletic!",
+    "0": "Ugo Vale had a great chance in minute 38, but the shot was saved.",
+    "1": "It stays 0-1; a goal would have doubled Eastvale Athletic's lead."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Identical sentences, no factual changes."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match with source, no alterations."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source statement exactly."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0d8c86b75796763c016add055abc38819396428129bb3159e4",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 410,
+      "output_tokens": 79
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "Northbridge Rovers draw level",
+    "0": "Ivo Merriweather scores in the 56th minute, leveling the score to 1-1.",
+    "1": "Northbridge Rovers fought back to 1-1, 51 minutes after conceding.",
+    "2": "The equalizing move started with a throw-in and included 7 passes."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Identical text, no changes made."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same meaning, natural phrasing in target language."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rephrased without adding or changing facts."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate paraphrase preserving source details."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0923ba666c5bd1fa016add055bd184819096846111da31e321",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 456,
+      "output_tokens": 108
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "Comeback! Northbridge Rovers take the lead",
+    "0": "Hugo Elmswick scored at minute 71 to make it 2-1!",
+    "1": "Northbridge Rovers turned the game around after being 0-1 down at minute 5, scoring in minutes 56 and 71.",
+    "2": "That second goal came right after a tackle that won the ball back."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match, no changes made."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Past tense and exclamation used, meaning unchanged."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Meaning equivalent, no added or changed details."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same meaning, natural phrasing in target language."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0632e9f55f195f28016add055ceb94819093c96b77060c5237",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 476,
+      "output_tokens": 109
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "Eastvale Athletic draw level",
+    "0": "Teo Kestrel scores a crucial goal in minute 77 to make it 2-2.",
+    "1": "Eastvale Athletic fight back to level the score at 2-2, just 6 minutes after falling behind.",
+    "2": "The equalizer started with a fierce tackle winning the ball, followed by 2 quick passes."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match with source."
+    },
+    "0": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "The rewrite adds 'crucial' which is not stated in source."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds 'fight back' not present in source."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds 'fierce' and 'quick' not stated in source."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_08cb204b857d9396016add055e28048194a419ee6f34ce83a0",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 464,
+      "output_tokens": 123
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "Comeback! Eastvale Athletic take the lead",
+    "0": "Ugo Vale scores in minute 81: 2-3.",
+    "1": "Eastvale Athletic were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around.",
+    "2": "Ugo Vale saw a big chance saved in minute 38; this time it went in.",
+    "3": "The move began with a tackle that won the ball back, then 6 passes."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0399f786e668027f016add055f7c4c81938edade769a24bf2e",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 525,
+      "output_tokens": 114
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "en",
+   "focus": "home",
+   "lines": {
+    "-1": "Full time: Eastvale Athletic come from behind to win 2-3",
+    "0": "Heartbreak as Eastvale Athletic overturned a 2-1 deficit in minute 71 to clinch a 2-3 win.",
+    "1": "Ugo Vale redeemed himself, scoring the winner in minute 81 after a missed big chance in minute 38.",
+    "2": "The lead changed twice during the game.",
+    "3": "Northbridge Rovers dominated shots (14–11), but Eastvale Athletic had the edge in quality chances (synthetic xG 3.04 vs 2.05)."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "0": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds emotional tone 'Heartbreak' not in source."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds 'redeemed himself' not stated in source."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Paraphrase keeps original meaning and fact."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Paraphrase is faithful and natural language."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_05003932a2325da5016add0560c4508196a9a56bf24ec1d02e",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 567,
+      "output_tokens": 138
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "Eastvale Athletic strike first",
+    "0": "Rafe Pembrook nets in the 5th minute: 0-1!",
+    "1": "Eastvale Athletic open the scoring: 0-1 lead.",
+    "2": "The goal sprung immediately from a sharp interception."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match with source text."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "No change in meaning, natural language rewrite."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same fact, slightly rephrased but faithful."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Added 'sharp' describing interception not in source."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_00df92f2fd73810b016add056214388197959e9a3db1eb15a7",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 427,
+      "output_tokens": 109
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "So close for Eastvale Athletic!",
+    "0": "Ugo Vale almost scored in the 38th minute, but the keeper saved it.",
+    "1": "The score remains 0-1; a goal here would have doubled Eastvale Athletic's lead."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewritten text matches the source exactly."
+    },
+    "0": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Introduces 'keeper' term and implies near scoring, adding detail not in source."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewritten sentence faithful to original meaning and details."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0cd47f0ee5cf78c1016add0563685c8193853c74ff11617131",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 411,
+      "output_tokens": 93
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "Northbridge Rovers draw level",
+    "0": "Ivo Merriweather scores in minute 56: 1-1.",
+    "1": "Northbridge Rovers level it at 1-1, 51 minutes after going behind.",
+    "2": "The move began with a throw-in, then 7 passes."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Identical phrasing with no added or changed information."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source fact exactly."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "No difference in meaning or added detail."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite preserves original factual sequence exactly."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0a94ed46f2fddd93016add05649dc48197a6027bcc72189935",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 447,
+      "output_tokens": 105
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "Comeback! Northbridge Rovers take the lead",
+    "0": "Hugo Elmswick scores in minute 71 to make it 2-1!",
+    "1": "Northbridge Rovers bounced back from 0-1 down at minute 5 with goals at 56 and 71.",
+    "2": "That crucial goal came right after a tackle that won the ball back."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Identical phrasing, meaning unchanged."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Adds emphasis with exclamation but no fact changes."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rephrasing without adding or changing facts."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same fact, slight wording variation only."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0c3393060f4272df016add0565e4c881939ed6b6454f4424f5",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 471,
+      "output_tokens": 108
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "Eastvale Athletic draw level",
+    "0": "Teo Kestrel scores in minute 77: 2-2.",
+    "1": "Eastvale Athletic level it at 2-2, 6 minutes after going behind.",
+    "2": "The move started with a tough tackle winning the ball back, followed by 2 sharp passes."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Identical phrasing."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match with source."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Matches source precisely."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Added 'tough' and 'sharp' not in original text."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0ffe15a03804bc49016add05672678819495ffd933a57f6c3b",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 453,
+      "output_tokens": 102
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "Comeback! Eastvale Athletic take the lead",
+    "0": "Ugo Vale scores in minute 81: 2-3.",
+    "1": "Eastvale Athletic reversed a 2-1 deficit from minute 71 with goals in the 77th and 81st minutes.",
+    "2": "After a big chance was saved from Ugo Vale in minute 38, he scored when it really counted.",
+    "3": "The comeback move started with a tackle winning possession, followed by 6 quick passes."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match with source."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match with source."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Meaning and facts correctly preserved."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same meaning, no added detail or change."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful rephrase of original information."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_01af9b4bad5eda1c016add056851e08190a49684e2152f516e",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 528,
+      "output_tokens": 122
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "en",
+   "focus": "away",
+   "lines": {
+    "-1": "Full time: Eastvale Athletic come from behind to win 2-3",
+    "0": "Eastvale Athletic overturned a 2-1 deficit at minute 71 to claim a 2-3 victory.",
+    "1": "Ugo Vale redeemed himself with a winning goal in minute 81 after a missed chance at minute 38.",
+    "2": "The lead swapped twice during the match."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact match, no change in meaning or added detail."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same fact, rewritten with no added detail or change of meaning."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds 'redeemed himself', implying opinion not in source."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Paraphrase with no change in meaning or detail."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_029bc586b922dfa2016add0569b4548197a6341ccc7a3fae4b",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 470,
+      "output_tokens": 122
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Eastvale Athletic erzielen erstes Tor",
+    "0": "Rafe Pembrook erzielt in der 5. Minute das 0-1.",
+    "1": "Das erste Tor des Spiels: Eastvale Athletic führen 0-1.",
+    "2": "Das Tor entstand direkt aus einer Abwehraktion."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate direct translation without added detail."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation of minute and score information."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly conveys first goal and lead status."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Source mentions interception, rewrite says 'defensive action' (vague and adds detail)."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_04b9896e2b439551016add056aea108197b0253e76912f3a69",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 428,
+      "output_tokens": 118
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "So knapp für Eastvale Athletic!",
+    "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, doch sein Schuss wurde gehalten.",
+    "1": "Es bleibt 0-1; ein Tor hätte Eastvale Athletics Führung verdoppelt."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly conveys the same meaning and tone."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects the shot saved and timing."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly translates score and impact of next goal."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_067d2f3ba74f43b6016add056c164c8193929a8c5243f79cc3",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 409,
+      "output_tokens": 85
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Northbridge Rovers gleichen aus",
+    "0": "Ivo Merriweather trifft in der 56. Minute zum 1:1.",
+    "1": "Northbridge Rovers gleichen nach 51 Minuten Rückstand zum 1:1 aus.",
+    "2": "Der Spielzug startete mit einem Einwurf, gefolgt von 7 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate translation of 'draw level' as 'gleichen aus'."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly states scorer, minute, and score."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful to timing and score details."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Precise translation of sequence started by throw-in and passes."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0854b4d410d6a913016add056db1948197aa8e23a7e87f9ad4",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 451,
+      "output_tokens": 117
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Comeback! Northbridge Rovers übernehmen die Führung",
+    "0": "Hugo Elmswick erzielt in der 71. Minute das 2-1.",
+    "1": "Northbridge Rovers lagen in der 5. Minute mit 0-1 zurück. Tore in der 56. und 71. Minute drehten das Spiel.",
+    "2": "Das Tor entstand direkt aus einem Tackling, bei dem der Ball zurückerobert wurde."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation of comeback and taking the lead."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate minute and score reported."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correct sequence of scores and timing accurately translated."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and natural phrasing of source fact."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_094d6fd0131a4d34016add056f03588195a56a816d989df9ce",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 482,
+      "output_tokens": 109
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Eastvale Athletic gleicht aus",
+    "0": "Teo Kestrel trifft in der 77. Minute zum 2:2.",
+    "1": "Eastvale Athletic gleicht nur 6 Minuten nach Rückstand auf 2:2 aus.",
+    "2": "Der Angriff begann mit einer Ballgewinn-Situation durch ein Tackling, gefolgt von 2 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The rewrite correctly translates the fact without adding details."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The rewrite accurately states the scoring event with no added detail."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The timing and score equalization are accurately conveyed."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The sequence of events is faithfully described without additions."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_076db3d9f9ea3708016add057030a48195898fc7825a07f112",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 459,
+      "output_tokens": 115
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Comeback! Eastvale Athletic gehen in Führung",
+    "0": "Ugo Vale trifft in der 81. Minute: 2-3.",
+    "2": "Ugo Vale scheiterte in der 38. Minute noch an einer großen Chance; diesmal traf er.",
+    "3": "Die Aktion begann mit einem Zweikampfgewinn, dann folgten 6 Pässe."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source meaning and facts precisely."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects source fact and score update."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly states previous miss and current goal by player."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite fully corresponds to source description of move."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_075fc3c3dac0c902016add05719d7c8193861872c90d69065f",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 463,
+      "output_tokens": 110
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Endstand: Eastvale Athletic dreht Spiel und gewinnt 2-3",
+    "1": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem eine große Chance in der 38. Minute noch gehalten wurde.",
+    "2": "Die Führung wechselte zweimal.",
+    "3": "Northbridge Rovers hatten mehr Schüsse (14–11), aber Eastvale Athletic die besseren Chancen (synthetisches xG, eine Heuristik: 3,04 vs 2,05)."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source meaning and detail exactly."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly states facts and order of events."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite is accurate and equivalent to source statement."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects data and explanatory note."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0c5ee9c2a6159c8e016add0572af5881949a6ffa59c3daa61c",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 512,
+      "output_tokens": 107
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "Eastvale Athletic erzielt erstes Tor",
+    "0": "Rafe Pembrook trifft in der 5. Minute zum 0:1.",
+    "1": "Erstes Tor des Spiels: Eastvale Athletic führt 0:1.",
+    "2": "Das Tor entstand direkt aus einer Ballabnahme."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately states Eastvale Athletic scored first."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly reflects Rafe Pembrook scored in minute 5."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly states first goal and Eastvale Athletic leading 0-1."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately translates 'from an interception' as 'Ballabnahme'."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0767a4deafa72a5b016add0573c99481939a61e875c6d23336",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 432,
+      "output_tokens": 126
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "So knapp für Eastvale Athletic!",
+    "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, doch sein Schuss wurde gehalten.",
+    "1": "Es bleibt 0-1; ein Tor hätte Eastvale Athletics Führung verdoppelt."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate translation of excitement without adding details."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation of the chance and save event."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly reflects score and effect of a goal."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_078b1a575e6bd906016add05751300819492682ad18cc09780",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 413,
+      "output_tokens": 86
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "Northbridge Rovers gleicht aus",
+    "0": "Ivo Merriweather trifft in der 56. Minute zum 1:1.",
+    "1": "Northbridge Rovers gleichen 51 Minuten nach Rückstand zum 1:1 aus.",
+    "2": "Die Aktion begann mit einem Einwurf, gefolgt von 7 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The rewrite correctly translates the original phrase."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The rewrite accurately restates the scoring fact with no changes."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The timing and event details match the original meaning exactly."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The description of the action matches the source precisely."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_054bc26bfa26c4a5016add057632c48195be30954baa341754",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 454,
+      "output_tokens": 114
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "Comeback! Northbridge Rovers übernehmen die Führung",
+    "0": "Hugo Elmswick trifft in der 71. Minute zum 2-1.",
+    "1": "Northbridge Rovers lagen in der 5. Minute 0-1 zurück, drehten das Spiel durch Tore in der 56. und 71. Minute.",
+    "2": "Der Treffer resultierte direkt aus einem Ballgewinn nach einem Tackling."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite faithfully reflects the source meaning and details."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately translates the scoring event and scoreline."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly states the score progression and timing of goals."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches the meaning of the ball won from the tackle."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_04263a1cd539bb1e016add057787c0819396359f391817c80b",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 482,
+      "output_tokens": 115
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "Eastvale Athletic gleicht aus",
+    "0": "Teo Kestrel trifft in der 77. Minute zum 2-2.",
+    "1": "Eastvale Athletic gleicht zum 2-2 aus, nur 6 Minuten nachdem sie in Rückstand geraten waren.",
+    "2": "Der Angriff begann mit einem Ballgewinn per Tackling und führte über 2 Pässe zum Tor."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate translation of 'draw level' without added detail."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact translation with correct minute and score."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful to source; timing and sequence correctly represented."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "No added detail; move description matches source exactly."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0d6b3bdabf5742ce016add0578c0ac8195bea6bcd2058d085b",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 466,
+      "output_tokens": 114
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "Comeback! Eastvale Athletic übernehmen die Führung",
+    "0": "Ugo Vale trifft in der 81. Minute zum 2-3.",
+    "2": "Ugo Vale hatte in der 38. Minute eine große Chance, die gehalten wurde; dieses Mal netzte er ein.",
+    "3": "Die Aktion startete mit einem Tackling, das den Ball eroberte, gefolgt von 6 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact translation, no added or changed content."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate factual translation."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Details are consistent and appropriately translated."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful and accurate rendering of source content."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0f0f03d3e279eeda016add057a06308195bba8e377c6e1b8fc",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 474,
+      "output_tokens": 103
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "home",
+   "lines": {
+    "-1": "Endstand: Eastvale Athletic dreht Spiel und gewinnt 2-3",
+    "1": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem eine große Chance in der 38. Minute noch pariert wurde.",
+    "2": "Die Führung wechselte zweimal.",
+    "3": "Northbridge Rovers hatten mehr Schüsse (14–11), aber Eastvale Athletic bessere Chancen (synthetisches xG: 3,04 vs. 2,05)."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches original meaning and detail."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correct sequence and facts preserved accurately."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact fact about lead changes retained."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Statistical details correctly and clearly translated."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0227e5e51f6fe66a016add057b18cc8197a640b064e5208deb",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 512,
+      "output_tokens": 102
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "Eastvale Athletic geht früh in Führung",
+    "0": "Rafe Pembrook trifft in der 5. Minute zum 0-1.",
+    "1": "Das erste Tor des Spiels bringt Eastvale Athletic in Führung: 0-1.",
+    "2": "Das Tor entstand direkt aus einer gelungenen Ballabnahme."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation without adding details or changing meaning."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate restatement of scoring event and time."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly conveys first goal and lead status."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Adds detail 'gelungene' (successful) not in source."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_09db0977794c2774016add057c7d808190aebbc8f89d9594cd",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 436,
+      "output_tokens": 117
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "So knapp für Eastvale Athletic!",
+    "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, aber der Schuss wurde gehalten.",
+    "1": "Es bleibt beim 0-1; ein Tor hätte Eastvale Athletics Führung verdoppelt."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite is a faithful translation of the source line."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately translates and keeps original meaning and details."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly reflects the source statement without added detail or change."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_04fca06958355546016add057d9ec481948ef0c2b5ec376af0",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 413,
+      "output_tokens": 89
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "Northbridge Rovers gleichen aus",
+    "0": "Ivo Merriweather trifft in der 56. Minute zum 1:1.",
+    "1": "Northbridge Rovers gleichen 51 Minuten nach Rückstand zum 1:1 aus.",
+    "2": "Die Aktion begann mit einem Einwurf und 7 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "No added details or meaning changes."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and faithful translation."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly reflects timing and event."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate translation of the sequence."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0183481ab4f78db4016add057ed5a4819382dec86825490620",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 448,
+      "output_tokens": 100
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "Comeback! Northbridge Rovers übernehmen Führung",
+    "0": "Hugo Elmswick trifft in der 71. Minute zum 2-1.",
+    "1": "Northbridge Rovers lagen in der 5. Minute mit 0-1 zurück, Tore in der 56. und 71. Minute sorgten für die Wende.",
+    "2": "Das Tor entstand direkt aus einem gewonnenen Ball nach einem Tackling."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite faithfully reflects original source meaning."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source factually and linguistically."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Timeline and goal details accurately preserved."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly represents source causal relation."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_05ff3d89a3464bbf016add0582c1c481939cdd4c7df5b34cc7",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 481,
+      "output_tokens": 103
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "Eastvale Athletic gleicht aus",
+    "0": "Teo Kestrel erzielt in der 77. Minute den Ausgleich zum 2-2.",
+    "1": "Eastvale Athletic gleicht zum 2-2 aus, nur 6 Minuten nach dem Rückstand.",
+    "2": "Der Angriff begann mit einem Tackling, das den Ball zurückeroberte, gefolgt von 2 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and natural translation of the source statement."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful and exact translation of score and timing."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correct and natural translation, no added detail or change."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate rendering of sequence of events without added information."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_02ad18b4f3693605016add0584507c819799920d4cd06221ab",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 468,
+      "output_tokens": 115
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "Comeback! Eastvale Athletic übernehmen die Führung",
+    "0": "Ugo Vale trifft in der 81. Minute: 2-3.",
+    "2": "Ugo Vale hatte in der 38. Minute eine Großchance pariert bekommen; dieses Mal traf er.",
+    "3": "Der Angriff begann mit einem Tackling, das den Ball eroberte, gefolgt von 6 Pässen."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact meaning and details match the source completely."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Translation preserves the original meaning precisely."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately conveys the saved chance and later goal."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Sequence and facts correctly translated without addition or alteration."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0c62b92faf0516a1016add05858c3081968065155ca34e0dc9",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 469,
+      "output_tokens": 109
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "away",
+   "lines": {
+    "-1": "Endstand: Eastvale Athletic dreht das Spiel und gewinnt 2-3",
+    "1": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem er in der 38. Minute eine große Chance knapp vergeben hatte.",
+    "2": "Die Führung wechselte zweimal.",
+    "3": "Northbridge Rovers hatten mehr Schüsse (14-11), aber Eastvale Athletic die besseren Chancen (synthetisches xG, ein Heuristikwert: 3,04 zu 2,05)."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Translation accurately reflects the source statement without added details."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds detail about missing chance not in source."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly conveys the source meaning directly."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source content and context precisely."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_097971fe0f0cae0d016add0586bb5c81949f42ace7b09f202d",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 518,
+      "output_tokens": 110
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Eastvale Athletic забиває першими",
+    "0": "Rafe Pembrook забив на 5-й хвилині: 0-1.",
+    "1": "Перший гол у матчі: Eastvale Athletic лідирують 0-1.",
+    "2": "Гол стався одразу після перехоплення."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correct and faithful translation of the source line."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate rendering of scoring detail and time."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful expression of match status and score."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate statement of how goal was scored."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0d846cafe9d9b9e3016add0588319081939fb720616052a506",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 442,
+      "output_tokens": 109
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Так близько до успіху Eastvale Athletic!",
+    "0": "Ugo Vale мав чудовий шанс на 38-й хвилині, але удар був відбитий.",
+    "1": "Залишається 0-1; гол подвоїв би перевагу Eastvale Athletic."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately expresses the closeness without adding facts."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite faithfully describes the chance and save as in the source."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly states score remains and effect of a goal."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0bb96b1a7f0e8b90016add058961708195a38733f8cc3e6ac5",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 422,
+      "output_tokens": 90
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Нічия Northbridge Rovers",
+    "0": "Ivo Merriweather забив на 56-й хвилині: 1-1.",
+    "1": "Northbridge Rovers зрівняли рахунок до 1-1 через 51 хвилину після пропущеного голу.",
+    "2": "Розіграш розпочався з вкидання, після чого було 7 пасів."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": false,
+     "issue": "changed_meaning",
+     "reason": "Draw means tie score, not just a draw event announcement."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correct and faithful translation of the scoring event."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithfully expresses the timing and score leveling."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate translation of the sequence of play described."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_032cad0e149f611d016add058a5ca88197a61b3ae1f26a79bb",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 471,
+      "output_tokens": 115
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Повернення! Northbridge Rovers виходять вперед",
+    "0": "Hugo Elmswick забиває на 71-й хвилині: 2-1.",
+    "1": "Northbridge Rovers програвали 0-1 на 5-й хвилині. Голі на 56-й та 71-й хвилинах змінили хід гри.",
+    "2": "Цей гол був безпосередньо з відбору м'яча."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches original meaning and content accurately."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The minute and score details are accurately preserved."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds 'змінили хід гри' not in original source."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately captures original meaning."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0d4c2d79b15dffa0016add058baee081908c7206431a3219f8",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 493,
+      "output_tokens": 112
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Eastvale Athletic зрівнює рахунок",
+    "0": "Teo Kestrel забив на 77-й хвилині: 2-2.",
+    "1": "Eastvale Athletic зрівняв рахунок на 2-2 через 6 хвилин після пропущеного голу.",
+    "2": "Гол почався з перехоплення м’яча після відбору, потім було 2 передачі."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Direct translation matching source meaning."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and faithful translation of original fact."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithfully conveys timing and score details without additions."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurately describes event sequence as in source."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0fae5b1126bc9736016add058cf8908195ad65b36675391811",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 478,
+      "output_tokens": 108
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Повернення! Eastvale Athletic виходять вперед",
+    "0": "Ugo Vale забиває на 81-й хвилині: 2-3.",
+    "2": "Ugo Vale мав велику нагоду на 38-й хвилині, але тоді гол не вдався; тепер - забито.",
+    "3": "Розіграш почався з відбору м'яча, далі було 6 передач."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects the comeback and leading status."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The minute and score are accurately translated."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Adds detail about big chance not scoring before, not in source."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "The sequence of events is faithfully presented."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_04da97eb0e61cab0016add058e7a388196b6e28be026ba14b5",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 483,
+      "output_tokens": 112
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "neutral",
+   "lines": {
+    "-1": "Повний час: Eastvale Athletic відігралася та виграла 2-3",
+    "1": "Ugo Vale забив переможний гол на 81-й хвилині після того, як великий шанс було відбито на 38-й.",
+    "2": "Перевага переходила від однієї команди до іншої двічі.",
+    "3": "Northbridge Rovers завдали більше ударів (14–11), однак Eastvale Athletic мали кращі шанси (синтетичний xG, евристика: 3.04 проти 2.05)."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects the comeback win with no added detail."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly states timing and sequence of key events."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly conveys the lead changed hands twice."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches original stats and explanation precisely."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_006ffc79046ccbc1016add058f89a881948cf4bc6acada090d",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 542,
+      "output_tokens": 111
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Eastvale Athletic відкриває рахунок",
+    "0": "Rafe Pembrook забиває на 5-й хвилині: 0-1.",
+    "1": "Перший гол матчу: Eastvale Athletic веде 0-1.",
+    "2": "Гол після перехоплення м'яча."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite is a direct, faithful translation of scoring first."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurately states scorer, time and score as source."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly conveys first goal and current score."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite reflects source meaning precisely without added info."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0995e9158e2bbe9d016add0590b0dc81938c1de93b21ecd81a",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 445,
+      "output_tokens": 114
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Близько для Eastvale Athletic!",
+    "0": "Ugo Vale мав чудову можливість на 38-й хвилині, але його удар було відбито.",
+    "1": "Рахунок залишається 0-1; гол подвоїв би перевагу Eastvale Athletic."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": false,
+     "issue": "language",
+     "reason": "Incorrect translation of 'So close' into 'Близько' in Ukrainian."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurately describes the chance and the save."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly states the score and potential impact of a goal."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_036806328c27aea6016add0591d76c81959e84cc941c8d1385",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 426,
+      "output_tokens": 96
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Northbridge Rovers зрівнюють рахунок",
+    "0": "Ivo Merriweather забив на 56-й хвилині: 1-1.",
+    "1": "Northbridge Rovers зрівнюють рахунок 1-1 через 51 хвилину після того, як відійшли назад.",
+    "2": "Розіграш почався з вкидання, потім 7 пасів."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects the source meaning and detail."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source fact about scorer, timing, and score."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "changed_meaning",
+     "reason": "Rewrite changes 'going behind' to 'відійшли назад' altering meaning."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly reflects sequence and details from source."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_059df462e4974179016add05932a688195afe70faae63e79dc",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 476,
+      "output_tokens": 122
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Повернення! Northbridge Rovers виходять вперед",
+    "0": "Hugo Elmswick забив у 71-й хвилині: 2-1.",
+    "1": "Northbridge Rovers поступалися 0-1 на 5-й хвилині. Голами у 56-й та 71-й хвилинах все змінили.",
+    "2": "Гол стався одразу після вдалого відбору м’яча."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithfully conveys comeback and lead without added details."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurately reports goal scorer and timing as in source."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly states score and timing of goals reversing deficit."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurately paraphrases origin of goal from ball recovery."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_059adc7eb948c7ce016add05945a148193bc7c0032d7d7d854",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 493,
+      "output_tokens": 118
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Eastvale Athletic зрівнює рахунок",
+    "0": "Teo Kestrel забиває на 77-й хвилині: 2-2.",
+    "1": "Eastvale Athletic зрівнює рахунок 2-2 за 6 хвилин після пропущеного голу.",
+    "2": "Комбінація почалася з відбору м'яча, далі було 2 паси."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful and natural translation of the source."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and direct translation, no additions or changes."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly conveys timing and score as source states."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful summary without adding or changing facts."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0adba70856250ad6016add05956fd08196837dff80b98cf87f",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 479,
+      "output_tokens": 112
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Повернення! Eastvale Athletic виходять вперед",
+    "0": "Ugo Vale забиває на 81-й хвилині: 2-3.",
+    "1": "Eastvale Athletic відставали 2-1 на 71-й хвилині. Голи на 77-й і 81-й змінили хід гри.",
+    "2": "Ugo Vale не реалізував велику нагоду на 38-й хвилині; цього разу м'яч зайшов у ворота.",
+    "3": "Атака почалася з відбору м'яча, потім 6 передач."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately maintains original meaning and detail."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly reflects score and minute details."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite keeps score progression and minute details faithful."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite preserves information about missed chance and eventual goal."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately describes sequence starting with tackle and passes."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0460ef30ba25ae13016add0596d6f481978370429e2601e381",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 560,
+      "output_tokens": 134
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "home",
+   "lines": {
+    "-1": "Фінальний свисток: Eastvale Athletic відігрались і виграли 2-3",
+    "1": "Ugo Vale забив переможний гол на 81-й хвилині після великого шансу, що відбив воротар на 38-й.",
+    "2": "Впевненість у перемозі переходила з одних в інші руки двічі.",
+    "3": "Northbridge Rovers завдали більше ударів (14–11), але Eastvale Athletic мали кращі шанси (синтетичний xG, евристика: 3.04 проти 2.05)."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects comeback and win score 2-3."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite preserves timing and events of saved chance and winning goal."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds interpretation about confidence not present in source."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly conveys shots and xG comparison."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0b5d6455d4d0eabe016add05981e6c8190b64d76840d691d75",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 553,
+      "output_tokens": 117
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "-1": "Eastvale Athletic відкриває рахунок",
+    "0": "Rafe Pembrook забиває на 5-й хвилині: 0-1.",
+    "1": "Перший гол у матчі: Eastvale Athletic веде 0-1.",
+    "2": "Гол стався після перехоплення."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation of 'Eastvale Athletic strike first'."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and faithful translation of the scoring event and time."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful restatement of the first goal and score lead."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly captures 'It came straight from an interception.' without adding details."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0a394edd53c6b736016add059941c081969ac04b31c9edce23",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 443,
+      "output_tokens": 124
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "-1": "Так близько для Eastvale Athletic!",
+    "0": "Ugo Vale мав чудовий шанс на 38-й хвилині, але удар парирував воротар.",
+    "1": "Рахунок залишився 0-1; гол подвоїв би перевагу Eastvale Athletic."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source meaning closely."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "No added detail or meaning change present."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "overstatement",
+     "reason": "Suggests goal doubled lead but score remained unchanged."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_06dea6adc531519c016add059a7f648190ba4320fc8f568c39",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 425,
+      "output_tokens": 82
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "-1": "Northbridge Rovers зрівнюють рахунок",
+    "0": "Ivo Merriweather забив на 56-й хвилині: 1-1.",
+    "1": "Northbridge Rovers зрівнюють рахунок 1-1 через 51 хвилину після пропущеного голу.",
+    "2": "Гол розпочався з вкидання, потім 7 передач."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful, no change in meaning or added details."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and faithful translation of scoring event."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Same timeline and sequence preserved without added info."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Exact description of play sequence is preserved."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_0688b9e69a796c74016add059b923c8197903cee3d5ad0a571",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 471,
+      "output_tokens": 110
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "-1": "Хвилююче повернення! Northbridge Rovers виходять вперед",
+    "0": "Hugo Elmswick забиває на 71-й хвилині: 2-1.",
+    "1": "Northbridge Rovers поступалися 0-1 на 5-й хвилині, але голи на 56-й і 71-й хвилинах змінили хід матчу.",
+    "2": "Гол став результатом безпосередньо виграного на боротьбі м'яча."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source meaning, tone added without adding facts."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation of source fact without changes."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful to original meaning and facts."
+    },
+    "2": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite adds cause ('result of tackle') not stated in source."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_015d3bae4232e1f0016add059cc1a8819386bcbdd3e7494992",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 506,
+      "output_tokens": 115
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "-1": "Eastvale Athletic зрівнюють рахунок",
+    "0": "Teo Kestrel забив у 77-й хвилині: 2-2.",
+    "1": "Eastvale Athletic зрівняли рахунок 2-2 через 6 хвилин після пропущеного голу.",
+    "2": "Розіграш почався з відбору м’яча, далі було 2 передачі."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful translation of 'draw level' with no added details."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Accurate and faithful translation of the scoring event."
+    },
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Correctly expresses timing after going behind, no added info."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Faithful description of sequence without extra details."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_02c0a8506564a61d016add059df9708197bd810d43b7ba8fc9",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 477,
+      "output_tokens": 117
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "-1": "Повернення! Eastvale Athletic вийшли вперед",
+    "0": "Ugo Vale забив у 81-й хвилині: 2-3.",
+    "1": "Eastvale Athletic програвали 2-1 у 71-й хвилині. Голи у 77-й та 81-й перевернули матч.",
+    "2": "Ugo Vale в 38-й хвилині мав велику нагоду, яку відбили; зараз м'яч пішов у ворота.",
+    "3": "Рух почався з відбору м'яча, далі було 6 передач."
+   },
+   "verdicts": {
+    "-1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately conveys comeback and taking lead."
+    },
+    "0": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches source exactly."
+    },
+    "1": {
+     "faithful": false,
+     "issue": "added_detail",
+     "reason": "Rewrite says Eastvale were losing, source says down 2-1 without context of winning or losing."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite states chance saved and then scored, consistent with source."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite faithfully describes tackle and six passes."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_091081e58d8b9738016add059f2a9081948b48c6633329bc74",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 559,
+      "output_tokens": 144
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "away",
+   "lines": {
+    "1": "Ugo Vale забив переможний гол у 81-й хвилині, після того як в 38-й хвилині важливий шанс було відбито.",
+    "2": "Лідер в матчі змінювався двічі.",
+    "3": "Northbridge Rovers мали більше ударів (14–11), але Eastvale Athletic створили кращі шанси (синтетичний xG, евристика: 3.04 проти 2.05)."
+   },
+   "verdicts": {
+    "1": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite accurately reflects timing and events without adding or changing details."
+    },
+    "2": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite correctly conveys that the lead changed twice in the match."
+    },
+    "3": {
+     "faithful": true,
+     "issue": "none",
+     "reason": "Rewrite matches original meaning and details on shots and chances accurately."
+    }
+   },
+   "calls": [
+    {
+     "response_id": "resp_01405e475a39e06a016add05a074a081978a880c3e34ef30e1",
+     "model": "gpt-4.1-mini",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 495,
+      "output_tokens": 92
+     },
+     "tool_calls": [],
+     "retries": []
+    }
+   ]
+  }
+ ]
+}

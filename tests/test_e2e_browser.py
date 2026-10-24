@@ -24,7 +24,11 @@ import pytest
 
 from matchlens.agent import DEMO_TRACE, RecordedProposer
 from matchlens.generator import generate_match
-from matchlens.personalize import PERSONALIZE_REVIEW, PERSONALIZE_TRACE, RecordedPersonalizer
+from matchlens.personalize import (
+    PUBLISHED_PERSONALIZE_REVIEW,
+    PUBLISHED_PERSONALIZE_TRACE,
+    RecordedPersonalizer,
+)
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, demo_extra_bundles, dumps
 from matchlens.server import export_site, make_server
 
@@ -59,9 +63,9 @@ def target(request, tmp_path_factory):
     trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
     proposer = RecordedProposer(trace, DEMO_TRACE)
     personalizer = RecordedPersonalizer(
-        json.loads((ROOT / PERSONALIZE_TRACE).read_text(encoding="utf-8")),
-        PERSONALIZE_TRACE,
-        json.loads((ROOT / PERSONALIZE_REVIEW).read_text(encoding="utf-8")),
+        json.loads((ROOT / PUBLISHED_PERSONALIZE_TRACE).read_text(encoding="utf-8")),
+        PUBLISHED_PERSONALIZE_TRACE,
+        json.loads((ROOT / PUBLISHED_PERSONALIZE_REVIEW).read_text(encoding="utf-8")),
     )
     match = generate_match(DEFAULT_DEMO_SEED)
     bundle = json.loads(dumps(build_bundle(match, proposer=proposer, personalizer=personalizer)))
@@ -732,9 +736,19 @@ def personalized_base(bundle):
 
     match = generate_match(DEFAULT_DEMO_SEED)
     cards = build_cards(match, "casual")
-    # Line 0 of every card fails both attempts, so each card shows one line kept in English.
-    fake = FakeTranslator(known_names(match), spoil={1: (0,), 2: (0,)})
-    live = personalize_cards(match, cards, FoundryPersonalizer(_config(), fake), strict=True)
+    # Line 0 of every card fails both attempts, so each card shows one line kept in English;
+    # a fake critic approves everything else, so the page shows the critic-reviewed labels.
+    from matchlens.critic import FoundryCritic
+    from tests.test_critic import FakeCritic, Router
+
+    router = Router(FakeTranslator(known_names(match), spoil={1: (0,), 2: (0,)}), FakeCritic())
+    live = personalize_cards(
+        match,
+        cards,
+        FoundryPersonalizer(_config(), router),
+        strict=True,
+        critic=FoundryCritic(_config(), router),
+    )
     trace = build_trace(match, live, _config())
     trace_proposer = RecordedProposer(json.loads((ROOT / DEMO_TRACE).read_text()), DEMO_TRACE)
     doc = build_bundle(
@@ -773,9 +787,10 @@ def test_language_and_club_rewrite_the_casual_cards(page, personalized_base):
     assert lines[2]["text"] in items.nth(1).text_content()
     note = art.locator(".personalized-note").text_content()
     assert "Українська, for Eastvale Athletic fans" in note and "recorded run" in note
-    assert "meaning and tone not checked" in note and "1 line(s) kept in English" in note
+    assert "meaning reviewed by a critic agent (also AI); tone not checked" in note
+    assert "1 line(s) kept in English: the checker, the critic or the editorial review" in note
     chip = art.locator(".narrative .status").text_content()
-    assert chip == "AI wording (Foundry personalizer) · numbers & names checked"
+    assert chip == "AI wording (Foundry personalizer) · numbers & names checked · critic-reviewed"
     assert "Offline template" not in art.text_content()
     assert "AI rewrite" in items.nth(1).locator(".sr-only").text_content()
     assert items.nth(0).locator(".sr-only").text_content().startswith("Verified")
@@ -811,6 +826,8 @@ def test_the_recorded_personalizer_run_is_live_on_the_page(page, bundle):
     assert art.locator("h3").get_attribute("lang") == "en"
     note = art.locator(".personalized-note").text_content()
     assert "recorded run" in note and "kept in English" in note
+    if not p.get("critics"):
+        assert "meaning and tone not checked" in note
     assert "3-2" not in art.text_content()
     _open(page, f"?t={bundle['duration_s']}&lang=uk&follow=home")
     text = page.text_content("#cards")

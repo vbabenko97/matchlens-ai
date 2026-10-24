@@ -39,6 +39,7 @@ from typing import Any, Protocol
 
 from .agent import _call_record, _incomplete_reason, post_with_retries
 from .cards import CardSet, InsightCard
+from .critic import Critic, CriticReview, RecordedCritic, verdict_record
 from .narrative import (
     AzureOpenAIConfig,
     ResponseFormatError,
@@ -53,10 +54,15 @@ FOCUSES = (NEUTRAL, HOME, AWAY)
 # Every variant but the source itself (English, neutral).
 VARIANTS = tuple((lang, f) for lang in LANGS for f in FOCUSES if (lang, f) != ("en", NEUTRAL))
 TRACE_SCHEMA = "matchlens.personalize-trace/v1"
-# The recorded run the public builds replay (deploy-pages.yml, deploy-swa.yml), and the
-# editorial review of that run: lines a reader rejected although they passed ``check_line``.
+TRACE_SCHEMA_V2 = "matchlens.personalize-trace/v2"  # v1 plus the critic's review per attempt
+# The first recorded run (personalizer only) and its editorial review: lines rejected
+# although they passed ``check_line``. The critic is measured against this pair.
 PERSONALIZE_TRACE = "docs/evidence/personalize-trace-2026-10-24.json"
 PERSONALIZE_REVIEW = "docs/evidence/personalize-review-2026-10-24.json"
+# The run the public builds replay (deploy-pages.yml, deploy-swa.yml): personalizer plus
+# critic (trace v2), and its editorial review.
+PUBLISHED_PERSONALIZE_TRACE = "docs/evidence/personalize-trace-v2-2026-10-24.json"
+PUBLISHED_PERSONALIZE_REVIEW = "docs/evidence/personalize-review-v2-2026-10-24.json"
 REVIEW_SCHEMA = "matchlens.personalize-review/v1"
 FOUNDRY = "foundry_personalizer"
 RECORDED = "recorded_foundry_personalizer"
@@ -306,6 +312,20 @@ class RecordedPersonalizer:
             f"deployment {trace['deployment']}), replayed from {source} — not a live call. "
             "Numbers and names are re-checked line by line when this output is built."
         )
+        self.critic: RecordedCritic | None = None
+        if trace["schema"] == TRACE_SCHEMA_V2:
+            reviews = {
+                (r["card_id"], r["lang"], r["focus"], n + 1): a["critic"]
+                for r in trace["runs"]
+                for n, a in enumerate(r["attempts"])
+                if a.get("critic") is not None
+            }
+            self.critic = RecordedCritic(
+                reviews,
+                f"Recorded Microsoft Foundry critic (deployment {trace['deployment']}), "
+                "replayed with the personalizer run — not a live call.",
+            )
+            self.label += " A critic agent reviewed every rewrite for meaning."
         self.review = load_review(review) if review is not None else {}
         if self.review:
             self.label += f" {len(self.review)} line(s) were rejected in an editorial review."
@@ -341,6 +361,8 @@ class PersonalizedCard:
     lines: tuple[LineResult, ...]  # title first, then every fact in card order
     drafts: tuple[Draft, ...]
     fallback_reason: str | None = None
+    critic_reviews: tuple[CriticReview | None, ...] = ()  # one per draft; None: not reviewed
+    critic: str | None = None  # the critic's name, when one took part
 
 
 def _sources(card: InsightCard) -> list[tuple[int, str]]:
@@ -354,12 +376,20 @@ def personalize_card(
     focus: str,
     proposer: Personalizer,
     strict: bool = False,
+    critic: Critic | None = None,
 ) -> PersonalizedCard:
-    """Draft, check every line, send rejected lines back once, keep what still fails."""
+    """Draft, check every line, send rejected lines back once, keep what still fails.
+
+    With a ``critic``, lines that pass ``check_line`` are reviewed for meaning in one call per
+    attempt; its rejections go back to the personalizer like the checker's. If the critic
+    fails or gives no verdict for a line, that line is rejected (strict runs raise instead).
+    """
     names = known_names(match)
     teams = {HOME: match.meta.home.name, AWAY: match.meta.away.name}
     sources = _sources(card)
     drafts: list[Draft] = []
+    reviews: list[CriticReview | None] = []
+    audience = "neutral viewers" if focus == NEUTRAL else f"fans of {teams[focus]}"
     accepted: dict[int, tuple[str, int]] = {}
     rejected: dict[int, list[str]] = {}
     fallback = None
@@ -380,6 +410,7 @@ def personalize_card(
             break
         drafts.append(draft)
         rejected = {}
+        passed: dict[int, str] = {}
         for i, source in sources:
             if i in accepted:
                 continue
@@ -389,7 +420,30 @@ def personalize_card(
             if reasons:
                 rejected[i] = reasons
             else:
-                accepted[i] = (draft.lines[i].strip(), attempt)
+                passed[i] = draft.lines[i].strip()
+        review = None
+        if critic is not None and passed:
+            items = [
+                {"index": i, "source": s, "text": passed[i]} for i, s in sources if i in passed
+            ]
+            key = (card.card_id, lang, focus, attempt)
+            try:
+                review = critic.review(key, items, LANGS[lang], audience)
+            except Exception as exc:  # the type only; the lines stay unpublished
+                if strict:
+                    raise
+                for i in passed:
+                    rejected[i] = [f"{critic.name} unavailable ({type(exc).__name__})"]
+                passed = {}
+            else:
+                for i in list(passed):
+                    verdict = review.verdicts.get(i)
+                    if verdict is None or not verdict.faithful:
+                        rejected[i] = [verdict.rejection() if verdict else "critic: no verdict"]
+                        del passed[i]
+        reviews.append(review)
+        for i, text in passed.items():
+            accepted[i] = (text, attempt)
     lines = []
     for i, source in sources:
         if i in accepted:
@@ -398,7 +452,15 @@ def personalize_card(
         else:
             lines.append(LineResult(i, source, source, KEPT, 0, tuple(rejected.get(i, ()))))
     return PersonalizedCard(
-        card.card_id, lang, focus, proposer.name, tuple(lines), tuple(drafts), fallback
+        card.card_id,
+        lang,
+        focus,
+        proposer.name,
+        tuple(lines),
+        tuple(drafts),
+        fallback,
+        tuple(reviews),
+        critic.name if critic is not None else None,
     )
 
 
@@ -409,8 +471,14 @@ def personalize_cards(
     variants: Sequence[tuple[str, str]] = VARIANTS,
     strict: bool = False,
     log: Callable[[str], None] = lambda line: None,
+    critic: Critic | None = None,
 ) -> list[PersonalizedCard]:
-    """Every card in every variant; a recorded run is replayed only where it has the card."""
+    """Every card in every variant; a recorded run is replayed only where it has the card.
+
+    A recorded v2 run brings its own recorded critic, unless one is passed explicitly.
+    """
+    if critic is None and isinstance(proposer, RecordedPersonalizer):
+        critic = proposer.critic
     out = []
     if isinstance(proposer, RecordedPersonalizer) and proposer.review:
         ids = {c.card_id for c in card_set.cards}
@@ -425,7 +493,7 @@ def personalize_cards(
                 card.card_id, lang, focus
             ):
                 continue
-            result = personalize_card(match, card, lang, focus, proposer, strict)
+            result = personalize_card(match, card, lang, focus, proposer, strict, critic)
             if isinstance(proposer, RecordedPersonalizer) and proposer.review:
                 result = apply_review(result, proposer.review)
             kept = sum(line.status == KEPT for line in result.lines)
@@ -493,9 +561,18 @@ def personalized_record(results: Sequence[PersonalizedCard], label: str) -> dict
             "lines": [asdict(line) for line in r.lines],
             "fallback_reason": r.fallback_reason,
             "response_ids": [c["response_id"] for d in r.drafts for c in d.calls],
+            "critic_response_ids": [
+                c["response_id"] for rv in r.critic_reviews if rv is not None for c in rv.calls
+            ],
         }
     proposers = {r.proposer for r in results}
-    return {"label": label, "proposers": sorted(proposers), "variants": variants}
+    critics = sorted({r.critic for r in results if r.critic})
+    return {
+        "label": label,
+        "proposers": sorted(proposers),
+        "critics": critics,
+        "variants": variants,
+    }
 
 
 # --- Evidence ----------------------------------------------------------------------------
@@ -505,8 +582,28 @@ def build_trace(
     match: Match, results: Sequence[PersonalizedCard], config: AzureOpenAIConfig
 ) -> dict[str, Any]:
     """Redacted evidence of a live run: drafts and call metadata, never the API key."""
+    with_critic = any(r.critic for r in results)
+
+    def attempt(r: PersonalizedCard, n: int) -> dict[str, Any]:
+        d = r.drafts[n]
+        rec: dict[str, Any] = {
+            "lines": {str(k): v for k, v in d.lines.items()},
+            "calls": list(d.calls),
+        }
+        if with_critic:
+            review = r.critic_reviews[n] if n < len(r.critic_reviews) else None
+            rec["critic"] = (
+                None
+                if review is None
+                else {
+                    "verdicts": {str(i): verdict_record(v) for i, v in review.verdicts.items()},
+                    "calls": list(review.calls),
+                }
+            )
+        return rec
+
     return {
-        "schema": TRACE_SCHEMA,
+        "schema": TRACE_SCHEMA_V2 if with_critic else TRACE_SCHEMA,
         "recorded_at_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "api": "responses-v1",
         "deployment": config.deployment,
@@ -516,10 +613,7 @@ def build_trace(
                 "card_id": r.card_id,
                 "lang": r.lang,
                 "focus": r.focus,
-                "attempts": [
-                    {"lines": {str(k): v for k, v in d.lines.items()}, "calls": list(d.calls)}
-                    for d in r.drafts
-                ],
+                "attempts": [attempt(r, n) for n in range(len(r.drafts))],
             }
             for r in results
         ],
@@ -532,8 +626,9 @@ def _positive_int(value: object) -> bool:
 
 def trace_problems(trace: dict[str, Any]) -> list[str]:
     problems = []
-    if trace.get("schema") != TRACE_SCHEMA:
-        problems.append(f"schema is not {TRACE_SCHEMA}")
+    schema = trace.get("schema")
+    if schema not in (TRACE_SCHEMA, TRACE_SCHEMA_V2):
+        problems.append(f"schema is not {TRACE_SCHEMA} or {TRACE_SCHEMA_V2}")
     runs = trace.get("runs")
     if not isinstance(runs, list) or not runs:
         return [*problems, "no runs"]
@@ -549,14 +644,20 @@ def trace_problems(trace: dict[str, Any]) -> list[str]:
             problems.append(f"{where}: expected 1 or 2 attempts")
             continue
         for a in attempts:
-            calls = a.get("calls")
-            if not isinstance(calls, list) or len(calls) != 1:
-                problems.append(f"{where}: an attempt must have exactly one call")
-                continue
-            call = calls[0]
-            if not str(call.get("response_id", "")).startswith("resp"):
-                problems.append(f"{where}: call without a response ID")
-            usage = call.get("usage") or {}
-            if not all(_positive_int(usage.get(k)) for k in ("input_tokens", "output_tokens")):
-                problems.append(f"{where}: call without positive token usage")
+            records = [("personalizer", a)]
+            if schema == TRACE_SCHEMA_V2 and a.get("critic") is not None:
+                records.append(("critic", a["critic"]))
+                if not isinstance(a["critic"].get("verdicts"), dict):
+                    problems.append(f"{where}: critic review without verdicts")
+            for who, rec in records:
+                calls = rec.get("calls")
+                if not isinstance(calls, list) or len(calls) != 1:
+                    problems.append(f"{where}: a {who} attempt must have exactly one call")
+                    continue
+                call = calls[0]
+                if not str(call.get("response_id", "")).startswith("resp"):
+                    problems.append(f"{where}: {who} call without a response ID")
+                usage = call.get("usage") or {}
+                if not all(_positive_int(usage.get(k)) for k in ("input_tokens", "output_tokens")):
+                    problems.append(f"{where}: {who} call without positive token usage")
     return problems

@@ -10,7 +10,65 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): review fixes before the video (translations, one deadline, docs)
+## Latest checkpoint (2026-10-24): critic runs recorded and published (improvement 1 of 3)
+- **Operator runs** (Cloud Shell, `gpt-4.1-mini`): `critic-eval-2026-10-24.json` and `personalize-trace-v2-2026-10-24.json`; both pass `trace_problems`/schema checks and contain no key-like strings. Files were renamed from "-10-25" to their recorded UTC date.
+- **Critic vs. Claude Code's labels** (v1 run, 220 lines, 12 positives): 8 caught, 4 missed, 13 false alarms; recall 0.667, precision 0.381. A regression check on 12 lines, not proof of generalization; the prompt was not tuned on them.
+  - Missed: "dominated" for 14-11 shots, "6 quick passes", an added "перехоплення", the calque "Повний час".
+  - False alarms: mostly tone words; several plain misreadings.
+- **v2 run (critic in the loop):** 90 + 89 calls, ~91K tokens; 34 of 56 cards retried; 40 lines verified on attempt 2. Kept in English: 4 by the checker, 10 by the critic (some of them false alarms, so correct rewrites were lost).
+- **Editorial review of v2** (Claude Code, `personalize-review-v2-2026-10-24.json`): 12 of 218 rejected, the same count as v1 (12 of 220). English embellishments 5 -> 1; German/Ukrainian language errors remain ("Голі" x3, "Нічия", "Full time:" in German, "ein Heuristik"). Fallback share: 26 of 232 lines in English (v1: 24).
+- **Published:** `PUBLISHED_PERSONALIZE_TRACE`/`_REVIEW` (v2) in both deploy workflows and the e2e production fixture; `PERSONALIZE_TRACE`/`_REVIEW` (v1) stay as the evaluation input.
+- **Docs:** README (three agents, "The critic, measured", limits), DEPLOYMENT, VIDEO_SCRIPT, SUBMISSION.
+- **Verified:** `python -m pytest -q` -> 537 passed, 2 skipped (incl. e2e on local Chromium, now on the v2 run); `ruff`, `actionlint` clean. New tests replay the published run (232 lines; kept 4/10/12 by checker/critic/review; no rejected phrases in rewritten lines) and re-score the recorded evaluation (8/4/13).
+- **Next:** PR -> merge -> both deploys -> smoke; then player focus mode (improvement 2).
+
+## Checkpoint (2026-10-24): critic agent (improvement 1 of 3; code, no live run yet)
+- **Why:**
+  - `check_line` cannot see meaning; the editorial review found 12 such lines by hand.
+  - The multi-agent story lacked a handoff between agents (independent review).
+- **New `matchlens.critic`**, a third Foundry agent with a distinct role.
+  - Per card and attempt, one Responses API call with strict JSON output: for each line (English fact -> rewrite, no IDs) it returns faithful or not, an issue (`added_detail`, `changed_meaning`, `overstatement`, `language`, `other`) and a reason.
+  - Conservative parsing: "faithful" with an issue, a missing verdict or a failed call all reject the line.
+- **Handoff in `personalize_card`:**
+  - personalizer -> `check_line` -> critic on the lines that passed -> rejections (checker or critic) go back to the personalizer with reasons -> second attempt -> both checks again -> still rejected keeps English.
+  - Strict recording runs raise on a critic failure.
+- **Evidence:**
+  - trace v2 (`matchlens.personalize-trace/v2`) stores the critic's verdicts and call metadata per attempt;
+  - `RecordedPersonalizer` replays v2 with a `RecordedCritic` and still replays v1;
+  - `trace_problems` checks the critic calls too.
+- **Evaluation:** `critic-eval` runs the critic over the 220 lines of the recorded v1 run that passed the checker, scores it against the editorial review (12 positives) and records the run (`matchlens.critic-eval/v1`). `--from` re-scores without a call.
+- **UI:** with a v2 run, the card note says "meaning reviewed by a critic agent (also AI); tone not checked", and the chip adds "critic-reviewed". With v1 the old labels stay.
+- **Verified:**
+  - `python -m pytest -q` -> 535 passed, 2 skipped (incl. e2e);
+  - new tests: conservative verdict parsing; critic rejection -> personalizer retry with the critic's reason; rejected twice -> English; only checker-passed lines reach the critic, without IDs; missing verdict or critic failure -> rejected (strict raises); v2 trace record/replay equality; v2 trace problems; v1 still replays; eval metrics against the committed review; `critic-eval --from`; CLI recording v2 vs `--no-critic`.
+  - `ruff check .` and `ruff format --check .` clean.
+  - Fake transports only: **not** evidence of the critic's quality; that is what `critic-eval` measures.
+- **Process note:** recreating the branch from `main` dropped the unmerged docs commit (video script, submission texts) from the branch. It was restored from the reflog by cherry-pick, and nothing was lost.
+- **Next:**
+  - operator: `critic-eval` and a v2 `personalize-review` (docs/DEPLOYMENT.md, "Critic agent runs");
+  - meanwhile: player focus mode (improvement 2).
+
+## Checkpoint (2026-10-24): submission version tagged; video script and submission texts
+- **Merged and deployed:** PR #18 squash-merged as `2b9da2a`. SWA [run 40121694703](https://github.com/vbabenko97/matchlens-ai/actions/runs/40121694703) and Pages [run 40121697289](https://github.com/vbabenko97/matchlens-ai/actions/runs/40121697289) succeeded, including their smoke jobs.
+- **Tag `v1.0-submission` -> `2b9da2a`** (annotated). The operator pushed it, because this session can push only its own branch. `git ls-remote` confirms it on GitHub.
+- **Independent re-check of the tag (reported):**
+  - both hosts serve a build identical to the tag;
+  - 438 passed, 1 skipped locally;
+  - all 12 editorial rejections applied and the trace unchanged;
+  - the quota reservation counts against the deadline;
+  - a fresh live request: HTTP 200, 8,051 tokens, 4 claims verified, 7.5 s server / 13.1 s end to end; `remaining_today: 1` left for the video.
+  - The forced `daily_limit` check was done by the operator on the previous deploy (refused; `Count` stayed 2).
+- **New docs:**
+  - `docs/VIDEO_SCRIPT.md`: 7 shots, ~1:50, about 220 words of English voice-over, exact UI labels, deep links, and a one-live-call warning.
+  - `docs/SUBMISSION.md`: links, elevator pitch, Microsoft technologies, English testing instructions, the category note and a pre-submit checklist.
+- **Next (operator):**
+  1. Record and publish the video, then put the link in README and the form.
+  2. Screen-reader pass and a short external test.
+  3. `/submission-audit` with the final package.
+  4. Submit in Innovation Studio and confirm it shows as submitted.
+  5. Keep both hosts up through 2026-11-10.
+
+## Checkpoint (2026-10-24): review fixes before the video (translations, one deadline, docs)
 - **Source:** an independent review of `main` @ `ff20751`.
   - Reported: tests and CI green; both hosts HTTP 200; one live Foundry call on the Azure host (7.2 s, 3 model calls, 8,058 tokens, 4 claims verified); overlay and match picker checked in a browser.
   - Found: meaning errors in accepted personalizer lines; a deadline gap; stale docs.
@@ -108,7 +166,7 @@ Update this file after verified work. A task is done only when the acceptance ch
   - `ruff check .` and `ruff format --check .` clean.
   - Fake transports only; the fake translator keeps names and digits and swaps words. **Not** evidence of model quality.
 - **Next:**
-  1. Operator: `personalize-review --out docs/evidence/personalize-trace-2026-10-25.json` (docs/DEPLOYMENT.md), then wire the trace into both deploy workflows.
+  1. Operator: `personalize-review --out docs/evidence/personalize-trace-<date>.json` (docs/DEPLOYMENT.md), then wire the trace into both deploy workflows.
   2. Video, pitch, screen-reader pass, external test, audit (plan item 6).
 
 ## Checkpoint (2026-10-24): match picker (plan item 4, UI part)
