@@ -10,10 +10,10 @@ import pytest
 
 from matchlens.cli import main
 from matchlens.generator import generate_match
-from matchlens.metrics import compute_metrics
+from matchlens.metrics import as_of_id, compute_metrics
 from matchlens.narrative import AI_UNVERIFIED, TEMPLATE
 from matchlens.overlays import OVERLAY_SCHEMA
-from matchlens.replay import BUNDLE_SCHEMA, DEFAULT_DEMO_SEED, build_bundle, dumps, minute_series
+from matchlens.replay import BUNDLE_SCHEMA, DEFAULT_DEMO_SEED, build_bundle, dumps, stat_steps
 from matchlens.server import WEB_FILES, asset_version, export_site, make_server, site_files
 
 from .test_cards import LyingProvider
@@ -46,7 +46,16 @@ def test_cards_and_overlays_agree(bundle):
     assert bundle["overlays"]["schema"] == OVERLAY_SCHEMA
     for mode in ("casual", "analyst"):
         cards = bundle["cards"][mode]
-        assert 2 <= len(cards) <= 4
+        # seed 1: goals at 5', 56', 71', 77', 81', the missed big chance at 38', full time
+        assert [c["moment_id"].split(":")[1] for c in cards] == [
+            "ml1-00089",
+            "ml1-00591",
+            "ml1-00871",
+            "ml1-01112",
+            "ml1-01206",
+            "ml1-01253",
+            "ml1-01399",
+        ]
         mode_cues = [c for c in cues if c["mode"] == mode]
         assert [c["cue_id"] for c in mode_cues] == [c["card_id"] for c in cards]
         for card, cue in zip(cards, mode_cues, strict=True):
@@ -84,21 +93,24 @@ def test_cues_cite_only_events_that_have_happened(bundle):
         assert cue["start_s"] == cards[cue["cue_id"]]["publish_clock_s"]
 
 
-def test_minute_series_matches_metric_totals(match, bundle):
-    metrics = compute_metrics(match)
-    series = bundle["series"]
-    assert series == minute_series(match)
-    for side in ("home", "away"):
-        assert series[f"{side}.goals"][-1] == metrics[f"{side}.goals"].value
-        assert series[f"{side}.shots"][-1] == metrics[f"{side}.shots"].value
-        assert series[f"{side}.xg_heuristic"][-1] == pytest.approx(
-            metrics[f"{side}.xg_heuristic"].value, abs=1e-3
-        )
-        assert series[f"{side}.shots"][0] == 0
-        assert all(
-            a <= b
-            for a, b in zip(series[f"{side}.shots"], series[f"{side}.shots"][1:], strict=False)
-        )
+def test_stat_steps_match_metrics_as_of_each_shot(match, bundle):
+    """The stats panel changes on the shot itself, never a minute later."""
+    steps = bundle["stat_steps"]
+    assert steps == stat_steps(match)
+    shots = [e for e in match.events if e.type == "shot"]
+    assert [s["seq"] for s in steps] == [e.seq for e in shots]
+    for step, shot in zip(steps, shots, strict=True):
+        metrics = compute_metrics(match, as_of_event_id=shot.event_id)
+        for side in ("home", "away"):
+            for name in ("goals", "shots"):
+                assert (
+                    step[f"{side}.{name}"]
+                    == metrics[as_of_id(f"{side}.{name}", shot.event_id)].value
+                )
+            xg = metrics[as_of_id(f"{side}.xg_heuristic", shot.event_id)].value
+            assert step[f"{side}.xg_heuristic"] == pytest.approx(xg, abs=1e-3)
+    final = compute_metrics(match)
+    assert steps[-1]["away.goals"] == final["away.goals"].value == bundle["final_score"][1]
 
 
 def test_ai_wording_keeps_unverified_label_in_bundle(match):

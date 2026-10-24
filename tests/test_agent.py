@@ -23,6 +23,7 @@ from matchlens.agent import (
     MAX_TOOL_CALLS,
     NETWORK_RETRIES,
     NETWORK_RETRY_WAIT_S,
+    NOT_RECORDED,
     OFFLINE,
     RATE_LIMIT_MAX_WAIT_S,
     RATE_LIMIT_RETRIES,
@@ -56,6 +57,7 @@ from matchlens.replay import build_bundle, dumps
 
 KEY = "test-key-never-logged-123"
 GOAL = "analyst:goal:ml1-01112"  # 71' goal, published at 70:13 (2-1)
+FIRST_GOAL = "analyst:goal:ml1-00089"  # 5' goal (0-1), the first goal card
 SHOTS = "home.shots@3600-4500:asof:ml1-01112"  # 3 as of the goal; the 4th is ml1-01166
 
 
@@ -230,19 +232,19 @@ def test_offline_review_claims_the_card_metrics(match, card_set):
     for review, card in zip(reviews, card_set.cards, strict=True):
         own = [v for v in review.verdicts if v.source == OFFLINE]
         assert own and all(v.verified for v in own) and len(review.attempts) == 1
-        metric_facts = [f.text for f in card.facts if f.metric_ids]
+        metric_facts = [f.text for f in card.facts if len(f.metric_ids) == 1][:MAX_CLAIMS]
         assert [f.text for f in review.published][: len(metric_facts)] == metric_facts
 
 
 def test_injected_wrong_score_is_rejected_and_corrected(match, card_set):
     reviews = {r.card_id: r for r in review_cards(match, card_set, OfflineProposer())}
     injected = [(cid, v) for cid, r in reviews.items() for v in r.verdicts if v.source == INJECTED]
-    assert [cid for cid, _ in injected] == [GOAL]  # first goal card only
+    assert [cid for cid, _ in injected] == [FIRST_GOAL]  # first goal card only
     v = injected[0][1]
-    assert (v.claim.metric_id, v.claim.value) == ("home.goals:asof:ml1-01112", 3)
-    assert v.status == REJECTED and v.reasons == ("claimed 3 but home.goals:asof:ml1-01112 = 2",)
-    assert v.correction.text.startswith("Northbridge Rovers — Goals: 2 (as of 71')")
-    assert v.correction in reviews[GOAL].published
+    assert (v.claim.metric_id, v.claim.value) == ("away.goals:asof:ml1-00089", 2)
+    assert v.status == REJECTED and v.reasons == ("claimed 2 but away.goals:asof:ml1-00089 = 1",)
+    assert v.correction.text.startswith("Eastvale Athletic — Goals: 1 (as of 5')")
+    assert v.correction in reviews[FIRST_GOAL].published
 
 
 def test_foundry_agent_loop_retries_once_and_publishes_only_verified(match, goal):
@@ -498,8 +500,14 @@ def test_committed_live_trace_is_acceptable_and_replays_exactly(match, card_set)
     trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
     assert trace_problems(trace) == []
     assert (trace["deployment"], trace["seed"], trace["store"]) == ("gpt-4.1-mini", 1, False)
-    reviews = review_cards(match, card_set, RecordedProposer(trace, DEMO_TRACE))
-    assert [r.card_id for r in reviews] == [r["card_id"] for r in trace["reviews"]]
+    all_reviews = review_cards(match, card_set, RecordedProposer(trace, DEMO_TRACE))
+    recorded_ids = [r["card_id"] for r in trace["reviews"]]
+    reviews = [r for r in all_reviews if r.card_id in recorded_ids]
+    assert [r.card_id for r in reviews] == recorded_ids
+    for review in all_reviews:  # cards added since the recording say they are not covered
+        if review.card_id not in recorded_ids:
+            assert review.proposer == OFFLINE and review.notes[-1] == NOT_RECORDED
+            assert not any(v.source == INJECTED for v in review.verdicts)
     for review, recorded in zip(reviews, trace["reviews"], strict=True):
         assert review.proposer == RECORDED and review.fallback_reason is None
         assert [(v.attempt, v.status) for v in review.verdicts] == [
@@ -528,10 +536,10 @@ def test_public_builds_replay_the_committed_trace():
 def test_bundle_carries_reviews_for_analyst_cards(match):
     bundle = json.loads(dumps(build_bundle(match)))
     assert set(bundle["reviews"]) == {c["card_id"] for c in bundle["cards"]["analyst"]}
-    review = bundle["reviews"][GOAL]
+    review = bundle["reviews"][FIRST_GOAL]
     injected = [v for v in review["verdicts"] if v["source"] == INJECTED]
     assert len(injected) == 1 and injected[0]["status"] == REJECTED
-    assert injected[0]["correction"]["metric_ids"] == ["home.goals:asof:ml1-01112"]
+    assert injected[0]["correction"]["metric_ids"] == ["away.goals:asof:ml1-00089"]
     for review in bundle["reviews"].values():
         for v in review["verdicts"]:
             for fact in (v["fact"], v["correction"]):
@@ -546,7 +554,7 @@ def test_cli_offline_review(capsys):
     assert main(["agent-review", "--seed", "1", "--offline"]) == 0
     out = capsys.readouterr().out
     assert "Offline deterministic proposer" in out
-    assert "reason: claimed 3 but home.goals:asof:ml1-01112 = 2" in out
+    assert "reason: claimed 2 but away.goals:asof:ml1-00089 = 1" in out  # first goal card
 
 
 def test_cli_live_review_needs_azure_settings(capsys, monkeypatch):
@@ -592,7 +600,8 @@ def test_cli_live_review_writes_redacted_trace(capsys, monkeypatch, tmp_path):
     text = out.read_text(encoding="utf-8")
     assert KEY not in text and KEY not in capsys.readouterr().out
     trace = json.loads(text)
-    assert len(trace["reviews"]) == 4 and trace_problems(trace) == []
+    cards = build_cards(generate_match(1), ANALYST).cards  # every analyst card, FT included
+    assert len(trace["reviews"]) == len(cards) == 7 and trace_problems(trace) == []
     # The committed trace is what a public build would replay.
     site = tmp_path / "site"
     assert main(["export-site", "--offline", "--agent-trace", str(out), "--out", str(site)]) == 0

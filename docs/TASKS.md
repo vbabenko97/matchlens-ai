@@ -10,7 +10,42 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): live Foundry claim-agent run recorded and wired in
+## Latest checkpoint (2026-10-24): match story, every goal, causal selection, visible Foundry check
+Driven by a judge's-eye review of the public build (seed 1). Casual cards repeated the scoreboard ("That puts Eastvale Athletic ahead, 2-3"), the same "move started with a tackle" line sat on all three goal cards, and two of the five goals (5' and 56') had no card at all. The real story went untold: Eastvale were 2-1 down at 71', scored at 77' and 81', and the 81' scorer had a big chance saved at 38'.
+- **Bug fixed: the stats panel lagged the scoreboard by up to 59 s.** At 76:46 the score read 2-2 and "Last event" was the goal, but shots/xG still showed 14–9 / 1.31; they updated per minute. The bundle now has `stat_steps` (one per shot), and the panel shows the last step at or before the current event. A new browser test fails on the old code (`'0 – 0' == '0 – 1'`).
+- **Causal selection.** Every goal, every missed big chance and the final whistle get a card; press wins get none. This replaces "top 4 ranked over the whole match", which used later events. Seed 1 now has 7 cards per mode. `test_selection_never_depends_on_later_events` cuts each match (seeds 1-20) right after each moment and gets the same choices.
+- **Why it matters (`matchlens.story`).** Each card leads with structured, event-cited story lines:
+  - goals: opener, equaliser, comeback, back in front, extends lead, pulls one back; plus redemption and brace;
+  - missed chances: what a goal would have meant;
+  - full time: comeback or result, the winning goal, lead changes, and shots vs chance quality (labelled synthetic xG).
+  - `check_line` re-renders each line from its cited events alone and checks the kind's condition. Lines that need the whole score history cite every goal, and each cited goal must add exactly one. A failing line is dropped and reported in `suppressed`.
+  - Seed 1, 81': "Comeback! Eastvale Athletic take the lead" / "Eastvale Athletic were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around." / "Ugo Vale saw a big chance saved in minute 38; this time it went in."
+  - Full time: "Full time: Eastvale Athletic come from behind to win 2-3", "The lead changed hands twice", "Northbridge Rovers had more shots (14–11), but Eastvale Athletic had the better chances (synthetic xG, a heuristic: 3.04 vs 2.05)."
+- **Cards and UI:**
+  - story headline; "why" lines first and emphasised;
+  - analyst event chain folded in a `<details>`;
+  - one label line per card ("✓ checked against match events" + "Offline template · not an Azure response");
+  - the lower third shows the "why" line, and on phones it sits under the pitch instead of covering it;
+  - an FT marker.
+- **Shortcuts (`highlights`, hindsight chapter marks that never change a card):**
+  - **Watch the comeback (77'–81')** plays from just before the 77' move; at 60× the 77', 81' and full-time cards arrive in about 15 s.
+  - **See the AI get fact-checked (77')** opens Analyst at the 77' card and focuses its claim check. The check is grouped by attempt: "Attempt 1: 3 of 4 claims verified, 1 rejected and sent back · Attempt 2: 4 of 4 claims verified"; response IDs sit in a disclosure.
+- **Recorded Foundry run:**
+  - It still replays exactly on the 4 cards it covers (38', 71', 77', 81'), with the injected test claim on 71' as recorded.
+  - The 5', 56' and full-time cards are reviewed by the offline proposer, and their notes say they are not part of the recorded run.
+  - A fresh live recording would cover all 7 cards: `agent-review --seed 1 --out …` now defaults to every card. Operator credentials are needed; this is optional.
+- **Fresh matches (seeds 100-129, not tuned for the demo):** every goal has a card in both modes, every card has a "why" line, nothing is suppressed, and no card cites an event after its publication. 2-11 cards per match; the offline bundle builds in a median 0.11 s (max 0.15 s) at no API cost. Cost of the recorded agent run: 19 Responses API calls, ≈ 40K input / 1.8K output tokens for 4 cards.
+- **Verified:**
+  - `python -m pytest -q` -> 402 passed (incl. 54 e2e on local Chromium);
+  - `ruff check .` and `ruff format --check .` clean;
+  - axe-core 4.10.2 -> 0 WCAG violations in 5 states (see `docs/ACCESSIBILITY.md`).
+- **Next (approval needed):**
+  1. Merge, redeploy Pages, and confirm the public smoke job.
+  2. Optional: re-record the agent trace for all 7 cards.
+  3. Three-person 30-second test: "what changed in the match?"
+  4. Video: comeback shortcut → 81' card → full time → AI check at 77' → recorded response IDs.
+
+## Checkpoint (2026-10-24): live Foundry claim-agent run recorded and wired in
 - **Live run (operator, 11:10 UTC):** `agent-review --seed 1` exited 0 on the fifth attempt. Committed as `docs/evidence/agent-trace-2026-10-24.json`.
   - 4 analyst cards; 19 Responses API calls, each with its own response ID and positive usage (≈ 40K input / 1.8K output tokens); 27 real tool calls; 13 HTTP 429 waits absorbed; no fallback; `trace_problems` passes.
   - **Model self-correction (77' card):** the validator rejected `away.pressures:asof:ml1-01206 = 131` because it cited the goal-move events, not pressure events. The retry cited real pressure events and was verified.

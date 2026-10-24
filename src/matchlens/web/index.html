@@ -83,7 +83,11 @@
 
     <aside class="side" aria-labelledby="cards-heading" tabindex="0">
       <h2 id="cards-heading">Key moments</h2>
-      <p class="hint" id="cards-hint">Press play — cards appear as moments happen.</p>
+      <div class="shortcuts" id="shortcuts" role="group" aria-label="Demo shortcuts" hidden>
+        <button type="button" id="jump-turning" class="primary" hidden></button>
+        <button type="button" id="jump-ai" hidden></button>
+      </div>
+      <p class="hint" id="cards-hint">Press play: a card appears with every goal and big chance, saying why it matters. Every line is checked against the match events.</p>
       <div id="cards"></div>
       <section class="inspector" id="inspector" hidden aria-label="Evidence inspector">
         <h2>Evidence inspector</h2>

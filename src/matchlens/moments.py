@@ -10,6 +10,10 @@ Detectors:
 - ``press_win``: a tackle/interception by a team that pressed the same opponent
   possession within ``PRESS_WINDOW_S`` seconds before winning the ball, and whose won
   possession produced a shot within ``PRESS_SHOT_WINDOW_S`` seconds.
+- ``full_time``: the final whistle (the period-2 ``period_end``), with every goal as evidence.
+
+Selection (``select_key_moments``) is causal: whether a moment gets a card depends only on
+the moment itself, never on what happens later, so a live feed could apply the same rule.
 """
 
 from __future__ import annotations
@@ -18,19 +22,21 @@ from dataclasses import dataclass
 from typing import Any
 
 from .claims import HEURISTIC_NOTE, player_name
-from .schema import BALL_EVENTS, Event, Match, minute_of
+from .schema import AWAY, BALL_EVENTS, HOME, Event, Match, minute_of
 
 BIG_CHANCE_XG = 0.2
 PRESS_WINDOW_S = 8.0
 PRESS_SHOT_WINDOW_S = 20.0
-_KIND_PRIORITY = {"goal": 0, "big_chance_missed": 1, "press_win": 2}
+_KIND_PRIORITY = {"goal": 0, "big_chance_missed": 1, "press_win": 2, "full_time": 3}
+CARD_KINDS = ("goal", "big_chance_missed", "full_time")  # every one of these gets a card
+DRAW = "draw"  # the ``team`` of a full-time moment without a winner
 
 
 @dataclass(frozen=True, slots=True)
 class KeyMoment:
     moment_id: str
     kind: str
-    team: str
+    team: str  # the side the moment is about; for ``full_time`` the winner or ``DRAW``
     anchor_event_id: str
     clock_s: float  # anchor event time
     start_clock_s: float  # earliest evidence event time
@@ -153,38 +159,52 @@ def detect_press_wins(
     return out
 
 
+def detect_full_time(match: Match) -> list[KeyMoment]:
+    """The final whistle, if the match has one; evidence is every goal and the whistle."""
+    end = match.events[-1] if match.events else None
+    if end is None or end.type != "period_end" or end.period != 2:
+        return []
+    goals = [e for e in match.events if e.type == "shot" and e.outcome == "goal"]
+    h, a = end.home_score, end.away_score
+    return [
+        KeyMoment(
+            moment_id=f"full_time:{end.event_id}",
+            kind="full_time",
+            team=HOME if h > a else AWAY if a > h else DRAW,
+            anchor_event_id=end.event_id,
+            clock_s=end.clock_s,
+            start_clock_s=end.clock_s,  # a summary: its replay lead-in is the whistle itself
+            known_clock_s=end.clock_s,
+            event_ids=(*(g.event_id for g in goals), end.event_id),
+            details={"score": (h, a), "goal_event_ids": tuple(g.event_id for g in goals)},
+        )
+    ]
+
+
 def detect_moments(match: Match) -> list[KeyMoment]:
     """All detected moments in match order (ties broken by kind priority)."""
-    moments = detect_goals(match) + detect_big_chances_missed(match) + detect_press_wins(match)
+    moments = (
+        detect_goals(match)
+        + detect_big_chances_missed(match)
+        + detect_press_wins(match)
+        + detect_full_time(match)
+    )
     seq = {e.event_id: e.seq for e in match.events}
     return sorted(moments, key=lambda m: (seq[m.anchor_event_id], _KIND_PRIORITY[m.kind]))
 
 
-def select_key_moments(moments: list[KeyMoment], limit: int = 4) -> list[KeyMoment]:
-    """Deterministically pick up to ``limit`` moments, then return them in match order.
+def select_key_moments(moments: list[KeyMoment], limit: int | None = None) -> list[KeyMoment]:
+    """The moments that get a card, in match order: every goal, every missed big chance and
+    the final whistle (``CARD_KINDS``); ``limit`` keeps only the first ``limit`` of them.
 
-    Priority: goals, then missed big chances, then press wins; within a kind, higher xG
-    heuristic (of the moment's shot) first, then earlier moments. If goals would fill every
-    slot (``limit >= 2``), the best non-goal moment takes the last one.
+    Each moment is chosen on its own kind, never by ranking it against later moments, so the
+    choice never uses events after the moment (unlike a "top N of the match" pick).
     """
-
-    def rank(m: KeyMoment) -> tuple:
-        return (
-            _KIND_PRIORITY[m.kind],
-            -(m.details.get("xg_heuristic") or 0.0),
-            m.clock_s,
-            m.anchor_event_id,
-        )
-
-    ranked = sorted(moments, key=rank)
-    chosen = ranked[:limit]
-    # Keep the card set varied: if goals fill every slot, the best non-goal moment
-    # replaces the lowest-ranked goal.
-    if limit >= 2 and all(m.kind == "goal" for m in chosen):
-        best_other = next((m for m in ranked if m.kind != "goal"), None)
-        if best_other is not None:
-            chosen[-1] = best_other
-    return sorted(chosen, key=lambda m: (m.clock_s, m.anchor_event_id))
+    chosen = sorted(
+        (m for m in moments if m.kind in CARD_KINDS),
+        key=lambda m: (m.clock_s, _KIND_PRIORITY[m.kind], m.anchor_event_id),
+    )
+    return chosen if limit is None else chosen[:limit]
 
 
 def describe_moment(moment: KeyMoment, match: Match) -> str:
@@ -206,6 +226,9 @@ def describe_moment(moment: KeyMoment, match: Match) -> str:
             f"{minute}' Big chance — {who} ({team}) shot {d['outcome'].replace('_', ' ')} "
             f"from a {d['xg_heuristic']:.2f} xG position [{HEURISTIC_NOTE}]."
         )
+    elif moment.kind == "full_time":
+        h, a = d["score"]
+        text = f"Full time: {match.meta.home.name} {h}-{a} {match.meta.away.name}."
     else:
         text = (
             f"{minute}' Press win — {team} pressed and {who} won the ball by "
