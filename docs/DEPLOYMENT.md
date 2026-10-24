@@ -63,6 +63,17 @@ MATCHLENS_BASE_URL=https://<public-url>/ python -m pytest -q -m e2e
 ```
 Verified locally against independent static hosts: the app server, a plain static server under a sub-path, and a separately hosted export via `MATCHLENS_BASE_URL`. The public URL `https://vbabenko97.github.io/matchlens-ai/` passes the same suite in the scheduled smoke workflow (see the status table above).
 
+## Personalizer run (language and club variants) — operator step
+**Status (2026-10-24): code ready; no run recorded yet.** The language and club picker appears only once a recorded run is wired into the deploy workflows.
+
+1. **[operator]** With the same `AZURE_OPENAI_*` variables as for `azure-check`, record all 8 variants of the 7 demo casual cards:
+   ```bash
+   python -m matchlens personalize-review --out docs/evidence/personalize-trace-2026-10-25.json
+   ```
+   - That is 56 Responses API calls, plus one retry per card with a rejected line; at the recorded run's sizes, about 50K tokens in total.
+   - The command prints every line with ✓ or "kept (reason)" and exits 1 without writing a file if the trace is not acceptable evidence.
+2. Check the output (no key in the file: `grep -c "$AZURE_OPENAI_API_KEY" <file>` prints 0), commit it, then add `--personalize-trace docs/evidence/personalize-trace-2026-10-25.json` to the `export-site` lines of `deploy-pages.yml` and `deploy-swa.yml` (one PR), merge and redeploy.
+
 ## Live Foundry check on the public demo (Azure Static Web Apps managed API)
 **Status (2026-10-24): code ready, not deployed.** Needs the operator steps below.
 

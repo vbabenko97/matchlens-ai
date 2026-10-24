@@ -196,6 +196,10 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .inspector dd { margin: 0; }
 
 #match { max-width: 100%; }
+.personalize { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; margin: 0 0 0.6rem; color: var(--muted); font-size: 0.85rem; }
+.personalize label { display: inline-flex; gap: 0.35rem; align-items: center; }
+.personalize select { max-width: 100%; }
+.personalized-note { font-size: 0.78rem; margin: 0 0 0.45rem; }
 .footer { padding: 0.6rem 1rem 1rem; color: var(--muted); font-size: 0.8rem; }
 .footer p { margin: 0; max-width: 70rem; }
 [hidden] { display: none !important; }

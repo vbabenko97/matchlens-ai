@@ -396,6 +396,38 @@ def _call_record(response: dict, calls: list[dict], retries: list[dict]) -> dict
     }
 
 
+def post_with_retries(
+    config: AzureOpenAIConfig,
+    body: dict,
+    transport: Transport | None,
+    timeout_s: float,
+    sleep: Callable[[float], None],
+    log: Callable[[str], None] = lambda line: None,
+) -> tuple[dict, list[dict]]:
+    """One model call with bounded retries; returns the reply and the retries it took.
+
+    HTTP 429: wait as Azure asks (capped) and retry, up to ``RATE_LIMIT_RETRIES``. No HTTP
+    response at all (connection, DNS, TLS, timeout): retry up to ``NETWORK_RETRIES``.
+    Any other HTTP error is raised at once.
+    """
+    retries: list[dict] = []
+    while True:
+        try:
+            return post_responses(config, body, transport, timeout_s), retries
+        except urllib.error.HTTPError as exc:
+            limited = sum(r["cause"] == "HTTP 429" for r in retries)
+            if exc.code != 429 or limited >= RATE_LIMIT_RETRIES:
+                raise
+            retries.append({"cause": "HTTP 429", "wait_s": retry_after_s(exc)})
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            failed = sum(r["cause"] != "HTTP 429" for r in retries)
+            if failed >= NETWORK_RETRIES:
+                raise
+            retries.append({"cause": type(exc).__name__, "wait_s": NETWORK_RETRY_WAIT_S})
+        log(f"  {retries[-1]['cause']}: waiting {retries[-1]['wait_s']:g} s, then retrying")
+        sleep(retries[-1]["wait_s"])
+
+
 class FoundryAgentProposer:
     """Responses API (v1) agent loop with read-only, publication-bound tools."""
 
@@ -420,30 +452,9 @@ class FoundryAgentProposer:
         )
 
     def _post(self, body: dict) -> tuple[dict, list[dict]]:
-        """One model call with bounded retries.
-
-        HTTP 429: wait as Azure asks (capped) and retry, up to ``RATE_LIMIT_RETRIES``. No HTTP
-        response at all (connection, DNS, TLS, timeout): retry up to ``NETWORK_RETRIES``.
-        Any other HTTP error is raised at once.
-        """
-        retries: list[dict] = []
-        while True:
-            try:
-                return post_responses(self.config, body, self.transport, self.timeout_s), retries
-            except urllib.error.HTTPError as exc:
-                limited = sum(r["cause"] == "HTTP 429" for r in retries)
-                if exc.code != 429 or limited >= RATE_LIMIT_RETRIES:
-                    raise
-                retries.append({"cause": "HTTP 429", "wait_s": retry_after_s(exc)})
-            except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
-                failed = sum(r["cause"] != "HTTP 429" for r in retries)
-                if failed >= NETWORK_RETRIES:
-                    raise
-                retries.append({"cause": type(exc).__name__, "wait_s": NETWORK_RETRY_WAIT_S})
-            self.log(
-                f"  {retries[-1]['cause']}: waiting {retries[-1]['wait_s']:g} s, then retrying"
-            )
-            self.sleep(retries[-1]["wait_s"])
+        return post_with_retries(
+            self.config, body, self.transport, self.timeout_s, self.sleep, self.log
+        )
 
     def propose(self, ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> Proposal:
         items: list[dict[str, Any]] = [
