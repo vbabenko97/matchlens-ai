@@ -7,10 +7,30 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [x] M2 (Oct 21-22): Metrics and 2-4 robust key-moment detectors; unit tests with hand-checked fixtures.
 - [x] M3 (Oct 23-24; live Foundry Responses API v1 call verified by `azure-check` on 2026-10-24, evidence in `docs/evidence/azure-check-2026-10-24.json`): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
 - [x] M4 (Oct 20, local; public hosting is M5): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
-- [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility, rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
+- [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): public demo status recorded
+## Latest checkpoint (2026-10-24): accessibility pass (code)
+- Audit and fixes are in `docs/ACCESSIBILITY.md` (WCAG 2.2 AA target, 12 fixes):
+  - one polite status announcer instead of a live clock and live card list;
+  - focus kept after chip activation;
+  - radio-group keyboard support;
+  - shortcuts scoped away from native controls;
+  - `h1` and text alternatives;
+  - slider `aria-valuetext`;
+  - 24px targets with marker stacking;
+  - 3:1 control borders;
+  - focusable card panel;
+  - 320px reflow.
+- **Verified:**
+  - `python -m pytest -q` -> 252 passed, including 34 e2e runs against local Chromium. The new accessibility tests failed on the pre-fix UI.
+  - axe-core 4.10.2 -> 0 violations at 1400×900 (start; Analyst at full time) and 390×844.
+  - `ruff check .`, `ruff format --check .` clean.
+- **Remaining for M5 accessibility:** operator screen-reader pass (VoiceOver/NVDA script in `docs/ACCESSIBILITY.md`) and a 200%/400% zoom check. Then redeploy Pages and confirm the public smoke run.
+- **Next:** demo rehearsal, video, then M6 audit and submission.
+- **Next command:** after merge, *Actions → Deploy demo (GitHub Pages, fallback) → Run workflow*, then `MATCHLENS_BASE_URL=https://vbabenko97.github.io/matchlens-ai/ python -m pytest -q -m e2e`.
+
+## Checkpoint (2026-10-24): public demo status recorded
 - **Hosting done (GitHub Pages; no Azure Static Web App will be created):**
   - Deployed by the `Deploy demo (GitHub Pages, fallback)` workflow (run 39476401211, success, 2026-10-20, `main` @ `e7dc926`).
   - URL: https://vbabenko97.github.io/matchlens-ai/. `PUBLIC_DEMO_URL` is set.

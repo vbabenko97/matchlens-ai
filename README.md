@@ -2,7 +2,7 @@
 
 Evidence-grounded synthetic football match intelligence for Microsoft × Premier League Inside the Game: Developer Hackathon.
 
-**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 (insight cards, Casual/Analyst modes, Microsoft Foundry provider with offline fallback) done. A live Foundry Responses API v1 call (`gpt-4.1-mini`) was verified with `azure-check` on 2026-10-24 ([evidence](docs/evidence/azure-check-2026-10-24.json)). M4 browser replay UI done. M5 is partially complete: the public demo is live on GitHub Pages and the scheduled public smoke test passes. The accessibility pass, demo rehearsal and video are still to do.
+**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 (insight cards, Casual/Analyst modes, Microsoft Foundry provider with offline fallback) done. A live Foundry Responses API v1 call (`gpt-4.1-mini`) was verified with `azure-check` on 2026-10-24 ([evidence](docs/evidence/azure-check-2026-10-24.json)). M4 browser replay UI done. M5 is partially complete: the public demo is live on GitHub Pages and the scheduled public smoke test passes. The accessibility code pass is done ([audit](docs/ACCESSIBILITY.md)); a screen-reader check, demo rehearsal and video are still to do.
 
 **Live demo (free, no sign-in or API key):** <https://vbabenko97.github.io/matchlens-ai/>. It uses the labelled offline template wording; the public site never calls Azure. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
@@ -16,7 +16,7 @@ pip install -e .
 python -m matchlens serve            # seed 1 (2-3), http://127.0.0.1:8000/
 ```
 
-The replay UI shows a scoreboard, pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen. You can play, pause, seek, jump to the previous/next moment and change speed (15×–240×), and switch between **Casual Fan** and **Analyst** modes. In Analyst mode, every event and metric ID on a card can be clicked to inspect it and highlight it on the pitch. **⬇ Overlay JSON** downloads the timed overlay cues (`matchlens.overlays/v1`). Keyboard: Space plays or pauses, ← / → seek 30 s.
+The replay UI shows a scoreboard, pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen. You can play, pause, seek, jump to the previous/next moment and change speed (15×–240×), and switch between **Casual Fan** and **Analyst** modes. In Analyst mode, every event and metric ID on a card can be clicked to inspect it and highlight it on the pitch. **⬇ Overlay JSON** downloads the timed overlay cues (`matchlens.overlays/v1`). Keyboard: Space plays or pauses, ← / → seek 30 s (when focus is not on a control); ← / → also switch the audience mode when the mode toggle is focused. Accessibility target and audit: [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
 
 Deployment (static export on GitHub Pages) and the public-URL Playwright smoke test are described in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 

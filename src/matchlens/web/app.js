@@ -9,12 +9,24 @@ const TRAIL = 7; // recent ball events drawn on the pitch
 const HOLD_REAL_S = 5; // keep the lower-third up at least this long in real time
 const EVIDENCE_RE = /\s*\[evidence:[^\]]*\]/g;
 const KIND_LABEL = { goal: "Goal", big_chance_missed: "Big chance", press_win: "Press win" };
+const MARKER_GAP_PX = 26; // 24px targets must not overlap (WCAG 2.5.8)
+const MARKER_LANE_REM = 1.75;
+const ANNOUNCE_DELAY_MS = 600; // coalesce announcements while scrubbing or at high speed
+// Focus inside these keeps its native keys (incl. scrolling the card panel); shortcuts apply elsewhere.
+const NATIVE_KEYS = "input, select, textarea, button, a[href], summary, [role=radio], .side";
 
 const $ = (id) => document.getElementById(id);
 const state = {
   bundle: null, t: 0, playing: false, speed: 60, mode: "casual",
   selected: [], lastFrame: null, cardsKey: "", eventsById: new Map(),
+  announced: { cards: -1, mode: "", fullTime: false }, announceTimer: null,
 };
+
+// One polite status region for screen readers; only the latest message is spoken.
+function announce(text) {
+  clearTimeout(state.announceTimer);
+  state.announceTimer = setTimeout(() => { $("announcer").textContent = text; }, ANNOUNCE_DELAY_MS);
+}
 
 function el(tag, attrs = {}, text) {
   const node = document.createElement(tag);
@@ -230,9 +242,11 @@ function renderCard(card, isActive) {
 
   const facts = el("ul", { class: "facts", "aria-label": "Verified facts" });
   for (const f of card.facts) {
-    const li = el("li", { class: f.kind === "heuristic" ? "heuristic" : "" });
-    li.appendChild(el("span", { class: "check", title: "Verified from structured event data" }, "✓"));
+    const heuristic = f.kind === "heuristic";
+    const li = el("li", { class: heuristic ? "heuristic" : "" });
+    li.appendChild(el("span", { class: "check", title: "Verified from structured event data", "aria-hidden": "true" }, "✓"));
     const body = el("div");
+    body.appendChild(el("span", { class: "sr-only" }, heuristic ? "Verified, heuristic value: " : "Verified: "));
     body.appendChild(el("span", {}, f.text));
     if (analyst && (f.event_ids.length || f.metric_ids.length)) {
       const chips = el("div", { class: "chips" });
@@ -274,16 +288,42 @@ function renderCard(card, isActive) {
   return art;
 }
 
+// Identify the focused control inside the cards so a re-render can restore focus to it.
+function focusKey(box) {
+  const a = document.activeElement;
+  if (!a || !box.contains(a)) return null;
+  const card = a.closest("[data-card-id]");
+  const attr = ["data-event-id", "data-metric-id", "data-evidence"].find((n) => a.hasAttribute(n));
+  if (!card || !attr) return null;
+  return `[data-card-id="${CSS.escape(card.dataset.cardId)}"] [${attr}="${CSS.escape(a.getAttribute(attr))}"]`;
+}
+
+function announceCards(visible) {
+  const a = state.announced;
+  if (a.mode !== state.mode) { a.mode = state.mode; a.cards = visible.length; return; }
+  if (visible.length > a.cards && visible.length) {
+    const c = visible[visible.length - 1];
+    announce(`${KIND_LABEL[c.kind] || c.kind}, minute ${minuteOf(c.anchor_clock_s)}: ${c.title}`);
+  }
+  a.cards = visible.length;
+}
+
 function renderCards() {
   const active = activeCard();
   const visible = cardsForMode().filter((c) => c.anchor_clock_s <= state.t);
+  announceCards(visible);
   const key = [state.mode, visible.length, active ? active.card_id : "", state.selected.join(",")].join("|");
   if (key !== state.cardsKey) {
     state.cardsKey = key;
     const box = $("cards");
+    const refocus = focusKey(box);
     box.replaceChildren();
     [...visible].reverse().forEach((c) => box.appendChild(renderCard(c, active && c.card_id === active.card_id)));
     $("cards-hint").hidden = visible.length > 0;
+    if (refocus) {
+      const target = box.querySelector(refocus);
+      if (target) target.focus();
+    }
   }
   const lt = $("lower-third");
   if (active) {
@@ -316,6 +356,21 @@ function renderMarkers() {
     b.addEventListener("click", () => seek(c.start_clock_s));
     box.appendChild(b);
   }
+  layoutMarkers();
+}
+
+// Stack markers that would overlap at the current width into extra rows.
+function layoutMarkers() {
+  const box = $("markers");
+  const width = box.clientWidth;
+  const lanes = []; // x of the last marker placed in each lane
+  for (const b of box.querySelectorAll("button.marker")) {
+    const x = (parseFloat(b.style.left) / 100) * width;
+    let lane = lanes.findIndex((last) => x - last >= MARKER_GAP_PX);
+    if (lane < 0) { lane = lanes.length; lanes.push(x); } else lanes[lane] = x;
+    b.style.top = `${lane * MARKER_LANE_REM}rem`;
+  }
+  box.style.height = `${Math.max(1, lanes.length) * MARKER_LANE_REM}rem`;
 }
 
 function render() {
@@ -324,6 +379,13 @@ function render() {
   renderPitch(idx);
   renderCards();
   $("seek").value = String(Math.floor(state.t));
+  $("seek").setAttribute("aria-valuetext", `${fmtClock(state.t)}, ${$("period").textContent}`);
+  const fullTime = state.t >= state.bundle.duration_s;
+  if (fullTime && !state.announced.fullTime) {
+    const { home, away } = state.bundle.meta;
+    announce(`Full time: ${home.name} ${$("home-score").textContent}, ${away.name} ${$("away-score").textContent}`);
+  }
+  state.announced.fullTime = fullTime;
   $("play").textContent = state.playing ? "⏸" : "▶";
   $("play").setAttribute("aria-label", state.playing ? "Pause" : "Play");
 }
@@ -336,7 +398,9 @@ function seek(t) {
 function setMode(mode) {
   state.mode = mode;
   for (const b of document.querySelectorAll(".mode-toggle button")) {
-    b.setAttribute("aria-checked", String(b.dataset.mode === mode));
+    const on = b.dataset.mode === mode;
+    b.setAttribute("aria-checked", String(on));
+    b.tabIndex = on ? 0 : -1; // roving tabindex: one tab stop for the radio group
   }
   document.body.dataset.mode = mode;
   $("inspector").hidden = mode !== "analyst";
@@ -380,15 +444,29 @@ function bindControls() {
   $("next").addEventListener("click", () => jumpMoment(1));
   $("speed").addEventListener("change", (ev) => { state.speed = Number(ev.target.value); });
   $("seek").addEventListener("input", (ev) => seek(Number(ev.target.value)));
-  for (const b of document.querySelectorAll(".mode-toggle button")) {
+  window.addEventListener("resize", layoutMarkers);
+  const radios = [...document.querySelectorAll(".mode-toggle button")];
+  for (const b of radios) {
     b.addEventListener("click", () => setMode(b.dataset.mode));
+    b.addEventListener("keydown", (ev) => {
+      const i = radios.indexOf(b);
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[ev.key];
+      let next = null;
+      if (step) next = radios[(i + step + radios.length) % radios.length];
+      else if (ev.key === "Home") next = radios[0];
+      else if (ev.key === "End") next = radios[radios.length - 1];
+      if (!next) return;
+      ev.preventDefault();
+      setMode(next.dataset.mode);
+      next.focus();
+    });
   }
   document.addEventListener("keydown", (ev) => {
-    const tag = (ev.target.tagName || "").toLowerCase();
-    if (tag === "input" || tag === "select") return;
-    if (ev.code === "Space" && tag !== "button") { ev.preventDefault(); setPlaying(!state.playing); }
-    else if (ev.key === "ArrowRight") seek(state.t + 30);
-    else if (ev.key === "ArrowLeft") seek(state.t - 30);
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    if (ev.target.closest && ev.target.closest(NATIVE_KEYS)) return;
+    if (ev.code === "Space") { ev.preventDefault(); setPlaying(!state.playing); }
+    else if (ev.key === "ArrowRight") { ev.preventDefault(); seek(state.t + 30); }
+    else if (ev.key === "ArrowLeft") { ev.preventDefault(); seek(state.t - 30); }
   });
 }
 
