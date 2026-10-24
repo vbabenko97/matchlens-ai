@@ -11,6 +11,10 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
 ## Latest checkpoint (2026-10-24): cards no longer look ahead
+- **Merged and deployed:**
+  - PR #8 squash-merged as `3dd2b45`; CI was green on the PR head (3.11, 3.13, e2e).
+  - Pages redeployed from `main` @ `3dd2b45` by [run 40085133359](https://github.com/vbabenko97/matchlens-ai/actions/runs/40085133359): `build`, `deploy` (10:15 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.
+  - The smoke job ran `pytest -q -m e2e` from `3dd2b45` against the public URL. Its new tests read `publish_clock_s` from the served `bundle.json`, so the public demo serves the causal bundle.
 - **Bug (reproduced on `main` @ `c838aad`, seed 1):** 5 of the 8 public-demo cues cited events that had not happened yet.
   - The analyst 71' goal card (shown at 70:13) said "Shots: 4" for 60'–75'. Only 3 had been taken; the 4th, `ml1-01166`, is at 74:05.8 (minute 75). Window metrics were computed over the full window.
   - Press-win cards appeared at the tackle, but the shot they cite comes later. For `press_win:ml1-00126` the shot `ml1-00130` comes 14.0 s later.
@@ -28,7 +32,9 @@ Update this file after verified work. A task is done only when the acceptance ch
   - The bundle check and the new e2e test fail on the pre-fix code. The hand-checked expectation that encoded the leak ("Shots: 3" at 1') is corrected to 2.
 - **Scope:** sources and timing are causal, but the replay is precomputed and the top-4 moments are chosen over the whole match. State this precisely in the submission.
 - **Verified:** `python -m pytest -q` -> 287 passed (incl. 42 e2e on local Chromium); `ruff check .` and `ruff format --check .` clean.
-- **Next:** after merge, redeploy Pages, since the public demo still serves the look-ahead bundle. Then confirm the smoke job: `MATCHLENS_BASE_URL=https://vbabenko97.github.io/matchlens-ai/ python -m pytest -q -m e2e`.
+- **Next:**
+  1. Foundry scenario: the model proposes a structured claim, `verify_claim` rejects a wrong value, and the corrected card is published with its sources.
+  2. Screen-reader pass, demo rehearsal and video (110–115 s).
 
 ## Checkpoint (2026-10-24): cache-busting deployed; zoom check done
 - **Pages redeployed** from `main` @ `0aa672c` (PR #6 merge), [run 40082219742](https://github.com/vbabenko97/matchlens-ai/actions/runs/40082219742): build, deploy (09:30 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.
