@@ -63,7 +63,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 - **Evidence, not screenshots.**
   - Live runs are recorded as redacted traces ([claim agent](docs/evidence/agent-trace-2026-10-24.json), [personalizer](docs/evidence/personalize-trace-2026-10-24.json), [connectivity check](docs/evidence/azure-check-2026-10-24.json)) with response IDs and token usage.
   - Each public build replays them and re-runs every check, so a stricter checker applies to old runs too.
-  - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English. Meaning drift that no deterministic check can see was handled by an editorial review of the same run: 12 more lines rejected, with reasons in a versioned file the build applies to the exact text.
+  - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English. Meaning drift that no deterministic check can see was handled by an editorial review of the same run (done by Claude Code, the AI coding assistant, not checked by a human): 12 more lines rejected, with reasons in a versioned file the build applies to the exact text.
 
 ### Real-world impact and applicability
 - **For broadcasters.** Overlay cues are timed in match seconds, carry their facts and evidence IDs, and are published only once their evidence exists. That makes them usable on a live feed. The on-air page is a working browser source today.
@@ -95,7 +95,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 - The generator models event structure, not realistic football dynamics. Synthetic xG is an uncalibrated heuristic.
 - The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent and personalizer); the five extra matches use the offline proposer and template wording, with no AI at all.
 - The personalizer checker verifies numbers, score order, names, `xG` and script, **not meaning or tone**. The page says so on every rewritten card.
-- An editorial review of the recorded personalizer run ([file](docs/evidence/personalize-review-2026-10-24.json)) rejected 12 lines that passed the checker but added details, changed the meaning or were not correct language. Those lines show the English fact. The recorded trace itself is unchanged.
+- An editorial review of the recorded personalizer run ([file](docs/evidence/personalize-review-2026-10-24.json)), done by Claude Code (the AI coding assistant) and not checked by a human, rejected 12 lines that passed the checker but added details, changed the meaning or were not correct language. Those lines show the English fact. The recorded trace itself is unchanged.
 - The per-visitor limit relies on forgeable headers. The spend cap is the shared daily count.
 - Microsoft Agent Framework, MCP and Fabric are not used; the agents call the Responses API directly.
 
@@ -135,7 +135,7 @@ The replay UI has a scoreboard, a pitch view of the latest ball events, a timeli
 - `xG` kept, the right script, no Russian-only letters in Ukrainian, no markup.
 
 A rejected line goes back once with the reasons; still rejected, the English fact is shown with `lang="en"`.
-- **Editorial review.** Every line of the recorded run that passed the checker was also read against its source. 12 lines that add details ("fierce tackle", "quick passes"), change the meaning ("the lead changed hands" becoming "confidence changed hands") or are not correct language are listed with reasons in [personalize-review-2026-10-24.json](docs/evidence/personalize-review-2026-10-24.json). The build applies the review to the exact text it names and fails if it no longer matches.
+- **Editorial review.** Claude Code (the AI coding assistant that built this project) also read every line of the recorded run that passed the checker against its source. No human has checked this review. 12 lines that add details ("fierce tackle", "quick passes"), change the meaning ("the lead changed hands" becoming "confidence changed hands") or are not correct language are listed with reasons in [personalize-review-2026-10-24.json](docs/evidence/personalize-review-2026-10-24.json). The build applies the review to the exact text it names and fails if it no longer matches.
 - **On the page.** 24 of 232 lines show the English fact.
 - **Recording:** `python -m matchlens personalize-review --out <trace>`; replay with `--personalize-trace <trace> --editorial-review <review>`.
 

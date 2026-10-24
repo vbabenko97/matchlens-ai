@@ -496,9 +496,9 @@ def _personalize_review(args: argparse.Namespace) -> int:
 
 
 def _critic_eval(args: argparse.Namespace) -> int:
-    """Score the critic against the editorial review (human labels) of a recorded run."""
+    """Score the critic against the editorial review (labels by Claude Code, not a human)."""
     review = json.loads(args.review.read_text(encoding="utf-8"))
-    human = {
+    labelled = {
         (r["card_id"], r["lang"], r["focus"], int(r["index"]), r["text"])
         for r in review["rejections"]
     }
@@ -551,7 +551,7 @@ def _critic_eval(args: argparse.Namespace) -> int:
         if args.out:
             args.out.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", "utf-8")
             print(f"wrote critic evaluation to {args.out}", file=sys.stderr)
-    metrics = eval_metrics(doc, human)
+    metrics = eval_metrics(doc, labelled)
     summary = {k: v for k, v in metrics.items() if k not in ("misses", "false_alarm_lines")}
     print(json.dumps(summary, indent=1))
     for m in metrics["misses"]:

@@ -85,7 +85,7 @@ Verified locally against independent static hosts: the app server, a plain stati
    ```bash
    python -m matchlens critic-eval --out docs/evidence/critic-eval-2026-10-25.json
    ```
-   - It replays the recorded personalizer run, sends the 220 lines that passed `check_line` to the critic, and compares the verdicts with the 12 human rejections.
+   - It replays the recorded personalizer run, sends the 220 lines that passed `check_line` to the critic, and compares the verdicts with the 12 rejections of the editorial review. That review was made by Claude Code, not a human, so the scores measure agreement with it. The critic's prompt names error categories only, with no examples from those lines.
    - It prints lines, caught, missed, false alarms, recall and precision, and each miss and false alarm.
    - `--from <file>` re-scores a recorded evaluation without a call.
 2. **Record a new personalizer run with the critic in the loop:**

@@ -13,7 +13,10 @@ deterministic checks, on the lines that passed them. A line it rejects goes back
 personalizer with the critic's reason; a line still rejected keeps its English fact. A
 missing verdict or a failed critic call rejects the line: when in doubt, the page shows
 the verified English fact. The critic is a model, so its verdicts are labelled as such;
-``critic_eval`` measures it against a human editorial review of a recorded run.
+``critic_eval`` measures it against the editorial review of a recorded run. That review was
+made by Claude Code (an AI coding assistant) and has not been checked by a human, so the
+scores measure agreement with it, not ground truth. The prompt names categories of error
+only, with no examples taken from the reviewed lines.
 """
 
 from __future__ import annotations
@@ -95,16 +98,14 @@ OUTPUT_FORMAT = {
 INSTRUCTIONS = (
     "You are a strict sports-desk editor checking rewrites of verified football facts. For "
     "every line you get the English source fact and a rewrite in the target language for a "
-    "given audience. Judge only faithfulness. Mark a rewrite NOT faithful if it: adds any "
-    "detail, adjective about the play, cause, event or claim that the source does not state "
-    "(for example calling a tackle fierce or passes quick); changes the meaning (who did "
-    "what, what happened, a saved shot becoming a missed one, a level score becoming a "
-    "drawn match); overstates or understates the data (for example 'dominated' for a small "
-    "difference); or is not correct, natural language for the target language (wrong words, "
-    "typos, other-language letters, literal calques). Tone and point of view are allowed: "
-    "joy, disappointment, 'crucial', exclamation marks. Numbers, scores and names were "
-    "already checked by a program; do not re-check them. Return one verdict per line with "
-    "the same index, an issue from the list, and a reason of at most 15 words in English."
+    "given audience. Judge only faithfulness to the source. A rewrite is NOT faithful if it: "
+    "adds any detail, description, cause, event or claim that the source does not state; "
+    "changes the meaning, including who did what and what happened; overstates or "
+    "understates what the data says; or is not correct, natural language in the target "
+    "language. Tone and point of view are allowed when they add no facts. Numbers, scores "
+    "and names were already checked by a program; do not re-check them. Return one verdict "
+    "per line with the same index, an issue from the list, and a reason of at most 15 words "
+    "in English."
 )
 
 
@@ -210,7 +211,7 @@ class RecordedCritic:
         return CriticReview(verdicts, tuple(rec["calls"]))
 
 
-# --- Measuring the critic against a human editorial review ----------------------------------
+# --- Measuring the critic against the editorial review ---------------------------------------
 
 
 def critic_eval(
@@ -221,7 +222,7 @@ def critic_eval(
     review_source: str,
     log: Callable[[str], None] = lambda line: None,
 ) -> dict[str, Any]:
-    """Run ``critic`` once per card variant over lines a human already judged; record it.
+    """Run ``critic`` once per card variant over lines the editorial review already judged.
 
     ``items_by_card`` holds ``((card_id, lang, focus), items, language, audience)``; each item
     is ``{"index", "source", "text"}``. The result is evidence: the verdicts, the texts they
@@ -253,10 +254,10 @@ def critic_eval(
     }
 
 
-def eval_metrics(eval_doc: dict[str, Any], human_rejections: set[tuple]) -> dict[str, Any]:
-    """Compare the critic with the human labels: a human rejection is a positive.
+def eval_metrics(eval_doc: dict[str, Any], labelled: set[tuple]) -> dict[str, Any]:
+    """Compare the critic with the editorial labels: a labelled rejection is a positive.
 
-    ``human_rejections`` holds ``(card_id, lang, focus, index, text)``. A line the critic
+    ``labelled`` holds ``(card_id, lang, focus, index, text)``. A line the critic
     gave no verdict counts as a critic rejection, as it does in the pipeline.
     """
     tp = fp = fn = tn = 0
@@ -266,20 +267,20 @@ def eval_metrics(eval_doc: dict[str, Any], human_rejections: set[tuple]) -> dict
             key = (run["card_id"], run["lang"], run["focus"], int(k), text)
             verdict = run["verdicts"].get(k)
             critic_rejects = verdict is None or not verdict["faithful"]
-            human_rejects = key in human_rejections
-            if critic_rejects and human_rejects:
+            labelled_rejects = key in labelled
+            if critic_rejects and labelled_rejects:
                 tp += 1
             elif critic_rejects:
                 fp += 1
                 false_alarms.append({"line": key[:4], "text": text, "critic": verdict})
-            elif human_rejects:
+            elif labelled_rejects:
                 fn += 1
                 misses.append({"line": key[:4], "text": text})
             else:
                 tn += 1
     return {
         "lines": tp + fp + fn + tn,
-        "human_rejections": tp + fn,
+        "labelled_rejections": tp + fn,
         "caught": tp,
         "missed": fn,
         "false_alarms": fp,

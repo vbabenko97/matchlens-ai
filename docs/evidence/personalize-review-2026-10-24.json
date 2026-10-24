@@ -2,6 +2,7 @@
  "schema": "matchlens.personalize-review/v1",
  "trace": "docs/evidence/personalize-trace-2026-10-24.json",
  "reviewed_on": "2026-10-24",
+ "reviewer": "Claude Code (AI coding assistant), at the operator's request; not checked by a human",
  "scope": "Every line of the trace that passed check_line (220 of 232), read against its English source fact.",
  "rule": "Reject a rewrite that adds a detail not in the fact, changes its meaning, overstates the data, or is not correct, idiomatic language. Tone and point of view alone (\"Heartbreak\", \"crucial\") are allowed. A rejected line shows its English source on the page, marked as kept.",
  "rejections": [

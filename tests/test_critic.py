@@ -222,7 +222,7 @@ def test_v1_traces_still_replay_without_a_critic():
 # --- Evaluation against the editorial review ------------------------------------------------
 
 
-def _human():
+def _labels():
     review = json.loads(Path(PERSONALIZE_REVIEW).read_text("utf-8"))
     return {
         (r["card_id"], r["lang"], r["focus"], int(r["index"]), r["text"])
@@ -246,12 +246,12 @@ def _eval_inputs(match, cards):
 
 
 class OracleCritic:
-    """Rejects exactly the human-labelled lines, plus ``extra`` (line keys) as false alarms."""
+    """Rejects exactly the labelled lines, plus ``extra`` (line keys) as false alarms."""
 
     name, label = "oracle", "oracle"
 
-    def __init__(self, human, extra=()):
-        self.human, self.extra = human, set(extra)
+    def __init__(self, labelled, extra=()):
+        self.labelled, self.extra = labelled, set(extra)
 
     def review(self, key, items, language, audience):
         from matchlens.critic import CriticReview, Verdict
@@ -260,28 +260,28 @@ class OracleCritic:
         verdicts = {}
         for it in items:
             k = (card_id, lang, focus, it["index"])
-            bad = (*k, it["text"]) in self.human or k in self.extra
+            bad = (*k, it["text"]) in self.labelled or k in self.extra
             verdicts[it["index"]] = Verdict(it["index"], not bad, "other" if bad else "none", "")
         calls = ({"response_id": "resp_x", "usage": {"input_tokens": 1, "output_tokens": 1}},)
         return CriticReview(verdicts, calls)
 
 
-def test_eval_scores_the_critic_against_the_human_labels(match, cards):
-    human = _human()
+def test_eval_scores_the_critic_against_the_editorial_labels(match, cards):
+    labelled = _labels()
     inputs = _eval_inputs(match, cards)
     assert sum(len(items) for _, items, _, _ in inputs) == 220  # every line the checker passed
     extra = {("casual:goal:ml1-00089", "de", "neutral", 0)}
-    doc = critic_eval(inputs, OracleCritic(human, extra), _config(), "t", "r")
+    doc = critic_eval(inputs, OracleCritic(labelled, extra), _config(), "t", "r")
     assert doc["schema"] == EVAL_SCHEMA and len(doc["runs"]) == len(inputs)
-    m = eval_metrics(doc, human)
+    m = eval_metrics(doc, labelled)
     assert (m["lines"], m["caught"], m["missed"], m["false_alarms"]) == (220, 12, 0, 1)
     assert m["recall"] == 1.0 and m["precision"] == round(12 / 13, 3)
     assert m["false_alarm_lines"][0]["line"] == extra.pop()
 
 
 def test_critic_eval_cli_scores_a_recorded_evaluation(tmp_path, match, cards, capsys):
-    human = _human()
-    doc = critic_eval(_eval_inputs(match, cards), OracleCritic(human), _config(), "t", "r")
+    labelled = _labels()
+    doc = critic_eval(_eval_inputs(match, cards), OracleCritic(labelled), _config(), "t", "r")
     path = tmp_path / "eval.json"
     path.write_text(json.dumps(doc), "utf-8")
     assert main(["critic-eval", "--from", str(path)]) == 0
