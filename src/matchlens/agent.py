@@ -55,6 +55,8 @@ MAX_OUTPUT_TOKENS = 400  # Azure counts this against the per-minute token limit 
 RATE_LIMIT_RETRIES = 4  # per model call, on HTTP 429
 RATE_LIMIT_MAX_WAIT_S = 60.0
 RATE_LIMIT_DEFAULT_WAIT_S = 10.0
+NETWORK_RETRIES = 2  # per model call, when no HTTP response arrives at all
+NETWORK_RETRY_WAIT_S = 5.0
 TRACE_SCHEMA = "matchlens.agent-trace/v1"
 OFFLINE_LABEL = "Offline deterministic proposer — no AI; drafts the card's own metric claims."
 INJECTED_LABEL = "Injected test claim — deliberately wrong, to show the validator rejecting it."
@@ -354,7 +356,7 @@ def retry_after_s(exc: urllib.error.HTTPError) -> float:
     return RATE_LIMIT_DEFAULT_WAIT_S
 
 
-def _call_record(response: dict, calls: list[dict], waits: list[float]) -> dict[str, Any]:
+def _call_record(response: dict, calls: list[dict], retries: list[dict]) -> dict[str, Any]:
     if not isinstance(response.get("id"), str) or not isinstance(response.get("model"), str):
         raise ResponseFormatError("response id or model missing")
     usage = response.get("usage") if isinstance(response.get("usage"), dict) else {}
@@ -364,7 +366,7 @@ def _call_record(response: dict, calls: list[dict], waits: list[float]) -> dict[
         "status": response["status"],
         "usage": {k: usage.get(k) for k in ("input_tokens", "output_tokens")},
         "tool_calls": [{"name": c["name"], "arguments": c["arguments"][:500]} for c in calls],
-        "rate_limit_waits_s": waits,
+        "retries": retries,  # [{"cause": "HTTP 429" or an error type, "wait_s": ...}]
     }
 
 
@@ -378,28 +380,44 @@ class FoundryAgentProposer:
         config: AzureOpenAIConfig,
         transport: Transport | None = None,
         timeout_s: float = 30.0,
-        sleep: Callable[[float], None] = time.sleep,
+        sleep: Callable[[float], None] | None = None,
+        log: Callable[[str], None] = lambda line: None,
     ):
         self.config = config
         self.transport = transport
         self.timeout_s = timeout_s
-        self.sleep = sleep
+        self.sleep = sleep or time.sleep
+        self.log = log  # progress lines (no prompt or response content)
         self.label = (
             f"Microsoft Foundry agent (deployment {config.deployment}, Responses API v1), run "
             "when this output was built; every claim is checked by the deterministic validator."
         )
 
-    def _post(self, body: dict) -> tuple[dict, list[float]]:
-        """One model call; on HTTP 429 waits as Azure asks (bounded) and tries again."""
-        waits: list[float] = []
+    def _post(self, body: dict) -> tuple[dict, list[dict]]:
+        """One model call with bounded retries.
+
+        HTTP 429: wait as Azure asks (capped) and retry, up to ``RATE_LIMIT_RETRIES``. No HTTP
+        response at all (connection, DNS, TLS, timeout): retry up to ``NETWORK_RETRIES``.
+        Any other HTTP error is raised at once.
+        """
+        retries: list[dict] = []
         while True:
             try:
-                return post_responses(self.config, body, self.transport, self.timeout_s), waits
+                return post_responses(self.config, body, self.transport, self.timeout_s), retries
             except urllib.error.HTTPError as exc:
-                if exc.code != 429 or len(waits) >= RATE_LIMIT_RETRIES:
+                limited = sum(r["cause"] == "HTTP 429" for r in retries)
+                if exc.code != 429 or limited >= RATE_LIMIT_RETRIES:
                     raise
-                waits.append(retry_after_s(exc))
-                self.sleep(waits[-1])
+                retries.append({"cause": "HTTP 429", "wait_s": retry_after_s(exc)})
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+                failed = sum(r["cause"] != "HTTP 429" for r in retries)
+                if failed >= NETWORK_RETRIES:
+                    raise
+                retries.append({"cause": type(exc).__name__, "wait_s": NETWORK_RETRY_WAIT_S})
+            self.log(
+                f"  {retries[-1]['cause']}: waiting {retries[-1]['wait_s']:g} s, then retrying"
+            )
+            self.sleep(retries[-1]["wait_s"])
 
     def propose(self, ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> Proposal:
         items: list[dict[str, Any]] = [
@@ -408,7 +426,9 @@ class FoundryAgentProposer:
         ]
         records: list[dict[str, Any]] = []
         tool_calls = 0
-        for _ in range(MAX_MODEL_CALLS):
+        attempt = 2 if feedback else 1
+        for n in range(1, MAX_MODEL_CALLS + 1):
+            self.log(f"{ctx.card.card_id} attempt {attempt}: model call {n}")
             body = {
                 "model": self.config.deployment,
                 "input": items,
@@ -417,7 +437,7 @@ class FoundryAgentProposer:
                 "max_output_tokens": MAX_OUTPUT_TOKENS,
                 "store": False,  # no server-side retention; the full input is resent instead
             }
-            response, waits = self._post(body)
+            response, retries = self._post(body)
             if response.get("status") != "completed":
                 raise ResponseFormatError("response status is not 'completed'")
             output = response.get("output")
@@ -426,7 +446,7 @@ class FoundryAgentProposer:
             calls = [i for i in output if isinstance(i, dict) and i.get("type") == "function_call"]
             if not all(isinstance(c.get(k), str) for c in calls for k in _CALL_KEYS):
                 raise ResponseFormatError("function call is missing name, call_id or arguments")
-            records.append(_call_record(response, calls, waits))
+            records.append(_call_record(response, calls, retries))
             if not calls:
                 claims, dropped = parse_claims(extract_output_text(response))
                 return Proposal(claims, tuple(records), dropped)
@@ -676,9 +696,10 @@ def live_review(
     config: AzureOpenAIConfig,
     transport: Transport | None = None,
     timeout_s: float = 30.0,
+    log: Callable[[str], None] = lambda line: None,
 ) -> tuple[tuple[ClaimReview, ...], dict[str, Any]]:
     """Strict live run (no fallback) and its redacted trace, for recording evidence."""
-    proposer = FoundryAgentProposer(config, transport, timeout_s)
+    proposer = FoundryAgentProposer(config, transport, timeout_s, log=log)
     reviews = review_cards(match, card_set, proposer, strict=True)
     return reviews, build_trace(match, reviews, config)
 

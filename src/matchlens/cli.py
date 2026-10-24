@@ -245,6 +245,10 @@ def _main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _progress(line: str) -> None:
+    print(f"[agent] {line}", file=sys.stderr, flush=True)
+
+
 def _short_token(value: object) -> str | None:
     """Echo a header or error code only when it is a short plain token (never free text)."""
     text = str(value) if value is not None else ""
@@ -279,9 +283,18 @@ def _agent_review(args: argparse.Namespace) -> int:
                 "set AZURE_OPENAI_ENDPOINT, _API_KEY and _DEPLOYMENT, or pass --offline"
             )
         try:
-            reviews, trace = live_review(match, card_set, config, timeout_s=args.timeout)
+            reviews, trace = live_review(
+                match, card_set, config, timeout_s=args.timeout, log=_progress
+            )
         except urllib.error.HTTPError as exc:
             print(f"live agent run failed: HTTP {exc.code}{_http_detail(exc)}", file=sys.stderr)
+            return 1
+        except urllib.error.URLError as exc:  # no HTTP response; the reason holds no headers
+            reason = exc.reason
+            detail = (
+                f"{type(reason).__name__}: {reason}" if isinstance(reason, Exception) else reason
+            )
+            print(f"live agent run failed: URLError ({str(detail)[:200]})", file=sys.stderr)
             return 1
         except Exception as exc:  # never echo exception text that could contain headers
             print(f"live agent run failed: {type(exc).__name__}", file=sys.stderr)

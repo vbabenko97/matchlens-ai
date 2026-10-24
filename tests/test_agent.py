@@ -11,12 +11,15 @@ import urllib.error
 
 import pytest
 
+from matchlens import agent as agent_module
 from matchlens import narrative
 from matchlens.agent import (
     FOUNDRY,
     INJECTED,
     MAX_CLAIMS,
     MAX_MODEL_CALLS,
+    NETWORK_RETRIES,
+    NETWORK_RETRY_WAIT_S,
     OFFLINE,
     RATE_LIMIT_MAX_WAIT_S,
     RATE_LIMIT_RETRIES,
@@ -323,8 +326,36 @@ def test_rate_limits_wait_as_azure_asks_then_continue(match, goal):
     proposer = FoundryAgentProposer(_config(), fake, sleep=waits.append)
     review = review_card(match, goal, proposer, strict=True)
     assert waits == [7.0, 1.5] and review.proposer == FOUNDRY
-    assert review.attempts[0].calls[0]["rate_limit_waits_s"] == [7.0, 1.5]
-    assert review.attempts[0].calls[1]["rate_limit_waits_s"] == []
+    assert review.attempts[0].calls[0]["retries"] == [
+        {"cause": "HTTP 429", "wait_s": 7.0},
+        {"cause": "HTTP 429", "wait_s": 1.5},
+    ]
+    assert review.attempts[0].calls[1]["retries"] == []
+
+
+def test_network_errors_are_retried_twice_then_raised(match, goal):
+    waits, lines = [], []
+    down = urllib.error.URLError(TimeoutError("timed out"))
+    fake = FakeResponses([down, ConnectionResetError("reset"), *_goal_script()])
+    proposer = FoundryAgentProposer(_config(), fake, sleep=waits.append, log=lines.append)
+    review = review_card(match, goal, proposer, strict=True)
+    assert waits == [NETWORK_RETRY_WAIT_S] * 2
+    causes = [r["cause"] for r in review.attempts[0].calls[0]["retries"]]
+    assert causes == ["URLError", "ConnectionResetError"]
+    assert lines[0] == f"{GOAL} attempt 1: model call 1"
+    assert "  URLError: waiting 5 s, then retrying" in lines
+    assert f"{GOAL} attempt 2: model call 1" in lines
+    assert not any(KEY in line for line in lines)
+
+    always_down = FakeResponses([urllib.error.URLError("down")] * (NETWORK_RETRIES + 1))
+    with pytest.raises(urllib.error.URLError):
+        review_card(
+            match,
+            goal,
+            FoundryAgentProposer(_config(), always_down, sleep=waits.append),
+            strict=True,
+        )
+    assert not always_down.replies
 
 
 def test_rate_limit_waits_are_capped_and_bounded(match, goal):
@@ -459,9 +490,17 @@ def test_cli_live_review_writes_redacted_trace(capsys, monkeypatch, tmp_path):
     bundle = json.loads((site / "data" / "bundle.json").read_text(encoding="utf-8"))
     assert {r["proposer"] for r in bundle["reviews"].values()} == {RECORDED}
 
-    monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses([OSError("down")]))
+    monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses([ValueError("bad")]))
     assert main(["agent-review", "--seed", "1", "--limit", "1"]) == 1  # strict: no fallback
-    assert "live agent run failed: OSError" in capsys.readouterr().err
+    assert "live agent run failed: ValueError" in capsys.readouterr().err
+
+    monkeypatch.setattr(agent_module.time, "sleep", lambda s: None)
+    down = [urllib.error.URLError(TimeoutError("timed out"))] * (NETWORK_RETRIES + 1)
+    monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses(down))
+    assert main(["agent-review", "--seed", "1", "--limit", "1"]) == 1
+    err = capsys.readouterr().err
+    assert "[agent] analyst:" in err and "attempt 1: model call 1" in err
+    assert "live agent run failed: URLError (TimeoutError: timed out)" in err
 
     body = json.dumps({"error": {"code": "RateLimitReached", "message": "x"}}).encode()
     limited = [_rate_limited({"retry-after": "0"}, body) for _ in range(RATE_LIMIT_RETRIES + 1)]
