@@ -52,7 +52,7 @@ Verified locally against independent static hosts: the app server, a plain stati
 - **Code path:** `src/matchlens/narrative.py` (`AzureOpenAIProvider`), Responses API v1 (`/openai/v1/responses`), configured by the three `AZURE_OPENAI_*` variables in `.env.example`. Real values live only in your shell or a secret store.
 - **Strict check:** `python -m matchlens azure-check` (one call, no fallback, redacted evidence).
 - **Checklist:** [docs/AZURE_VERIFICATION.md](AZURE_VERIFICATION.md).
-- **Status (2026-10-24):** the operator confirmed a live Foundry Responses API call (`gpt-4.1-mini` deployment, `status: completed`, response ID, 17 input / 27 output tokens) made outside MatchLens. A recorded MatchLens `azure-check` run is still pending. Mocked tests do not count.
+- **Status (2026-10-24): verified.** `azure-check` made one live Foundry Responses API v1 call to the `gpt-4.1-mini` deployment: `status: completed`, 137 input / 41 output tokens, `store: false`. The redacted report is [evidence/azure-check-2026-10-24.json](evidence/azure-check-2026-10-24.json). Mocked tests do not count as evidence.
 
 The public static demo never calls Azure at runtime (that would need the key in the browser). A build-time Azure-worded bundle, with the key held only in a CI secret, is a possible later step. It needs operator approval and would keep the "not verified" label.
 

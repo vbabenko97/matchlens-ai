@@ -2,7 +2,7 @@
 
 Evidence-grounded synthetic football match intelligence for Microsoft × Premier League Inside the Game: Developer Hackathon.
 
-**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 code (insight cards, Casual/Analyst modes, Azure OpenAI provider with offline fallback) done; the provider now uses the Responses API v1, and the operator has confirmed a live Foundry Responses call outside MatchLens, while a recorded MatchLens `azure-check` run is still pending. M4 browser replay UI done; M5 deployment prepared (Azure Static Web Apps Free / GitHub Pages workflows) but not yet deployed. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
+**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 (insight cards, Casual/Analyst modes, Microsoft Foundry provider with offline fallback) done. A live Foundry Responses API v1 call (`gpt-4.1-mini`) was verified with `azure-check` on 2026-10-24 ([evidence](docs/evidence/azure-check-2026-10-24.json)). M4 browser replay UI done; M5 deployment prepared (Azure Static Web Apps Free / GitHub Pages workflows) but not yet deployed. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
 Project page: https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828
 
@@ -56,7 +56,7 @@ python -m matchlens demo --seed 42
 
 `AZURE_OPENAI_API_VERSION` is no longer used; the v1 API takes no `api-version`.
 
-To verify one real call with no fallback, run `python -m matchlens azure-check` (see [docs/AZURE_VERIFICATION.md](docs/AZURE_VERIFICATION.md)).
+To verify one real call with no fallback, run `python -m matchlens azure-check` (see [docs/AZURE_VERIFICATION.md](docs/AZURE_VERIFICATION.md)). Recorded live run, redacted: [docs/evidence/azure-check-2026-10-24.json](docs/evidence/azure-check-2026-10-24.json).
 
 Without them (or with `--offline`, or on any request failure) cards use a deterministic template labelled "Offline fallback — not an Azure response". AI wording is always labelled unverified; the verified facts on each card are rendered from structured data and never from model output. Code path: `src/matchlens/narrative.py` (`AzureOpenAIProvider`).
 
