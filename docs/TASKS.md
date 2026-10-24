@@ -10,7 +10,31 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): shared daily cap for live checks (review fix)
+## Latest checkpoint (2026-10-24): match picker (plan item 4, UI part)
+- **Merged and deployed:**
+  - PR #13 (on-air graphic, live check endpoint, shared daily cap) squash-merged as `d881639`; CI was green on the PR head `8645d54`.
+  - From `main` @ `d881639`, Azure Static Web Apps [run 40113074677](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113074677) (`deploy`, `smoke / smoke`) and GitHub Pages [run 40113076559](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113076559) (`build`, `deploy`, `smoke / smoke`) all succeeded. Verified via the GitHub Actions API.
+  - The SWA deploy log shows the managed API built on Python 3.11 (Functions ~4). The SWA site is https://wonderful-hill-04967dd0f.5.azurestaticapps.net (not reachable from the sandbox).
+  - **No live Foundry call has been verified on it yet.**
+- **New:**
+  - `export-site`/`serve` for the demo seed add five untuned matches (`DEMO_EXTRA_SEEDS` = 121, 106, 103, 123, 124), built fully offline: no Azure calls, offline proposer, never the recorded run.
+  - `data/matches.json` (`matchlens.matches/v1`) lists every match with its bundle and overlay files.
+  - `--single-match` turns the extra matches off; `--file` and other seeds never get them.
+- **UI:**
+  - a **Match** picker (labels "Seed N (demo/untuned)", no score, so no spoilers);
+  - `?seed=N` loads that match as a fresh page and keeps the mode; an unknown seed falls back to the demo;
+  - overlay download and the on-air link follow the match; `broadcast.html?seed=N` too (paths only from the index);
+  - extra matches say they were not picked or tuned; no live button off the demo match.
+- **Honesty fix:** without an AI run, the "See the AI get fact-checked" shortcut on offline matches now reads "See the validator reject a wrong claim": only the injected test claim is rejected there.
+- **Verified:**
+  - `python -m pytest -q` -> 477 passed (incl. e2e on local Chromium against both local targets with the production extras);
+  - `ruff check .` and `ruff format --check .` clean.
+  - Screenshots checked at 1400 px and 390 px; a first version overflowed at 320/390 px (caught by the reflow tests) and was fixed with shorter labels and `max-width`.
+- **Not done:**
+  - re-recording the Foundry trace for all 7 demo cards (needs operator credentials);
+  - the live-call and `daily_limit` verification on SWA (docs/DEPLOYMENT.md step 7).
+
+## Checkpoint (2026-10-24): shared daily cap for live checks (review fix)
 - **Review finding (GPT, accepted):** the daily limit and lock were per process, so restarts and parallel instances each got a fresh limit. The docs also called the budget a hard ceiling, but Azure budgets only alert, with delayed data, and TPM caps the rate, not the total.
 - **Fix (`matchlens.quota`):**
   - `TableCounter` keeps one Azure Table Storage entity per UTC day, reached by a table SAS URL (`MATCHLENS_LIVE_COUNTER_URL`), stdlib HTTP only.

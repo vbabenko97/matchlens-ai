@@ -38,7 +38,7 @@ from .narrative import (
     provider_from_env,
 )
 from .overlays import build_overlay_document
-from .replay import DEFAULT_DEMO_SEED, build_bundle, dumps
+from .replay import DEFAULT_DEMO_SEED, DEMO_EXTRA_SEEDS, build_bundle, demo_extra_bundles, dumps
 from .server import export_site, make_server
 from .validate import assert_valid, validate_match
 
@@ -145,6 +145,13 @@ def _main(argv: list[str] | None = None) -> int:
             help=f"show 'Check live' buttons that POST to {LIVE_PATH} (demo seed only)"
             + ("; served here from the Azure settings" if name == "serve" else ""),
         )
+        p.add_argument(
+            "--single-match",
+            action="store_true",
+            help="leave out the extra demo matches (seeds "
+            + ", ".join(map(str, DEMO_EXTRA_SEEDS))
+            + ")",
+        )
         if name == "serve":
             p.add_argument("--host", default="127.0.0.1")
             p.add_argument("--port", type=int, default=8000)
@@ -185,6 +192,9 @@ def _main(argv: list[str] | None = None) -> int:
             match = assert_valid(generate_match(args.seed))
         provider = _provider(args.offline)
         bundle = build_bundle(match, provider, proposer=_proposer(args.offline, args.agent_trace))
+        extras = []
+        if not (args.file or args.single_match) and args.seed == DEFAULT_DEMO_SEED:
+            extras = demo_extra_bundles()
         checker = None
         if args.live_api:
             if args.file or args.seed != LIVE_DEMO_SEED:
@@ -201,13 +211,13 @@ def _main(argv: list[str] | None = None) -> int:
                     return 2
         if args.command == "export-site":
             try:
-                export_site(bundle, args.out)
+                export_site(bundle, args.out, extras)
             except FileExistsError as exc:
                 print(f"refusing to write: {exc}", file=sys.stderr)
                 return 1
             print(f"wrote static site to {args.out} (provider: {provider.name})", file=sys.stderr)
             return 0
-        server = make_server(bundle, args.host, args.port, checker)
+        server = make_server(bundle, args.host, args.port, checker, extras)
         host, port = server.server_address[:2]
         print(
             f"MatchLens replay: http://{host}:{port}/ (provider: {provider.name}; Ctrl+C to stop)"

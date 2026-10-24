@@ -21,14 +21,20 @@ from .agent import (
     review_record,
 )
 from .cards import build_cards
+from .generator import generate_match
 from .moments import detect_goals
 from .narrative import ANALYST, MODES, NarrativeProvider, OfflineTemplateProvider
 from .overlays import build_overlay_document
 from .schema import AWAY, HOME, Match, minute_of
 from .story import full_time_story
+from .validate import assert_valid
 
 BUNDLE_SCHEMA = "matchlens.replay/v1"
 DEFAULT_DEMO_SEED = 1
+# More matches offered in the public demo's match picker: untuned seeds from the checked range
+# 100-129, picked for different stories (comeback, high-scoring draw, rout, a 1-0 with little
+# to say). They use the offline proposer; only the demo seed replays the recorded Foundry run.
+DEMO_EXTRA_SEEDS = (121, 106, 103, 123, 124)
 LEAD_IN_S = 15.0  # match seconds of build-up shown before a highlighted move starts
 
 
@@ -94,10 +100,15 @@ def highlights(match: Match, analyst_reviews: Sequence[ClaimReview]) -> dict[str
     review = fixed or injected
     if review is not None:
         card = next(e for e in match.events if e.event_id == review.as_of_event_id)
+        minute = minute_of(card.clock_s)
+        by_ai = review.proposer in (FOUNDRY, RECORDED)
         out["ai_check"] = {
             "card_id": review.card_id,
             "publish_s": card.clock_s,
-            "label": f"See the AI get fact-checked ({minute_of(card.clock_s)}')",
+            # Without an AI run, only the deliberately wrong test claim is there to reject.
+            "label": f"See the AI get fact-checked ({minute}')"
+            if by_ai
+            else f"See the validator reject a wrong claim ({minute}')",
             "self_correction": review is fixed,
         }
     return out
@@ -131,6 +142,35 @@ def build_bundle(
         "stat_steps": stat_steps(match),
         "overlays": build_overlay_document(match, card_sets),
         "highlights": highlights(match, reviews),
+    }
+
+
+def demo_extra_bundles() -> list[dict]:
+    """Bundles for ``DEMO_EXTRA_SEEDS``, fully offline: no Azure call at build time, and never
+    the recorded run (it belongs to the demo seed)."""
+    return [
+        build_bundle(assert_valid(generate_match(seed)), proposer=OfflineProposer())
+        for seed in DEMO_EXTRA_SEEDS
+    ]
+
+
+def match_entry(bundle: dict[str, Any], file: str, overlays: str) -> dict[str, Any]:
+    """One row of ``data/matches.json``: what the match picker shows and where to load it."""
+    meta = bundle["meta"]
+    full_time = [c for c in bundle["cards"]["casual"] if c["kind"] == "full_time"]
+    return {
+        "seed": meta["seed"],
+        "match_id": meta["match_id"],
+        "home": meta["home"]["name"],
+        "away": meta["away"]["name"],
+        "final_score": bundle["final_score"],
+        "headline": full_time[0]["title"] if full_time else "",
+        "cards": len(bundle["cards"]["casual"]),
+        "recorded_foundry_run": any(
+            r["proposer"] == RECORDED for r in bundle.get("reviews", {}).values()
+        ),
+        "file": file,
+        "overlays": overlays,
     }
 
 

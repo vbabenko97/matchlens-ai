@@ -6,6 +6,7 @@
 //
 // URL parameters:
 //   mode=casual|analyst          audience mode (default casual)
+//   seed=<n>                     another match from data/matches.json (default: the demo match)
 //   bg=transparent|green|dark    page background (default transparent, for compositing)
 //   cue=<cue_id>                 show one cue and hold it (stills, manual cueing)
 //   rundown=1                    play every cue of the mode in turn, looping
@@ -132,8 +133,23 @@ function init(doc) {
 const BACKGROUNDS = ["transparent", "green", "dark"];
 document.body.dataset.bg = BACKGROUNDS.includes(params.get("bg")) ? params.get("bg") : "transparent";
 
-fetch("data/overlays.json", { cache: "no-cache" })
-  .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+async function getJson(path) {
+  const r = await fetch(path, { cache: "no-cache" });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// Only paths listed in the match index are fetched; the seed never becomes a path itself.
+async function overlaysPath() {
+  if (!params.has("seed")) return "data/overlays.json";
+  const index = await getJson("data/matches.json");
+  const entry = (index.matches || []).find((m) => String(m.seed) === params.get("seed"));
+  if (!entry) throw new Error(`no match with seed ${params.get("seed")}`);
+  return entry.overlays;
+}
+
+overlaysPath()
+  .then(getJson)
   .then(init)
   .catch((err) => {
     fail(`Could not load overlay cues: ${err.message}`);
