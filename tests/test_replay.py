@@ -4,6 +4,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import pytest
 
@@ -13,7 +14,7 @@ from matchlens.metrics import compute_metrics
 from matchlens.narrative import AI_UNVERIFIED, TEMPLATE
 from matchlens.overlays import OVERLAY_SCHEMA
 from matchlens.replay import BUNDLE_SCHEMA, DEFAULT_DEMO_SEED, build_bundle, dumps, minute_series
-from matchlens.server import WEB_FILES, export_site, make_server
+from matchlens.server import WEB_FILES, asset_version, export_site, make_server, site_files
 
 from .test_cards import LyingProvider
 
@@ -106,6 +107,34 @@ def test_export_site(tmp_path, bundle):
     assert overlays["schema"] == OVERLAY_SCHEMA
 
 
+def css_source():
+    return (Path(__file__).parents[1] / "src/matchlens/web/style.css").read_bytes()
+
+
+def test_assets_are_referenced_by_content_hash(tmp_path, bundle):
+    files = site_files(bundle)
+    html = files["index.html"].decode()
+    for name in ("style.css", "app.js"):
+        assert f"{name}?v={asset_version(files[name])}" in html
+    assert 'href="style.css"' not in html and 'src="app.js"' not in html
+    assert site_files(bundle) == files  # deterministic
+    out = tmp_path / "site"
+    export_site(bundle, out)
+    assert (out / "index.html").read_bytes() == files["index.html"]
+
+
+def test_versioned_index_rejects_a_template_without_the_reference():
+    from matchlens.server import _versioned_index
+
+    files = {
+        "index.html": b'<link href="style.css"><script src="main.js">',
+        "style.css": b"",
+        "app.js": b"",
+    }
+    with pytest.raises(ValueError, match="app.js"):
+        _versioned_index(files)
+
+
 def test_export_site_never_deletes_user_files(tmp_path, bundle):
     victim = tmp_path / "project"
     victim.mkdir()
@@ -154,7 +183,9 @@ def _get(url):
 def test_server_serves_ui_and_data(server):
     status, headers, body = _get(server + "/")
     assert status == 200 and headers["Content-Type"].startswith("text/html")
-    assert b'src="app.js"' in body and "script-src 'self'" in headers["Content-Security-Policy"]
+    assert b'src="app.js?v=' in body and "script-src 'self'" in headers["Content-Security-Policy"]
+    status, _, css = _get(server + "/style.css?v=" + asset_version(css_source()))
+    assert status == 200 and css == css_source()  # query string is ignored when serving
     status, _, body = _get(server + "/data/bundle.json?nocache=1")
     assert status == 200 and json.loads(body)["final_score"] == [2, 3]
     _, headers, body = _get(server + "/data/overlays.json")

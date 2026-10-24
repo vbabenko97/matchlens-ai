@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import http.server
 import json
 from importlib import resources
@@ -22,9 +23,29 @@ def _web_dir() -> Path:
     return Path(str(resources.files("matchlens") / "web"))
 
 
+# Static hosts (GitHub Pages: max-age=600) cache assets; a stale style.css or app.js next to
+# a new index.html breaks the page. Each reference carries a hash of the file it loads.
+VERSIONED_REFS = {"style.css": b'href="style.css"', "app.js": b'src="app.js"'}
+
+
+def asset_version(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()[:12]
+
+
+def _versioned_index(files: dict[str, bytes]) -> bytes:
+    html = files["index.html"]
+    for name, ref in VERSIONED_REFS.items():
+        if html.count(ref) != 1:
+            raise ValueError(f"index.html must reference {name} exactly once as {ref.decode()}")
+        tagged = ref[:-1] + b"?v=" + asset_version(files[name]).encode() + b'"'
+        html = html.replace(ref, tagged)
+    return html
+
+
 def site_files(bundle: dict) -> dict[str, bytes]:
     """Every file of the static site, keyed by URL path (without the leading slash)."""
     files = {name: (_web_dir() / name).read_bytes() for name in WEB_FILES}
+    files["index.html"] = _versioned_index(files)
     files["data/bundle.json"] = dumps(bundle).encode()
     files["data/overlays.json"] = dumps(bundle["overlays"]).encode()
     return files

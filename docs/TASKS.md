@@ -10,7 +10,21 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): accessibility pass (code)
+## Latest checkpoint (2026-10-24): accessibility build deployed; cache-busting
+- **Pages redeployed** from `main` @ `2731814` (PR #5 merge) by `Deploy demo (GitHub Pages, fallback)` [run 40081567480](https://github.com/vbabenko97/matchlens-ai/actions/runs/40081567480), verified via the GitHub Actions API:
+  - jobs `build`, `deploy` (09:21 UTC) and `smoke / smoke` all succeeded;
+  - the smoke job ran `pytest -q -m e2e` against https://vbabenko97.github.io/matchlens-ai/, including the new accessibility tests (one `h1`, ≥ 24px targets, …), so the served site is the accessibility build.
+- **Stale-cache issue (operator screenshots):** right after the deploy, a browser showed the new `index.html` with the previous cached `style.css`. Symptoms: visible screen-reader text, an unstyled `h1`, small markers. GitHub Pages caches assets for 10 minutes.
+- **Fix in this checkpoint:** `site_files()` references `style.css?v=<sha256[:12]>` and `app.js?v=<sha256[:12]>`, so any asset change gets a new URL. `bundle.json` is fetched with `cache: "no-cache"`. If `index.html` stops referencing either asset in the expected form, the export fails loudly.
+- **Verified:**
+  - `python -m pytest -q` -> 254 passed (incl. e2e on local Chromium against the versioned static export);
+  - `ruff check .` and `ruff format --check .` clean.
+- **Next:**
+  1. After merge, redeploy Pages and confirm the smoke job.
+  2. Operator screen-reader pass and 400% zoom check (scroll through the controls, timeline and cards) per `docs/ACCESSIBILITY.md`.
+  3. Then demo rehearsal and video.
+
+## Checkpoint (2026-10-24): accessibility pass (code)
 - Audit and fixes are in `docs/ACCESSIBILITY.md` (WCAG 2.2 AA target, 12 fixes):
   - one polite status announcer instead of a live clock and live card list;
   - focus kept after chip activation;
