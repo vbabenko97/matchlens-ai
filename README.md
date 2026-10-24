@@ -29,7 +29,7 @@ In Casual mode, **Language** (English, Deutsch, Українська) and **Foll
 - the same player and team names in Latin script, and no new ones;
 - `xG` kept, the right script, no markup or links.
 
-A rejected line goes back to the agent once with the reasons; if it fails again, the English fact is shown, marked `lang="en"`. The rewritten lines keep the facts' event IDs. The page labels them as AI wording with numbers and names checked, because tone is not checked. The public build replays a recorded run (`python -m matchlens personalize-review --out <trace>`, then `export-site --personalize-trace <trace>`); without one, the picker is hidden.
+A rejected line goes back to the agent once with the reasons; if it fails again, the English fact is shown, marked `lang="en"`. The rewritten lines keep the facts' event IDs. The page labels them as AI wording with numbers and names checked, because meaning and tone are not checked. The score check also keeps the home-first order, so `2-3` never becomes `3-2`. The public build replays a recorded run (`python -m matchlens personalize-review --out <trace>`, then `export-site --personalize-trace <trace>`); without one, the picker is hidden.
 
 ### More matches
 

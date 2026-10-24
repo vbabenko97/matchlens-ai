@@ -64,7 +64,11 @@ MATCHLENS_BASE_URL=https://<public-url>/ python -m pytest -q -m e2e
 Verified locally against independent static hosts: the app server, a plain static server under a sub-path, and a separately hosted export via `MATCHLENS_BASE_URL`. The public URL `https://vbabenko97.github.io/matchlens-ai/` passes the same suite in the scheduled smoke workflow (see the status table above).
 
 ## Personalizer run (language and club variants) — operator step
-**Status (2026-10-24): code ready; no run recorded yet.** The language and club picker appears only once a recorded run is wired into the deploy workflows.
+**Status (2026-10-24): run recorded and wired in.** The operator recorded `docs/evidence/personalize-trace-2026-10-24.json` at 17:53 UTC (`gpt-4.1-mini`, Responses API v1).
+- The run: 56 card runs, 62 calls (6 cards needed a retry), about 22K input / 6.8K output tokens.
+- `trace_problems` passes and the file has no key-like strings.
+- Both deploy workflows replay it with `--personalize-trace`.
+- On replay, the stricter checker added after reading the run (score order, Russian-only letters) keeps 12 of 232 lines in English, among them "Eastvale Athletic перемагають 3-2" on a 2-3 scoreboard.
 
 1. **[operator]** With the same `AZURE_OPENAI_*` variables as for `azure-check`, record all 8 variants of the 7 demo casual cards:
    ```bash

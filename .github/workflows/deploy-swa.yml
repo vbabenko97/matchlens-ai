@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install -e .
-      - run: python -m matchlens export-site --offline --agent-trace docs/evidence/agent-trace-2026-10-24.json --live-api --out site
+      - run: python -m matchlens export-site --offline --agent-trace docs/evidence/agent-trace-2026-10-24.json --personalize-trace docs/evidence/personalize-trace-2026-10-24.json --live-api --out site
       - run: cp deploy/azure-static-web-apps/staticwebapp.config.json site/
       - name: Bundle the matchlens package with the API
         run: cp -r src/matchlens api/matchlens

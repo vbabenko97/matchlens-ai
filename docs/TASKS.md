@@ -10,7 +10,30 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): personalizer agent (plan item 3, code; run not recorded)
+## Latest checkpoint (2026-10-24): recorded personalizer run wired in; stricter checker
+- **Merged and deployed:** PR #15 squash-merged as `33e14e3`. SWA [run 40115744751](https://github.com/vbabenko97/matchlens-ai/actions/runs/40115744751) and Pages [run 40115746503](https://github.com/vbabenko97/matchlens-ai/actions/runs/40115746503) succeeded, including their smoke jobs.
+- **Live run (operator, 17:53 UTC, `gpt-4.1-mini`):** `personalize-review` exited 0. Committed as `docs/evidence/personalize-trace-2026-10-24.json`.
+  - 56 card runs, 62 calls (6 retries), ≈ 22K input / 6.8K output tokens;
+  - `trace_problems` passes; no key-like strings in the file.
+  - The live checker caught added numbers ("mit 2 Treffern"), added names ("…for Northbridge Rovers fans"), a transliterated name ("Уго Вале") and untranslated titles, and the retries fixed them.
+- **Reading every line found what the checker missed:**
+  - **flipped scores:** uk|away "Eastvale Athletic перемагають 3-2" and "відігралися з 1-2"; German "mit 1-2 zurück" (2-1 in the source);
+  - **Russian letters in Ukrainian:** "Голы";
+  - **meaning drift that no deterministic check sees:** "після того, як відійшли назад", "Впевненість у перемозі переходила … двічі", saved chance → "knapp vergeben".
+- **Fixes:**
+  - `check_line` now requires every tight score or count pair (`2-3`, `2:3`, `14–11`; not "minute 81: 2") in the source's home-first order, and rejects ы/э/ъ/ё in Ukrainian.
+  - The note and docs now say **meaning and tone not checked** (was "tone").
+  - On replay, 12 of 232 lines fall back to English, including every flipped score and "Голы". One is overly strict: "14 shots to Eastvale Athletic's 11", where the pair is written in words.
+- **Wired in:**
+  - both deploy workflows add `--personalize-trace docs/evidence/personalize-trace-2026-10-24.json`;
+  - the e2e production bundle uses the same trace;
+  - a new e2e test checks on the deployed page that the uk|away full-time title is the English source with `lang="en"` and that no "3-2" appears.
+- **Verified:**
+  - `python -m pytest -q` -> 516 passed, 2 skipped (the "no picker without a run" test, now that the bundle has one), incl. e2e on local Chromium;
+  - `ruff check .` and `ruff format --check .` clean.
+- **Next:** plan item 6 (video, pitch, README for the five criteria, screen-reader pass, external test, audit). Operator: verify one live call and a forced `daily_limit` on SWA.
+
+## Checkpoint (2026-10-24): personalizer agent (plan item 3, code; run not recorded)
 - **Merged and deployed:** PR #14 (match picker) squash-merged as `c0b0263`. SWA [run 40113944392](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113944392) and Pages [run 40113946363](https://github.com/vbabenko97/matchlens-ai/actions/runs/40113946363) succeeded, including their smoke jobs (GitHub Actions API).
 - **New `matchlens.personalize`**, a second agent with a different role: it rewrites verified casual cards for a language (en, de, uk) and a point of view (neutral, home, away), 8 variants.
   - One Responses API v1 call per card and attempt: structured JSON (`title`, `lines[index,text]`), no tools, `store: false`. The brief holds only the title and fact texts, no IDs.

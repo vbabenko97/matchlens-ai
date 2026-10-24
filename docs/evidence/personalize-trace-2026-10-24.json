@@ -1,0 +1,1710 @@
+{
+ "schema": "matchlens.personalize-trace/v1",
+ "recorded_at_utc": "2026-10-24T17:53:08Z",
+ "api": "responses-v1",
+ "deployment": "gpt-4.1-mini",
+ "match_id": "ml1",
+ "runs": [
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic strike first",
+      "0": "Rafe Pembrook scores in minute 5: 0-1.",
+      "1": "First goal of the match: Eastvale Athletic lead 0-1.",
+      "2": "It came straight from an interception."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0966ec9969796608016adcf028b0048190b1c661632d590a8b",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 326,
+        "output_tokens": 73
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So close for Eastvale Athletic!",
+      "0": "Ugo Vale had a great chance in minute 38, but the shot was saved.",
+      "1": "It stays 0-1; a goal would have doubled Eastvale Athletic's lead."
+     },
+     "calls": [
+      {
+       "response_id": "resp_047e3946d2ddd6ff016adcf029aa548195816c96b6a4be0883",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 314,
+        "output_tokens": 66
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers draw level",
+      "0": "Ivo Merriweather scores in the 56th minute, leveling the score to 1-1.",
+      "1": "Northbridge Rovers fought back to 1-1, 51 minutes after conceding.",
+      "2": "The equalizing move started with a throw-in and included 7 passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0962a494759ed309016adcf02a951c8197858aa624ca1fad4f",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 337,
+        "output_tokens": 92
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Northbridge Rovers take the lead",
+      "0": "Hugo Elmswick scored at minute 71 to make it 2-1!",
+      "1": "Northbridge Rovers turned the game around after being 0-1 down at minute 5, scoring in minutes 56 and 71.",
+      "2": "That second goal came right after a tackle that won the ball back."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0112e892d88a6a6b016adcf02bdc808190a4b02a87efbd0c98",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 348,
+        "output_tokens": 101
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic draw level",
+      "0": "Teo Kestrel scores a crucial goal in minute 77 to make it 2-2.",
+      "1": "Eastvale Athletic fight back to level the score at 2-2, just 6 minutes after falling behind.",
+      "2": "The equalizer started with a fierce tackle winning the ball, followed by 2 quick passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0735b6b589f79466016adcf02cdfb08193b70a1bcf1530ea31",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 339,
+        "output_tokens": 98
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Eastvale Athletic take the lead",
+      "0": "Ugo Vale scores in minute 81: 2-3.",
+      "1": "Eastvale Athletic were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around.",
+      "2": "Ugo Vale saw a big chance saved in minute 38; this time it went in.",
+      "3": "The move began with a tackle that won the ball back, then 6 passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0bdc49df25254b4b016adcf02df6d48197aeb314ecd6d9db9d",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 379,
+        "output_tokens": 122
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "en",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Full time: Eastvale Athletic come from behind to win 2-3",
+      "0": "Heartbreak as Eastvale Athletic overturned a 2-1 deficit in minute 71 to clinch a 2-3 win.",
+      "1": "Ugo Vale redeemed himself, scoring the winner in minute 81 after a missed big chance in minute 38.",
+      "2": "The lead swapped twice, making this a real nail-biter for Northbridge Rovers fans.",
+      "3": "Northbridge Rovers dominated shots (14–11), but Eastvale Athletic had the edge in quality chances (synthetic xG 3.04 vs 2.05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_00b6c40e463acefe016adcf02f4eb48195b92ce48c7197eefa",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 396,
+        "output_tokens": 157
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    },
+    {
+     "lines": {
+      "-1": "Full time: Eastvale Athletic come from behind to win 2-3",
+      "0": "Eastvale Athletic were 2-1 down in minute 71 and won 2-3.",
+      "1": "Ugo Vale scored the winner in minute 81, after seeing a big chance saved in minute 38.",
+      "2": "The lead changed twice during the game.",
+      "3": "Northbridge Rovers had more shots (14–11), but Eastvale Athletic had the better chances (synthetic xG, a heuristic: 3.04 vs 2.05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0b21ca8aaef27f05016adcf031ab6c819387ed5b6dae77dd29",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 477,
+        "output_tokens": 141
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic strike first",
+      "0": "Rafe Pembrook nets in the 5th minute: 0-1!",
+      "1": "Eastvale Athletic open the scoring: 0-1 lead.",
+      "2": "The goal sprung immediately from a sharp interception."
+     },
+     "calls": [
+      {
+       "response_id": "resp_05e493a80048e680016adcf0331d808193a21e5533f8caf58f",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 325,
+        "output_tokens": 75
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So close for Eastvale Athletic!",
+      "0": "Ugo Vale almost scored in the 38th minute, but the keeper saved it.",
+      "1": "The score remains 0-1; a goal here would have doubled Eastvale Athletic's lead."
+     },
+     "calls": [
+      {
+       "response_id": "resp_03ee11aecb8629f1016adcf03429fc8193bffaa229370f59fa",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 313,
+        "output_tokens": 68
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers draw level",
+      "0": "Ivo Merriweather scores in minute 56: 1-1.",
+      "1": "Northbridge Rovers level it at 1-1, 51 minutes after going behind.",
+      "2": "The move began with a throw-in, then 7 passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_047cb9cab01c5af3016adcf0353da4819696fc028eb516bfae",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 336,
+        "output_tokens": 84
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Northbridge Rovers take the lead",
+      "0": "Hugo Elmswick scores in minute 71 to make it 2-1!",
+      "1": "Northbridge Rovers bounced back from 0-1 down at minute 5 with goals at 56 and 71.",
+      "2": "That crucial goal came right after a tackle that won the ball back."
+     },
+     "calls": [
+      {
+       "response_id": "resp_08137cbf7fcd3678016adcf0365d908194a6905b533332cbab",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 347,
+        "output_tokens": 97
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic draw level",
+      "0": "Teo Kestrel scores in minute 77: 2-2.",
+      "1": "Eastvale Athletic level it at 2-2, 6 minutes after going behind.",
+      "2": "The move started with a tough tackle winning the ball back, followed by 2 sharp passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0bf32596dcbb8f06016adcf037857c81938eb4ee05ecc991e0",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 338,
+        "output_tokens": 88
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Eastvale Athletic take the lead",
+      "0": "Ugo Vale netted the crucial goal in the 81st minute, making it 2-3 for Eastvale Athletic.",
+      "1": "Eastvale Athletic reversed a 2-1 deficit from minute 71 with goals in the 77th and 81st minutes.",
+      "2": "After a big chance was saved from Ugo Vale in minute 38, he scored when it really counted.",
+      "3": "The comeback move started with a tackle winning possession, followed by 6 quick passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0c3fafeb7bdf5a42016adcf0389f3881909d885d3273778641",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 378,
+        "output_tokens": 138
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    },
+    {
+     "lines": {
+      "-1": "Comeback! Eastvale Athletic take the lead",
+      "0": "Ugo Vale scores in minute 81: 2-3.",
+      "1": "Eastvale Athletic were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around.",
+      "2": "Ugo Vale saw a big chance saved in minute 38; this time it went in.",
+      "3": "The move began with a tackle that won the ball back, then 6 passes."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0e1bf015b85cbd2c016adcf03a41308194ad29b76153d75511",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 464,
+        "output_tokens": 122
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "en",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Full time: Eastvale Athletic come from behind to win 2-3",
+      "0": "Eastvale Athletic overturned a 2-1 deficit at minute 71 to claim a 2-3 victory.",
+      "1": "Ugo Vale redeemed himself with a winning goal in minute 81 after a missed chance at minute 38.",
+      "2": "The lead swapped twice during the match.",
+      "3": "Despite Northbridge Rovers having 14 shots to Eastvale Athletic's 11, Eastvale had the superior chances with a synthetic xG of 3.04 vs 2.05."
+     },
+     "calls": [
+      {
+       "response_id": "resp_071aacfb0ee66deb016adcf03b90fc8195bd82e48f0d7f1941",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 395,
+        "output_tokens": 144
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic erzielen erstes Tor",
+      "0": "Rafe Pembrook erzielt in der 5. Minute das 0-1.",
+      "1": "Das erste Tor des Spiels: Eastvale Athletic führen 0-1.",
+      "2": "Das Tor entstand direkt aus einer Abwehraktion."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0e365665285cd01f016adcf03ccf6c81958a8979331de4239b",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 322,
+        "output_tokens": 79
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So knapp für Eastvale Athletic!",
+      "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, doch sein Schuss wurde gehalten.",
+      "1": "Es bleibt 0-1; ein Tor hätte Eastvale Athletics Führung verdoppelt."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0957af9da0020a74016adcf03e183c8194bf103f11f551bece",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 310,
+        "output_tokens": 69
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers gleichen aus",
+      "0": "Ivo Merriweather trifft in der 56. Minute zum 1:1.",
+      "1": "Northbridge Rovers gleichen nach 51 Minuten Rückstand zum 1:1 aus.",
+      "2": "Der Spielzug startete mit einem Einwurf, gefolgt von 7 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0fc2eacf8f7a2ec8016adcf03f7b6c8195a7ef0c8f1e8c6335",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 333,
+        "output_tokens": 91
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Northbridge Rovers take the lead",
+      "0": "Hugo Elmswick erzielt in der 71. Minute das 2-1.",
+      "1": "Northbridge Rovers lagen in der 5. Minute mit 0-1 zurück. Tore in der 56. und 71. Minute drehten das Spiel.",
+      "2": "Das Tor entstand direkt aus einem Tackling, bei dem der Ball zurückerobert wurde."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0ef04396e54df4b2016adcf040e4dc81949729fbe0b268d0e1",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 344,
+        "output_tokens": 111
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    },
+    {
+     "lines": {
+      "-1": "Comeback! Northbridge Rovers übernehmen die Führung",
+      "0": "Hugo Elmswick erzielt in der 71. Minute das Tor zum 2-1.",
+      "1": "Northbridge Rovers lagen in der 5. Minute mit 0-1 zurück. Die Tore in der 56. und 71. Minute drehten das Spiel.",
+      "2": "Das Tor entstand direkt aus einem erfolgreichen Tackling, das den Ball zurückeroberte."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0fdc5fbc6f689c64016adcf043406c81939ec1bf473a3edde1",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 406,
+        "output_tokens": 113
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic gleicht aus",
+      "0": "Teo Kestrel trifft in der 77. Minute zum 2:2.",
+      "1": "Eastvale Athletic gleicht nur 6 Minuten nach Rückstand auf 2:2 aus.",
+      "2": "Der Angriff begann mit einer Ballgewinn-Situation durch ein Tackling, gefolgt von 2 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0183bcb22a977b14016adcf04517b081909c80045f42e9e725",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 335,
+        "output_tokens": 97
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Eastvale Athletic gehen in Führung",
+      "0": "Ugo Vale trifft in der 81. Minute: 2-3.",
+      "1": "Eastvale Athletic lagen in der 71. Minute mit 1-2 zurück. Tore in der 77. und 81. Minute drehten das Spiel.",
+      "2": "Ugo Vale scheiterte in der 38. Minute noch an einer großen Chance; diesmal traf er.",
+      "3": "Die Aktion begann mit einem Zweikampfgewinn, dann folgten 6 Pässe."
+     },
+     "calls": [
+      {
+       "response_id": "resp_061c2202995cb504016adcf046b6c08194a8672b5c68597359",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 375,
+        "output_tokens": 138
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Endstand: Eastvale Athletic dreht Spiel und gewinnt 2-3",
+      "0": "Eastvale Athletic lagen in der 71. Minute mit 1-2 zurück und gewannen schließlich 2-3.",
+      "1": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem eine große Chance in der 38. Minute noch gehalten wurde.",
+      "2": "Die Führung wechselte zweimal.",
+      "3": "Northbridge Rovers hatten mehr Schüsse (14–11), aber Eastvale Athletic die besseren Chancen (synthetisches xG, eine Heuristik: 3,04 vs 2,05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_00676d992fd76bec016adcf04875588196b99c6a9d595587e9",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 392,
+        "output_tokens": 155
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic erzielt erstes Tor",
+      "0": "Rafe Pembrook trifft in der 5. Minute zum 0:1.",
+      "1": "Erstes Tor des Spiels: Eastvale Athletic führt 0:1.",
+      "2": "Das Tor entstand direkt aus einer Ballabnahme."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0b7093d43aca1523016adcf04a53e881969ac6b715853c6f43",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 326,
+        "output_tokens": 79
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So knapp für Eastvale Athletic!",
+      "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, doch sein Schuss wurde gehalten.",
+      "1": "Es steht weiterhin 0-1; ein Tor hätte Eastvale Athletic mit 2 Treffern in Führung gebracht."
+     },
+     "calls": [
+      {
+       "response_id": "resp_038afa0686ff2913016adcf04bd8d881978587ca1caaae5192",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 314,
+        "output_tokens": 74
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    },
+    {
+     "lines": {
+      "-1": "So knapp für Eastvale Athletic!",
+      "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, doch der Schuss wurde gehalten.",
+      "1": "Es bleibt 0-1; ein Tor hätte Eastvale Athletics Führung verdoppelt."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0a72c3d87f3cd33a016adcf04d25108195a1c725039c1df3ea",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 397,
+        "output_tokens": 70
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers gleicht aus",
+      "0": "Ivo Merriweather trifft in der 56. Minute zum 1:1.",
+      "1": "Northbridge Rovers gleichen 51 Minuten nach Rückstand zum 1:1 aus.",
+      "2": "Die Aktion begann mit einem Einwurf, gefolgt von 7 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0f0c5fc7565a76fd016adcf04eb9d081909bf9105f63c846d2",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 337,
+        "output_tokens": 90
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Northbridge Rovers übernehmen die Führung",
+      "0": "Hugo Elmswick trifft in der 71. Minute zum 2-1.",
+      "1": "Northbridge Rovers lagen in der 5. Minute 0-1 zurück, drehten das Spiel durch Tore in der 56. und 71. Minute.",
+      "2": "Der Treffer resultierte direkt aus einem Ballgewinn nach einem Tackling."
+     },
+     "calls": [
+      {
+       "response_id": "resp_085e9594d659bfb3016adcf0503c308196adc4797a56dc504a",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 348,
+        "output_tokens": 107
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic gleicht aus",
+      "0": "Teo Kestrel trifft in der 77. Minute zum 2-2.",
+      "1": "Eastvale Athletic gleicht zum 2-2 aus, nur 6 Minuten nachdem sie in Rückstand geraten waren.",
+      "2": "Der Angriff begann mit einem Ballgewinn per Tackling und führte über 2 Pässe zum Tor."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0f268b2c61dca1e2016adcf051a2388196825bf4c3a21ffe7b",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 339,
+        "output_tokens": 100
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Eastvale Athletic übernehmen die Führung",
+      "0": "Ugo Vale trifft in der 81. Minute zum 2-3.",
+      "1": "Eastvale Athletic lagen in der 71. Minute mit 1-2 zurück, doch Tore in der 77. und 81. Minute drehten das Spiel.",
+      "2": "Ugo Vale hatte in der 38. Minute eine große Chance, die gehalten wurde; dieses Mal netzte er ein.",
+      "3": "Die Aktion startete mit einem Tackling, das den Ball eroberte, gefolgt von 6 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_092a1b8736873cc0016adcf052eff0819787a0f8d7b07e408a",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 379,
+        "output_tokens": 146
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Endstand: Eastvale Athletic dreht Spiel und gewinnt 2-3",
+      "0": "Eastvale Athletic lagen in der 71. Minute mit 1-2 zurück und gewannen schließlich 2-3.",
+      "1": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem eine große Chance in der 38. Minute noch pariert wurde.",
+      "2": "Die Führung wechselte zweimal.",
+      "3": "Northbridge Rovers hatten mehr Schüsse (14–11), aber Eastvale Athletic bessere Chancen (synthetisches xG: 3,04 vs. 2,05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0543cf8f81993522016adcf054aff4819797b3006aa74c713c",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 396,
+        "output_tokens": 151
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic geht früh in Führung",
+      "0": "Rafe Pembrook trifft in der 5. Minute zum 0-1.",
+      "1": "Das erste Tor des Spiels bringt Eastvale Athletic in Führung: 0-1.",
+      "2": "Das Tor entstand direkt aus einer gelungenen Ballabnahme."
+     },
+     "calls": [
+      {
+       "response_id": "resp_09810ba7697a066f016adcf0566e6481959b39ba1cdc61d226",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 325,
+        "output_tokens": 84
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So knapp für Eastvale Athletic!",
+      "0": "Ugo Vale hatte in der 38. Minute eine tolle Chance, aber der Schuss wurde gehalten.",
+      "1": "Es bleibt beim 0-1; ein Tor hätte Eastvale Athletics Führung verdoppelt."
+     },
+     "calls": [
+      {
+       "response_id": "resp_09bad2bb3a8aabd5016adcf057bab08190ac959ade89bb6d29",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 313,
+        "output_tokens": 70
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers gleichen aus",
+      "0": "Ivo Merriweather trifft in der 56. Minute zum 1:1.",
+      "1": "Northbridge Rovers gleichen 51 Minuten nach Rückstand zum 1:1 aus.",
+      "2": "Die Aktion begann mit einem Einwurf und 7 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0439445192f1f9ce016adcf058e2648193b8b4c9576780c75e",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 336,
+        "output_tokens": 85
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Northbridge Rovers übernehmen Führung",
+      "0": "Hugo Elmswick trifft in der 71. Minute zum 2-1.",
+      "1": "Northbridge Rovers lagen in der 5. Minute mit 0-1 zurück, Tore in der 56. und 71. Minute sorgten für die Wende.",
+      "2": "Das Tor entstand direkt aus einem gewonnenen Ball nach einem Tackling."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0f8c1e3f5de59ec2016adcf05a32948194bf826a78add7a958",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 347,
+        "output_tokens": 107
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic gleicht aus",
+      "0": "Teo Kestrel erzielt in der 77. Minute den Ausgleich zum 2-2.",
+      "1": "Eastvale Athletic gleicht zum 2-2 aus, nur 6 Minuten nach dem Rückstand.",
+      "2": "Der Angriff begann mit einem Tackling, das den Ball zurückeroberte, gefolgt von 2 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_051569567e1e7614016adcf05b7eb88190bbbfeb3853a365d4",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 338,
+        "output_tokens": 103
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Comeback! Eastvale Athletic übernehmen die Führung",
+      "0": "Ugo Vale trifft in der 81. Minute: 2-3.",
+      "1": "Eastvale Athletic lag in der 71. Minute mit 1-2 zurück. Die Tore in der 77. und 81. Minute drehten das Spiel.",
+      "2": "Ugo Vale hatte in der 38. Minute eine Großchance pariert bekommen; dieses Mal traf er.",
+      "3": "Der Angriff begann mit einem Tackling, das den Ball eroberte, gefolgt von 6 Pässen."
+     },
+     "calls": [
+      {
+       "response_id": "resp_07f5e2db300c5533016adcf05ce4a48195bbc45778f667c583",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 378,
+        "output_tokens": 142
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Endstand: Eastvale Athletic dreht das Spiel und gewinnt 2-3",
+      "0": "Eastvale Athletic lag in der 71. Minute mit 1-2 zurück und gewann schließlich 2-3.",
+      "1": "Ugo Vale erzielte in der 81. Minute den Siegtreffer, nachdem er in der 38. Minute eine große Chance knapp vergeben hatte.",
+      "2": "Die Führung wechselte zweimal.",
+      "3": "Northbridge Rovers hatten mehr Schüsse (14-11), aber Eastvale Athletic die besseren Chancen (synthetisches xG, ein Heuristikwert: 3,04 zu 2,05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_088576aa7ffc319b016adcf05e8e7c8196bc21ba4a0145fde6",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 395,
+        "output_tokens": 157
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic забиває першими",
+      "0": "Rafe Pembrook забив на 5-й хвилині: 0-1.",
+      "1": "Перший гол у матчі: Eastvale Athletic лідирують 0-1.",
+      "2": "Гол стався одразу після перехоплення."
+     },
+     "calls": [
+      {
+       "response_id": "resp_056b730abfc15100016adcf0604df881948dc5c8df315b2032",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 325,
+        "output_tokens": 90
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So close for Eastvale Athletic!",
+      "0": "Ugo Vale мав чудовий шанс на 38-й хвилині, але удар був відбитий.",
+      "1": "Залишається 0-1; гол подвоїв би перевагу Eastvale Athletic."
+     },
+     "calls": [
+      {
+       "response_id": "resp_03fdd7681fe3d3bf016adcf061854481978973936171ca02f3",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 313,
+        "output_tokens": 74
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    },
+    {
+     "lines": {
+      "-1": "Так близько до успіху Eastvale Athletic!",
+      "0": "Уго Вале мав чудову нагоду на 38-й хвилині, але удар відбився.",
+      "1": "Рахунок залишається 0-1; гол подвоїв би перевагу Eastvale Athletic."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0e8baf9d4c591445016adcf0629b88819795736227bf05b66b",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 377,
+        "output_tokens": 82
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Нічия Northbridge Rovers",
+      "0": "Ivo Merriweather забив на 56-й хвилині: 1-1.",
+      "1": "Northbridge Rovers зрівняли рахунок до 1-1 через 51 хвилину після пропущеного голу.",
+      "2": "Розіграш розпочався з вкидання, після чого було 7 пасів."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0ea03f747a31631c016adcf063db548195a967a7d928fbd9bb",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 336,
+        "output_tokens": 108
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Повернення! Northbridge Rovers виходять вперед",
+      "0": "Hugo Elmswick забиває на 71-й хвилині: 2-1.",
+      "1": "Northbridge Rovers програвали 0-1 на 5-й хвилині. Голі на 56-й та 71-й хвилинах змінили хід гри.",
+      "2": "Цей гол був безпосередньо з відбору м'яча."
+     },
+     "calls": [
+      {
+       "response_id": "resp_00a65d525772f906016adcf0654a24819482559353f2a6a5df",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 347,
+        "output_tokens": 119
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic зрівнює рахунок",
+      "0": "Teo Kestrel забив на 77-й хвилині: 2-2.",
+      "1": "Eastvale Athletic зрівняв рахунок на 2-2 через 6 хвилин після пропущеного голу.",
+      "2": "Гол почався з перехоплення м’яча після відбору, потім було 2 передачі."
+     },
+     "calls": [
+      {
+       "response_id": "resp_00744bb96c8c1c3b016adcf066ae6c8190bab3ea2adf17d277",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 338,
+        "output_tokens": 113
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Повернення! Eastvale Athletic виходять вперед",
+      "0": "Ugo Vale забиває на 81-й хвилині: 2-3.",
+      "1": "Eastvale Athletic відставали 2-1 на 71-й хвилині. Голы в 77 і 81 хвилинах змінили хід гри.",
+      "2": "Ugo Vale мав велику нагоду на 38-й хвилині, але тоді гол не вдався; тепер - забито.",
+      "3": "Розіграш почався з відбору м'яча, далі було 6 передач."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0ae5e62636b87983016adcf0680b7c819499569d3b02d0e296",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 378,
+        "output_tokens": 157
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "neutral",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Повний час: Eastvale Athletic відігралася та виграла 2-3",
+      "0": "Eastvale Athletic поступалися 1-2 на 71-й хвилині, але виграли 2-3.",
+      "1": "Ugo Vale забив переможний гол на 81-й хвилині після того, як великий шанс було відбито на 38-й.",
+      "2": "Перевага переходила від однієї команди до іншої двічі.",
+      "3": "Northbridge Rovers завдали більше ударів (14–11), однак Eastvale Athletic мали кращі шанси (синтетичний xG, евристика: 3.04 проти 2.05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_05aa1abf397d5005016adcf069d2788193ae399b6e94730081",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 395,
+        "output_tokens": 183
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic відкриває рахунок",
+      "0": "Rafe Pembrook забиває на 5-й хвилині: 0-1.",
+      "1": "Перший гол матчу: Eastvale Athletic веде 0-1.",
+      "2": "Гол після перехоплення м'яча."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0394b3dd3119a6a6016adcf06beaf081949882f2ef937c7070",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 329,
+        "output_tokens": 89
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Близько для Eastvale Athletic!",
+      "0": "Ugo Vale мав чудову можливість на 38-й хвилині, але його удар було відбито.",
+      "1": "Рахунок залишається 0-1; гол подвоїв би перевагу Eastvale Athletic."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0f4f417cc19cd0af016adcf06d021c8196a85fea35c1aa4f0f",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 317,
+        "output_tokens": 79
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers зрівнюють рахунок",
+      "0": "Ivo Merriweather забив на 56-й хвилині: 1-1.",
+      "1": "Northbridge Rovers зрівнюють рахунок 1-1 через 51 хвилину після того, як відійшли назад.",
+      "2": "Розіграш почався з вкидання, потім 7 пасів."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0934cb5429b0bf17016adcf06de434819498a4635b2e1416d5",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 340,
+        "output_tokens": 109
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Повернення! Northbridge Rovers виходять вперед",
+      "0": "Hugo Elmswick забив у 71-й хвилині: 2-1.",
+      "1": "Northbridge Rovers поступалися 0-1 на 5-й хвилині. Голами у 56-й та 71-й хвилинах все змінили.",
+      "2": "Гол стався одразу після вдалого відбору м’яча."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0cbc134d65135310016adcf06f13288197a5b5cfba4603e8f3",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 351,
+        "output_tokens": 115
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic зрівнює рахунок",
+      "0": "Teo Kestrel забиває на 77-й хвилині: 2-2.",
+      "1": "Eastvale Athletic зрівнює рахунок 2-2 за 6 хвилин після пропущеного голу.",
+      "2": "Комбінація почалася з відбору м'яча, далі було 2 паси."
+     },
+     "calls": [
+      {
+       "response_id": "resp_00464133d26ec57a016adcf0701bdc8190a666cb696f456d93",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 342,
+        "output_tokens": 110
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Повернення! Eastvale Athletic виходять вперед",
+      "0": "Ugo Vale забиває на 81-й хвилині: 2-3.",
+      "1": "Eastvale Athletic відставали 2-1 на 71-й хвилині. Голи на 77-й і 81-й змінили хід гри.",
+      "2": "Ugo Vale не реалізував велику нагоду на 38-й хвилині; цього разу м'яч зайшов у ворота.",
+      "3": "Атака почалася з відбору м'яча, потім 6 передач."
+     },
+     "calls": [
+      {
+       "response_id": "resp_04097577d3c18c10016adcf0715b288196ae27d17c076d3ab8",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 382,
+        "output_tokens": 154
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "home",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Фінальний свисток: Eastvale Athletic відігрались і виграли 2-3",
+      "0": "Eastvale Athletic поступались 1-2 на 71-й хвилині, але зрештою перемогли 2-3.",
+      "1": "Ugo Vale забив переможний гол на 81-й хвилині після великого шансу, що відбив воротар на 38-й.",
+      "2": "Впевненість у перемозі переходила з одних в інші руки двічі.",
+      "3": "Northbridge Rovers завдали більше ударів (14–11), але Eastvale Athletic мали кращі шанси (синтетичний xG, евристика: 3.04 проти 2.05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_035cde7fce87331a016adcf072afcc81978d46fc67e4cffa0b",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 399,
+        "output_tokens": 194
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic відкриває рахунок",
+      "0": "Rafe Pembrook забиває на 5-й хвилині: 0-1.",
+      "1": "Перший гол у матчі: Eastvale Athletic веде 0-1.",
+      "2": "Гол стався після перехоплення."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0b40e25f35a3632c016adcf074af2c81938bc1e8e9dbf2ec9f",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 328,
+        "output_tokens": 88
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "So close for Eastvale Athletic!",
+      "0": "Ugo Vale мав чудовий шанс на 38-й хвилині, але удар парирував воротар.",
+      "1": "Рахунок залишився 0-1; гол подвоїв би перевагу Eastvale Athletic."
+     },
+     "calls": [
+      {
+       "response_id": "resp_09d49e5a73855507016adcf0762ab88195a6c8aed1bc562fae",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 316,
+        "output_tokens": 77
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    },
+    {
+     "lines": {
+      "-1": "Так близько для Eastvale Athletic!",
+      "0": "Ugo Vale мав чудову нагоду на 38-й хвилині, але удар був відбитий.",
+      "1": "Рахунок залишився 0-1; гол подвоїв би перевагу Eastvale Athletic."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0463c533f3718d71016adcf07775bc81958516e56663e3a8cb",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 380,
+        "output_tokens": 78
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Northbridge Rovers зрівнюють рахунок",
+      "0": "Ivo Merriweather забив на 56-й хвилині: 1-1.",
+      "1": "Northbridge Rovers зрівнюють рахунок 1-1 через 51 хвилину після пропущеного голу.",
+      "2": "Гол розпочався з вкидання, потім 7 передач."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0051d3bf69f27f33016adcf078c92081909ae1faf6543c55c1",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 339,
+        "output_tokens": 105
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Хвилююче повернення! Northbridge Rovers виходять вперед",
+      "0": "Hugo Elmswick забиває на 71-й хвилині: 2-1.",
+      "1": "Northbridge Rovers поступалися 0-1 на 5-й хвилині, але голи на 56-й і 71-й хвилинах змінили хід матчу.",
+      "2": "Гол став результатом безпосередньо виграного на боротьбі м'яча."
+     },
+     "calls": [
+      {
+       "response_id": "resp_04b3bcc0d1202d6c016adcf07bfe0c81979d51344ee543d8d8",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 350,
+        "output_tokens": 129
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Eastvale Athletic зрівнюють рахунок",
+      "0": "Teo Kestrel забив у 77-й хвилині: 2-2.",
+      "1": "Eastvale Athletic зрівняли рахунок 2-2 через 6 хвилин після пропущеного голу.",
+      "2": "Розіграш почався з відбору м’яча, далі було 2 передачі."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0669cc18d156db13016adcf07dc2d08195a0561a69b13f5d1e",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 341,
+        "output_tokens": 109
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Повернення! Eastvale Athletic вийшли вперед",
+      "0": "Ugo Vale забив у 81-й хвилині: 2-3.",
+      "1": "Eastvale Athletic програвали 2-1 у 71-й хвилині. Голи у 77-й та 81-й перевернули матч.",
+      "2": "Ugo Vale в 38-й хвилині мав велику нагоду, яку відбили; зараз м'яч пішов у ворота.",
+      "3": "Рух почався з відбору м'яча, далі було 6 передач."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0bd690250dd5a5ee016adcf07fb7f08197bef6fcd90733c0fa",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 381,
+        "output_tokens": 154
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "away",
+   "attempts": [
+    {
+     "lines": {
+      "-1": "Підсумок матчу: Eastvale Athletic перемагають 3-2, вирвавши перемогу",
+      "0": "Eastvale Athletic відігралися з 1-2 у 71-й хвилині та виграли 3-2.",
+      "1": "Ugo Vale забив переможний гол у 81-й хвилині, після того як в 38-й хвилині важливий шанс було відбито.",
+      "2": "Лідер в матчі змінювався двічі.",
+      "3": "Northbridge Rovers мали більше ударів (14–11), але Eastvale Athletic створили кращі шанси (синтетичний xG, евристика: 3.04 проти 2.05)."
+     },
+     "calls": [
+      {
+       "response_id": "resp_0a267e127f0eed9f016adcf081a4f88194b32ec91d1712e0ca",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 398,
+        "output_tokens": 191
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

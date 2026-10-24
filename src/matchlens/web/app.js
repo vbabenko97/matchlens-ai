@@ -76,7 +76,7 @@ function personalizedNote(loc) {
   const kept = loc.kept ? ` ${loc.kept} line(s) kept in English: the checker rejected the rewrite.` : "";
   return `${LANG_NAME[loc.lang]}${team}: AI wording by the Microsoft Foundry personalizer ` +
     `(${state.bundle.personalized.proposers.includes("recorded_foundry_personalizer") ? "recorded run" : "live"}); ` +
-    `numbers and names checked against the English facts, tone not checked.${kept}`;
+    `numbers and names checked against the English facts; meaning and tone not checked.${kept}`;
 }
 
 // One polite status region for screen readers; only the latest message is spoken.

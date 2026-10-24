@@ -8,15 +8,19 @@ v1, structured JSON output) rewrites the title and each fact separately, and
 
 - the same numbers, as digits (scores, minutes, counts, xG): ``2-3`` may become ``2:3`` and
   ``3.04`` may become ``3,04``, but nothing may be added, dropped or changed;
+- every score or count pair in the same order (home first, as on the scoreboard): ``2-3``
+  never becomes ``3-2``, even where a language would usually put the subject's goals first;
 - every player and team name of the source, verbatim (Latin script), and no other name;
 - protected terms such as ``xG`` kept;
-- the target language's script, no markup or links, a bounded length.
+- the target language's script (and no Russian-only letters in Ukrainian), no markup or
+  links, a bounded length.
 
 Rejected lines go back to the agent once with the reasons; a line still rejected keeps its
 English source text, marked as kept. Every published line keeps the event and metric IDs of
 the fact it came from: the agent never cites anything itself. What the check cannot see is
-tone: a fan's point of view may colour the wording, so the page labels it as AI wording
-checked for numbers and names, never as a verified fact.
+meaning and tone: a rewrite can keep every number and name and still drift ("the lead
+changed hands" becoming "confidence changed hands"), so the page labels these lines as AI
+wording with numbers and names checked and meaning not checked, never as verified facts.
 
 ``RecordedPersonalizer`` replays a recorded live run (the static demo cannot call Azure);
 the checks are recomputed whenever a bundle is built.
@@ -49,6 +53,8 @@ FOCUSES = (NEUTRAL, HOME, AWAY)
 # Every variant but the source itself (English, neutral).
 VARIANTS = tuple((lang, f) for lang in LANGS for f in FOCUSES if (lang, f) != ("en", NEUTRAL))
 TRACE_SCHEMA = "matchlens.personalize-trace/v1"
+# The recorded run the public builds replay (deploy-pages.yml, deploy-swa.yml).
+PERSONALIZE_TRACE = "docs/evidence/personalize-trace-2026-10-24.json"
 FOUNDRY = "foundry_personalizer"
 RECORDED = "recorded_foundry_personalizer"
 VERIFIED = "verified"
@@ -60,6 +66,10 @@ PROTECTED_TERMS = ("xG",)
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 _CYRILLIC = re.compile(r"[Ѐ-ӿ]")
 _LETTER = re.compile(r"[^\W\d_]")
+# A score or count pair is written tight ("2-3", "2:3", "14–11"); "minute 81: 2-3" holds one.
+_SCORE = re.compile(r"(?<![\d.,])(\d+)[-–:](\d+)(?!\d|[.,]\d)")
+# Letters of Russian that Ukrainian does not use: a sure sign of a slip into Russian.
+_NOT_UKRAINIAN = re.compile(r"[ыэъё]", re.IGNORECASE)
 _MARKUP = re.compile(r"[<>\[\]{}]|https?://|www\.", re.IGNORECASE)
 
 
@@ -111,6 +121,10 @@ def check_line(source: str, text: str, lang: str, names: Sequence[str]) -> list[
             if part
         )
         reasons.append(f"numbers differ ({detail})")
+    want_pairs, got_pairs = Counter(_SCORE.findall(source)), Counter(_SCORE.findall(text))
+    if want == got and want_pairs != got_pairs:
+        pairs = ", ".join(f"{a}-{b}" for a, b in sorted(want_pairs.elements()))
+        reasons.append(f"score order changed (keep {pairs}, home first)")
     expected, used = _names_in(source, names), _names_in(text, names)
     for name in sorted(expected - used):
         reasons.append(f"name changed or missing: {name}")
@@ -126,6 +140,8 @@ def check_line(source: str, text: str, lang: str, names: Sequence[str]) -> list[
     cyrillic = sum(bool(_CYRILLIC.match(c)) for c in letters)
     if lang == "uk" and letters and cyrillic < 0.5 * len(letters):
         reasons.append("not written in Ukrainian")
+    if lang == "uk" and _NOT_UKRAINIAN.search(rest):
+        reasons.append("Russian letters in a Ukrainian text")
     if lang != "uk" and cyrillic:
         reasons.append(f"Cyrillic letters in a {LANGS[lang]} text")
     if lang != "en" and text == source.strip() and len(letters) > 3:
