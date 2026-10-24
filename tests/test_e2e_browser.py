@@ -17,9 +17,11 @@ import json
 import os
 import threading
 import urllib.request
+from pathlib import Path
 
 import pytest
 
+from matchlens.agent import DEMO_TRACE, RecordedProposer
 from matchlens.generator import generate_match
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, dumps
 from matchlens.server import export_site, make_server
@@ -28,6 +30,7 @@ playwright_api = pytest.importorskip("playwright.sync_api")
 
 pytestmark = pytest.mark.e2e
 PUBLIC_URL = os.environ.get("MATCHLENS_BASE_URL", "").strip()
+ROOT = Path(__file__).resolve().parent.parent
 TARGETS = ["public"] if PUBLIC_URL else ["app-server", "static-subpath"]
 
 
@@ -44,7 +47,10 @@ def target(request, tmp_path_factory):
         with urllib.request.urlopen(base + "data/bundle.json", timeout=30) as resp:
             yield base, json.load(resp)
         return
-    bundle = json.loads(dumps(build_bundle(generate_match(DEFAULT_DEMO_SEED))))
+    # The same bundle the public build serves: replaying the recorded Foundry agent run.
+    trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
+    proposer = RecordedProposer(trace, DEMO_TRACE)
+    bundle = json.loads(dumps(build_bundle(generate_match(DEFAULT_DEMO_SEED), proposer=proposer)))
     if request.param == "app-server":
         srv = _start(make_server(bundle, port=0))
         yield f"http://127.0.0.1:{srv.server_address[1]}/", bundle
@@ -217,6 +223,16 @@ def test_claim_check_shows_rejection_correction_and_sources(page, bundle):
     assert f"Metric {metric_id}" in page.text_content("#inspector-body")
     assert "Unknown metric" not in page.text_content("#inspector-body")
     assert page.locator("#cards .verdicts li.ok").count() >= 1
+    retried = [r for r in bundle["reviews"].values() if len(r["attempts"]) > 1]
+    for r in retried:  # a claim fixed by the agent's retry is not shown as a published correction
+        rows = page.locator(f'#cards .card[data-card-id="{r["card_id"]}"] .verdicts li.rejected')
+        assert rows.count() >= 1
+        for i in range(rows.count()):
+            assert rows.nth(i).locator(".correction").count() == 0
+            assert "Sent back to the agent" in rows.nth(i).text_content()
+    if review["proposer"] == "recorded_foundry_agent":
+        assert "replay a recorded Microsoft Foundry agent run" in page.text_content("#disclosure")
+        assert "not a live call" in review["proposer_label"]
     _open(page, "?t=5400")
     assert page.locator("#cards .review").count() == 0  # casual mode shows no claim check
 

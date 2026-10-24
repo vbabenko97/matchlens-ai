@@ -4,7 +4,7 @@ Evidence-grounded synthetic football match intelligence for Microsoft × Premier
 
 **Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 (insight cards, Casual/Analyst modes, Microsoft Foundry provider with offline fallback) done. A live Foundry Responses API v1 call (`gpt-4.1-mini`) was verified with `azure-check` on 2026-10-24 ([evidence](docs/evidence/azure-check-2026-10-24.json)). M4 browser replay UI done. M5 is partially complete: the public demo is live on GitHub Pages and the scheduled public smoke test passes. The accessibility code pass is done ([audit](docs/ACCESSIBILITY.md)); a screen-reader check, demo rehearsal and video are still to do.
 
-**Live demo (free, no sign-in or API key):** <https://vbabenko97.github.io/matchlens-ai/>. It uses the labelled offline template wording; the public site never calls Azure. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
+**Live demo (free, no sign-in or API key):** <https://vbabenko97.github.io/matchlens-ai/>. It uses the labelled offline template wording, and its analyst claim checks replay a recorded live Microsoft Foundry agent run (labelled "not a live call"). The public site never calls Azure. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
 Project page: https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828
 
@@ -59,6 +59,14 @@ python -m matchlens demo --seed 42
 `AZURE_OPENAI_API_VERSION` is no longer used; the v1 API takes no `api-version`.
 
 To verify one real call with no fallback, run `python -m matchlens azure-check` (see [docs/AZURE_VERIFICATION.md](docs/AZURE_VERIFICATION.md)). Recorded live run, redacted: [docs/evidence/azure-check-2026-10-24.json](docs/evidence/azure-check-2026-10-24.json).
+
+**Claim agent.** `python -m matchlens agent-review --seed 1` runs one bounded Foundry agent per analyst card.
+- The agent calls read-only tools (`list_metrics`, `get_metric`, `get_events`), which only see the match up to the card's publication.
+- It proposes structured claims (metric ID + value and/or event IDs).
+- The deterministic validator accepts or rejects each claim. Rejections go back to the agent once, with the reasons.
+- Only verified claims and template-rendered corrections are published.
+
+Recorded live run, redacted: [docs/evidence/agent-trace-2026-10-24.json](docs/evidence/agent-trace-2026-10-24.json) (`gpt-4.1-mini`; 19 Responses API calls, 27 tool calls). On the 77' card the validator rejected a model claim citing the wrong events, and the agent's retry fixed it. The public build replays this trace and re-checks every claim at build time (`export-site --agent-trace …`). Code path: `src/matchlens/agent.py`; recording steps: [docs/AZURE_VERIFICATION.md](docs/AZURE_VERIFICATION.md) §5b.
 
 Without them (or with `--offline`, or on any request failure) cards use a deterministic template labelled "Offline fallback — not an Azure response". AI wording is always labelled unverified; the verified facts on each card are rendered from structured data and never from model output. Code path: `src/matchlens/narrative.py` (`AzureOpenAIProvider`).
 

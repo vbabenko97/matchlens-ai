@@ -10,25 +10,28 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): bounded Foundry claim agent (offline-verified)
-- **Built** `matchlens.agent`, one bounded agent with no framework. For each analyst card, a proposer drafts ≤ 4 structured claims (metric ID + value and/or event IDs).
-  - The Foundry agent can call three read-only tools (`list_metrics`, `get_metric`, `get_events`) bound to the match as of the card's publication. Later events read "not available".
-  - `verify_claim` decides. Rejected claims go back once with the reasons; claims still rejected are dropped. A wrong value on a real metric is replaced by a correction rendered from the computed metric.
-  - On the first goal card, an injected test claim (labelled deliberately wrong) is rejected: seed 1 gives "claimed 3 but home.goals:asof:ml1-01112 = 2", and "Goals: 2 (as of 71')" is published instead.
-- **Surfaces:**
-  - `python -m matchlens agent-review --seed 1 [--offline] [--out trace.json]`. The live path is strict (no fallback; exit 1 on failure) and writes a redacted `matchlens.agent-trace/v1`.
-  - `export-site/serve --agent-trace FILE` replays a recorded run with recomputed verdicts, labelled "not a live call".
-  - The bundle has `reviews`; analyst cards show a "Claim check" section (source, ✓/✗, reasons, correction, chips into the inspector).
-- **Live-run acceptance is enforced:** `trace_problems` requires per-call response IDs, positive token usage, ≥ 1 real tool call, no fallback claims, and ≥ 1 accepted model claim per card. Otherwise `agent-review` exits 1 and records nothing. `--agent-trace` refuses such a trace.
-- **Verified:** `python -m pytest -q` -> 314 passed, incl. 44 e2e on local Chromium.
-  - The Foundry loop is tested against a scripted fake Responses API. It covers tool rounds, echo without item IDs, `store: false`, the causal tool results, a retry carrying the validator's reasons, fallbacks (HTTP, network, malformed answer, call limit), strict mode, and a key-free trace. These tests are **not** integration evidence.
-  - `ruff check .` and `ruff format --check .` clean.
-- **Blocked on the operator:** record a live run per `docs/AZURE_VERIFICATION.md` §5b (`set -o pipefail`, `agent-review --seed 1 --out agent-trace.json`, literal `grep -F -c --` key check). The trace goes into the same draft PR as `docs/evidence/agent-trace-<date>.json`; merge and deploy wait until the recording is checked.
-- **For the video:** the injected wrong score is checked after the agent's attempts and corrected by the validator. Model self-correction may only be shown if the recording has a real `attempt 2`.
-- **Next:**
-  1. Point the Pages workflow at the recorded trace (`--agent-trace`).
-  2. Redeploy (needs approval).
-  3. Video: card → Casual/Analyst → evidence → rejected claim with correction → recorded Foundry run IDs.
+## Latest checkpoint (2026-10-24): live Foundry claim-agent run recorded and wired in
+- **Live run (operator, 11:10 UTC):** `agent-review --seed 1` exited 0 on the fifth attempt. Committed as `docs/evidence/agent-trace-2026-10-24.json`.
+  - 4 analyst cards; 19 Responses API calls, each with its own response ID and positive usage (≈ 40K input / 1.8K output tokens); 27 real tool calls; 13 HTTP 429 waits absorbed; no fallback; `trace_problems` passes.
+  - **Model self-correction (77' card):** the validator rejected `away.pressures:asof:ml1-01206 = 131` because it cited the goal-move events, not pressure events. The retry cited real pressure events and was verified.
+  - On the 81' card the model misspelled a metric ID, got "unknown metric" from the tool, and fixed it with another lookup.
+  - **Injected test claim (71'):** `home.goals = 3` rejected ("claimed 3 but … = 2"), and "Goals: 2 (as of 71')" published.
+  - Checks: no key-like strings or auth headers in the file; replaying the trace reproduces every verdict exactly (regression test).
+- **Earlier recording attempts and the fixes they forced** (all in PR #10):
+  1. HTTP 429 → wait per `Retry-After`, leaner requests.
+  2. `URLError` → bounded network retries, progress output.
+  3. Retry spent every call on lookups → the last call runs with `tool_choice: "none"`.
+  4. Answer cut off at the output cap → resend once with a larger cap; print reasons.
+- **Wired in:**
+  - The Pages and SWA workflows build with `--agent-trace docs/evidence/agent-trace-2026-10-24.json`.
+  - The page disclosure says claim checks replay a recorded run and were re-checked at build time.
+  - The e2e tests use the same bundle as production.
+  - The UI and CLI no longer call a superseded attempt-1 correction "published"; it reads "sent back to the agent". The raw CLI text of the run used the old wording, so only the JSON trace is committed as evidence.
+- **Verified:** `python -m pytest -q` -> 323 passed (incl. 44 e2e on local Chromium); `ruff check .` and `ruff format --check .` clean.
+- **Next (approval needed):**
+  1. Merge PR #10 and redeploy Pages in one go; until then the daily public smoke test would fail on the new e2e checks.
+  2. Confirm the public smoke job.
+  3. Video: card → Casual/Analyst → evidence → claim check (77' self-correction, 71' injected rejection) → recorded response IDs.
 
 ## Checkpoint (2026-10-24): cards no longer look ahead
 - **Merged and deployed:**

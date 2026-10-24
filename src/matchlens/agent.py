@@ -60,6 +60,9 @@ RATE_LIMIT_DEFAULT_WAIT_S = 10.0
 NETWORK_RETRIES = 2  # per model call, when no HTTP response arrives at all
 NETWORK_RETRY_WAIT_S = 5.0
 TRACE_SCHEMA = "matchlens.agent-trace/v1"
+DEMO_TRACE = (
+    "docs/evidence/agent-trace-2026-10-24.json"  # recorded live run replayed by the public build
+)
 OFFLINE_LABEL = "Offline deterministic proposer — no AI; drafts the card's own metric claims."
 INJECTED_LABEL = "Injected test claim — deliberately wrong, to show the validator rejecting it."
 
@@ -358,7 +361,7 @@ def retry_after_s(exc: urllib.error.HTTPError) -> float:
             value = float(headers.get(key))
         except (TypeError, ValueError):
             continue
-        return min(max(value * scale, 0.0), RATE_LIMIT_MAX_WAIT_S)
+        return round(min(max(value * scale, 0.0), RATE_LIMIT_MAX_WAIT_S), 3)
     return RATE_LIMIT_DEFAULT_WAIT_S
 
 
@@ -521,7 +524,7 @@ class RecordedProposer:
         self.label = (
             f"Recorded Microsoft Foundry agent run ({trace['recorded_at_utc']}, deployment "
             f"{trace['deployment']}), replayed from {source} — not a live call. The claims "
-            "are re-checked by the validator now."
+            "are re-checked by the validator when this output is built."
         )
 
     def propose(self, ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> Proposal:
@@ -758,6 +761,7 @@ def live_review(
 
 
 def format_review(review: ClaimReview) -> str:
+    published = {f.text for f in review.published}
     lines = [f"Claim check {review.card_id} (as of {review.as_of_event_id})"]
     lines.append(f"  Proposer: {review.proposer_label}")
     if review.fallback_reason:
@@ -773,7 +777,9 @@ def format_review(review: ClaimReview) -> str:
         mark = "✓" if v.verified else "✗"
         lines.append(f"  {mark} [{where}] {json.dumps(claim_record(v.claim))}")
         lines += [f"      reason: {r}" for r in v.reasons]
-        if v.correction:
+        if v.correction and v.correction.text in published:
             lines.append(f"      published instead: {v.correction.text}")
+        elif not v.verified and v.attempt == 1 and len(review.attempts) > 1:
+            lines.append("      sent back to the agent with the reason (see attempt 2)")
     lines += [f"  Note: {n}" for n in review.notes]
     return "\n".join(lines)

@@ -327,6 +327,7 @@ function renderReview(r) {
       `${r.attempts.length} attempt(s), ${calls.length} model call(s), ${tools} tool call(s); ` +
       `responses ${calls.map((c) => c.response_id).join(", ")}`));
   }
+  const published = new Set(r.published.map((f) => f.text));
   const list = el("ul", { class: "verdicts" });
   for (const v of r.verdicts) {
     const ok = v.status === "verified";
@@ -338,7 +339,9 @@ function renderReview(r) {
     body.appendChild(el("span", { class: "sr-only" }, ok ? " Verified: " : " Rejected: "));
     body.appendChild(el("code", { class: "claim" }, claimText(v.claim)));
     for (const reason of v.reasons) body.appendChild(el("p", { class: "reason" }, `Rejected: ${reason}`));
-    if (v.correction) {
+    if (!ok && v.attempt === 1 && r.attempts.length > 1) {
+      body.appendChild(el("p", { class: "hint" }, "Sent back to the agent with this reason; see attempt 2."));
+    } else if (v.correction && published.has(v.correction.text)) {
       const fix = el("p", { class: "correction" });
       fix.appendChild(el("strong", {}, "Published instead: "));
       fix.appendChild(el("span", {}, v.correction.text));
@@ -554,7 +557,11 @@ function init(bundle) {
     "xG is a synthetic heuristic, not empirically calibrated. " +
     (offline
       ? "Narrative provider: offline deterministic template — not an Azure response."
-      : "Narrative wording comes from Azure OpenAI and is NOT verified; the ✓ facts are authoritative.");
+      : "Narrative wording comes from Azure OpenAI and is NOT verified; the ✓ facts are authoritative.") +
+    (Object.values(bundle.reviews || {}).some((r) => r.proposer === "recorded_foundry_agent")
+      ? " Analyst claim checks replay a recorded Microsoft Foundry agent run (not a live call); " +
+        "every claim was re-checked by the deterministic validator when this page was built."
+      : "");
   drawMarkings();
   bindControls();
   const params = new URLSearchParams(location.search);

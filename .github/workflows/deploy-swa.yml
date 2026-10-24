@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install -e .
-      - run: python -m matchlens export-site --offline --out site
+      - run: python -m matchlens export-site --offline --agent-trace docs/evidence/agent-trace-2026-10-24.json --out site
       - run: cp deploy/azure-static-web-apps/staticwebapp.config.json site/
       - id: swa
         uses: Azure/static-web-apps-deploy@v1

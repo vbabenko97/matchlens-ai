@@ -1,0 +1,932 @@
+{
+ "schema": "matchlens.agent-trace/v1",
+ "recorded_at_utc": "2026-10-24T11:10:30Z",
+ "api": "responses-v1",
+ "endpoint_host": "vbabenko2191-5875-resource.services.ai.azure.com",
+ "deployment": "gpt-4.1-mini",
+ "store": false,
+ "match_id": "ml1",
+ "seed": 1,
+ "reviews": [
+  {
+   "card_id": "analyst:big_chance_missed:ml1-00591",
+   "attempts": [
+    {
+     "claims": [
+      {
+       "metric_id": "away.shots:asof:ml1-00592",
+       "value": 5,
+       "cited_event_ids": [
+        "ml1-00089",
+        "ml1-00130",
+        "ml1-00300",
+        "ml1-00392",
+        "ml1-00591"
+       ]
+      },
+      {
+       "metric_id": "away.shots_on_target:asof:ml1-00592",
+       "value": 2,
+       "cited_event_ids": [
+        "ml1-00089",
+        "ml1-00591"
+       ]
+      },
+      {
+       "metric_id": "away.goals:asof:ml1-00592",
+       "value": 1,
+       "cited_event_ids": [
+        "ml1-00089"
+       ]
+      },
+      {
+       "metric_id": "away.xg_heuristic:asof:ml1-00592",
+       "value": 1.113,
+       "cited_event_ids": [
+        "ml1-00089",
+        "ml1-00130",
+        "ml1-00300",
+        "ml1-00392",
+        "ml1-00591"
+       ]
+      }
+     ],
+     "calls": [
+      {
+       "response_id": "resp_00f37b1e50714675016adc916ee8e8819387dbe1a021705248",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 443,
+        "output_tokens": 54
+       },
+       "tool_calls": [
+        {
+         "name": "list_metrics",
+         "arguments": "{}"
+        },
+        {
+         "name": "get_events",
+         "arguments": "{\"event_ids\":[\"ml1-00591\",\"ml1-00592\"]}"
+        }
+       ],
+       "retries": []
+      },
+      {
+       "response_id": "resp_0bcc93031f4c96db016adc91706a2881948059437c874e5bd4",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 1534,
+        "output_tokens": 27
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.shots:asof:ml1-00592\"}"
+        }
+       ],
+       "retries": []
+      },
+      {
+       "response_id": "resp_07092757f446601b016adc9171dc888196b61c72b443b43397",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 1671,
+        "output_tokens": 29
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.shots_on_target:asof:ml1-00592\"}"
+        }
+       ],
+       "retries": []
+      },
+      {
+       "response_id": "resp_01b23f0e0f468aa5016adc91733b7c8194a7430a36c5e6fd02",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 1801,
+        "output_tokens": 27
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.goals:asof:ml1-00592\"}"
+        }
+       ],
+       "retries": []
+      },
+      {
+       "response_id": "resp_07b2b6fae42c114a016adc91749f3c8194a47ce4ae1e530da4",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 1914,
+        "output_tokens": 30
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.xg_heuristic:asof:ml1-00592\"}"
+        }
+       ],
+       "retries": []
+      },
+      {
+       "response_id": "resp_02a0154e63e83dc1016adc9175cf2c8195a28193457d58f9b6",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 2077,
+        "output_tokens": 195
+       },
+       "tool_calls": [],
+       "retries": []
+      }
+     ],
+     "dropped": 0
+    }
+   ],
+   "verdicts": [
+    {
+     "claim": {
+      "metric_id": "away.shots:asof:ml1-00592",
+      "value": 5,
+      "cited_event_ids": [
+       "ml1-00089",
+       "ml1-00130",
+       "ml1-00300",
+       "ml1-00392",
+       "ml1-00591"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.shots_on_target:asof:ml1-00592",
+      "value": 2,
+      "cited_event_ids": [
+       "ml1-00089",
+       "ml1-00591"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.goals:asof:ml1-00592",
+      "value": 1,
+      "cited_event_ids": [
+       "ml1-00089"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.xg_heuristic:asof:ml1-00592",
+      "value": 1.113,
+      "cited_event_ids": [
+       "ml1-00089",
+       "ml1-00130",
+       "ml1-00300",
+       "ml1-00392",
+       "ml1-00591"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "card_id": "analyst:goal:ml1-01112",
+   "attempts": [
+    {
+     "claims": [
+      {
+       "metric_id": "home.goals:asof:ml1-01112",
+       "value": 2,
+       "cited_event_ids": [
+        "ml1-00871",
+        "ml1-01112"
+       ]
+      },
+      {
+       "metric_id": "home.shots_on_target:asof:ml1-01112",
+       "value": 8,
+       "cited_event_ids": [
+        "ml1-00217",
+        "ml1-00256",
+        "ml1-00474",
+        "ml1-00675",
+        "ml1-00871"
+       ]
+      },
+      {
+       "metric_id": "home.xg_heuristic:asof:ml1-01112",
+       "value": 1.96,
+       "cited_event_ids": [
+        "ml1-00217",
+        "ml1-00256",
+        "ml1-00283",
+        "ml1-00474",
+        "ml1-00523"
+       ]
+      },
+      {
+       "metric_id": "away.goals:asof:ml1-01112",
+       "value": 1,
+       "cited_event_ids": [
+        "ml1-00089"
+       ]
+      }
+     ],
+     "calls": [
+      {
+       "response_id": "resp_078234e0c1ea6190016adc917b67a881949a43a9d38cfac8c3",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 442,
+        "output_tokens": 11
+       },
+       "tool_calls": [
+        {
+         "name": "list_metrics",
+         "arguments": "{}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 2.702
+        }
+       ]
+      },
+      {
+       "response_id": "resp_03a9f06a95567df0016adc9187636c8195924c280327301d61",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 1750,
+        "output_tokens": 126
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"home.goals:asof:ml1-01112\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"home.shots_on_target:asof:ml1-01112\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"home.xg_heuristic:asof:ml1-01112\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.goals:asof:ml1-01112\"}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 10.38
+        }
+       ]
+      },
+      {
+       "response_id": "resp_0b85abc221d0527b016adc919363a081968a03c285ef36830f",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 2373,
+        "output_tokens": 199
+       },
+       "tool_calls": [],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 9.828
+        }
+       ]
+      }
+     ],
+     "dropped": 0
+    }
+   ],
+   "verdicts": [
+    {
+     "claim": {
+      "metric_id": "home.goals:asof:ml1-01112",
+      "value": 2,
+      "cited_event_ids": [
+       "ml1-00871",
+       "ml1-01112"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "home.shots_on_target:asof:ml1-01112",
+      "value": 8,
+      "cited_event_ids": [
+       "ml1-00217",
+       "ml1-00256",
+       "ml1-00474",
+       "ml1-00675",
+       "ml1-00871"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "home.xg_heuristic:asof:ml1-01112",
+      "value": 1.96,
+      "cited_event_ids": [
+       "ml1-00217",
+       "ml1-00256",
+       "ml1-00283",
+       "ml1-00474",
+       "ml1-00523"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.goals:asof:ml1-01112",
+      "value": 1,
+      "cited_event_ids": [
+       "ml1-00089"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "home.goals:asof:ml1-01112",
+      "value": 3,
+      "cited_event_ids": [
+       "ml1-01112"
+      ]
+     },
+     "source": "injected_test_claim",
+     "attempt": 0,
+     "status": "rejected"
+    }
+   ]
+  },
+  {
+   "card_id": "analyst:goal:ml1-01206",
+   "attempts": [
+    {
+     "claims": [
+      {
+       "metric_id": "away.goals:asof:ml1-01206",
+       "value": 2,
+       "cited_event_ids": [
+        "ml1-01206"
+       ]
+      },
+      {
+       "metric_id": "away.shots_on_target:asof:ml1-01206",
+       "value": 4,
+       "cited_event_ids": [
+        "ml1-00089",
+        "ml1-00591",
+        "ml1-01036",
+        "ml1-01206"
+       ]
+      },
+      {
+       "metric_id": "away.passes_completed:asof:ml1-01206",
+       "value": 256,
+       "cited_event_ids": [
+        "ml1-01203",
+        "ml1-01205"
+       ]
+      },
+      {
+       "metric_id": "away.pressures:asof:ml1-01206",
+       "value": 131,
+       "cited_event_ids": [
+        "ml1-01202",
+        "ml1-01203",
+        "ml1-01205",
+        "ml1-01206"
+       ]
+      }
+     ],
+     "calls": [
+      {
+       "response_id": "resp_0c2ed18d3dfb5816016adc919f64e88194b408125b16190f58",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 459,
+        "output_tokens": 72
+       },
+       "tool_calls": [
+        {
+         "name": "list_metrics",
+         "arguments": "{}"
+        },
+        {
+         "name": "get_events",
+         "arguments": "{\"event_ids\":[\"ml1-01202\",\"ml1-01203\",\"ml1-01204\",\"ml1-01205\",\"ml1-01206\"]}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 8.806000000000001
+        }
+       ]
+      },
+      {
+       "response_id": "resp_0f2a3b4499423a63016adc91ab86148193b0dc129b663c8e54",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 2431,
+        "output_tokens": 124
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.goals:asof:ml1-01206\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.shots_on_target:asof:ml1-01206\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.passes_completed:asof:ml1-01206\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.pressures:asof:ml1-01206\"}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 10.146
+        }
+       ]
+      },
+      {
+       "response_id": "resp_0421ee5a1a746d69016adc91b76fe08196bc281f226d1453f0",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 5622,
+        "output_tokens": 183
+       },
+       "tool_calls": [],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 8.895
+        }
+       ]
+      }
+     ],
+     "dropped": 0
+    },
+    {
+     "claims": [
+      {
+       "metric_id": "away.goals:asof:ml1-01206",
+       "value": 2,
+       "cited_event_ids": [
+        "ml1-01206"
+       ]
+      },
+      {
+       "metric_id": "away.shots_on_target:asof:ml1-01206",
+       "value": 4,
+       "cited_event_ids": [
+        "ml1-00089",
+        "ml1-00591",
+        "ml1-01036",
+        "ml1-01206"
+       ]
+      },
+      {
+       "metric_id": "away.passes_completed:asof:ml1-01206",
+       "value": 256,
+       "cited_event_ids": [
+        "ml1-01203",
+        "ml1-01205"
+       ]
+      },
+      {
+       "metric_id": "away.pressures:asof:ml1-01206",
+       "value": 131,
+       "cited_event_ids": [
+        "ml1-00011",
+        "ml1-00034",
+        "ml1-00036",
+        "ml1-00044",
+        "ml1-00047"
+       ]
+      }
+     ],
+     "calls": [
+      {
+       "response_id": "resp_05a1fe033598d1f0016adc91c75e6c8195a7d79a1766ab9a36",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 750,
+        "output_tokens": 72
+       },
+       "tool_calls": [
+        {
+         "name": "list_metrics",
+         "arguments": "{}"
+        },
+        {
+         "name": "get_events",
+         "arguments": "{\"event_ids\":[\"ml1-01202\",\"ml1-01203\",\"ml1-01204\",\"ml1-01205\",\"ml1-01206\"]}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 13.193
+        }
+       ]
+      },
+      {
+       "response_id": "resp_048be48354b7123c016adc91cf61a0819080160b5fdf5265e3",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 2722,
+        "output_tokens": 27
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.pressures:asof:ml1-01206\"}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 6.375
+        }
+       ]
+      },
+      {
+       "response_id": "resp_0eda36bbd8d7e3a8016adc91df4ba08195bf98465fa657e496",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 3747,
+        "output_tokens": 189
+       },
+       "tool_calls": [],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 14.239
+        }
+       ]
+      }
+     ],
+     "dropped": 0
+    }
+   ],
+   "verdicts": [
+    {
+     "claim": {
+      "metric_id": "away.goals:asof:ml1-01206",
+      "value": 2,
+      "cited_event_ids": [
+       "ml1-01206"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.shots_on_target:asof:ml1-01206",
+      "value": 4,
+      "cited_event_ids": [
+       "ml1-00089",
+       "ml1-00591",
+       "ml1-01036",
+       "ml1-01206"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.passes_completed:asof:ml1-01206",
+      "value": 256,
+      "cited_event_ids": [
+       "ml1-01203",
+       "ml1-01205"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.pressures:asof:ml1-01206",
+      "value": 131,
+      "cited_event_ids": [
+       "ml1-01202",
+       "ml1-01203",
+       "ml1-01205",
+       "ml1-01206"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "rejected"
+    },
+    {
+     "claim": {
+      "metric_id": "away.goals:asof:ml1-01206",
+      "value": 2,
+      "cited_event_ids": [
+       "ml1-01206"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 2,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.shots_on_target:asof:ml1-01206",
+      "value": 4,
+      "cited_event_ids": [
+       "ml1-00089",
+       "ml1-00591",
+       "ml1-01036",
+       "ml1-01206"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 2,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.passes_completed:asof:ml1-01206",
+      "value": 256,
+      "cited_event_ids": [
+       "ml1-01203",
+       "ml1-01205"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 2,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.pressures:asof:ml1-01206",
+      "value": 131,
+      "cited_event_ids": [
+       "ml1-00011",
+       "ml1-00034",
+       "ml1-00036",
+       "ml1-00044",
+       "ml1-00047"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 2,
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "card_id": "analyst:goal:ml1-01253",
+   "attempts": [
+    {
+     "claims": [
+      {
+       "metric_id": "away.goals:asof:ml1-01253",
+       "value": 3,
+       "cited_event_ids": [
+        "ml1-01253"
+       ]
+      },
+      {
+       "metric_id": "away.shots_on_target:asof:ml1-01253",
+       "value": 5,
+       "cited_event_ids": [
+        "ml1-01253"
+       ]
+      },
+      {
+       "metric_id": "away.xg_heuristic@4500-5400:asof:ml1-01253",
+       "value": 1.732,
+       "cited_event_ids": [
+        "ml1-01206",
+        "ml1-01253"
+       ]
+      },
+      {
+       "metric_id": "home.pressures@4500-5400:asof:ml1-01253",
+       "value": 6,
+       "cited_event_ids": [
+        "ml1-01251"
+       ]
+      }
+     ],
+     "calls": [
+      {
+       "response_id": "resp_02cbed0059728d59016adc91f7b5248195b415289710b8b885",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 483,
+        "output_tokens": 96
+       },
+       "tool_calls": [
+        {
+         "name": "list_metrics",
+         "arguments": "{}"
+        },
+        {
+         "name": "get_events",
+         "arguments": "{\"event_ids\":[\"ml1-01245\",\"ml1-01246\",\"ml1-01247\",\"ml1-01248\",\"ml1-01249\",\"ml1-01250\",\"ml1-01251\",\"ml1-01252\",\"ml1-01253\"]}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 21.490000000000002
+        }
+       ]
+      },
+      {
+       "response_id": "resp_0875be3aca423d2b016adc91fb0acc8195ad0407a720289eb6",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 2808,
+        "output_tokens": 138
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.goals:asof:ml1-01253\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.shots_on_target:asof:ml1-01253\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"away.xg_heuristic@4500-5400:asof:ml1-01253\"}"
+        },
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"home.presses@4500-5400:asof:ml1-01253\"}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 1.301
+        }
+       ]
+      },
+      {
+       "response_id": "resp_06c4769bbee6f9cc016adc920e02088193b4972c1fc4380022",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 3320,
+        "output_tokens": 33
+       },
+       "tool_calls": [
+        {
+         "name": "get_metric",
+         "arguments": "{\"metric_id\":\"home.pressures@4500-5400:asof:ml1-01253\"}"
+        }
+       ],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 16.422
+        }
+       ]
+      },
+      {
+       "response_id": "resp_0f65130c8ec49be3016adc9224987081968ca8af9232ceee83",
+       "model": "gpt-4.1-mini",
+       "status": "completed",
+       "usage": {
+        "input_tokens": 3492,
+        "output_tokens": 163
+       },
+       "tool_calls": [],
+       "retries": [
+        {
+         "cause": "HTTP 429",
+         "wait_s": 20.586000000000002
+        }
+       ]
+      }
+     ],
+     "dropped": 0
+    }
+   ],
+   "verdicts": [
+    {
+     "claim": {
+      "metric_id": "away.goals:asof:ml1-01253",
+      "value": 3,
+      "cited_event_ids": [
+       "ml1-01253"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.shots_on_target:asof:ml1-01253",
+      "value": 5,
+      "cited_event_ids": [
+       "ml1-01253"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "away.xg_heuristic@4500-5400:asof:ml1-01253",
+      "value": 1.732,
+      "cited_event_ids": [
+       "ml1-01206",
+       "ml1-01253"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    },
+    {
+     "claim": {
+      "metric_id": "home.pressures@4500-5400:asof:ml1-01253",
+      "value": 6,
+      "cited_event_ids": [
+       "ml1-01251"
+      ]
+     },
+     "source": "foundry_agent",
+     "attempt": 1,
+     "status": "verified"
+    }
+   ]
+  }
+ ],
+ "note": "Claims proposed by a live Microsoft Foundry deployment. Verdicts are recomputed deterministically on replay; claim values are model output, not evidence."
+}

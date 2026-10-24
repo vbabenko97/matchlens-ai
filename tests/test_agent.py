@@ -8,12 +8,14 @@ import io
 import json
 import re
 import urllib.error
+from pathlib import Path
 
 import pytest
 
 from matchlens import agent as agent_module
 from matchlens import narrative
 from matchlens.agent import (
+    DEMO_TRACE,
     FOUNDRY,
     INJECTED,
     MAX_CLAIMS,
@@ -32,6 +34,7 @@ from matchlens.agent import (
     OfflineProposer,
     RecordedProposer,
     check_claim,
+    format_review,
     get_events,
     get_metric,
     list_metrics,
@@ -485,6 +488,41 @@ def test_recorded_trace_replays_with_recomputed_verdicts(match, card_set, tmp_pa
     other_card = build_cards(other, ANALYST).cards[0]
     fallback = review_card(other, other_card, proposer)
     assert fallback.proposer == OFFLINE and "ValueError" in fallback.fallback_reason
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_committed_live_trace_is_acceptable_and_replays_exactly(match, card_set):
+    """The recorded Foundry run (2026-10-24) stays valid evidence as the code evolves."""
+    trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
+    assert trace_problems(trace) == []
+    assert (trace["deployment"], trace["seed"], trace["store"]) == ("gpt-4.1-mini", 1, False)
+    reviews = review_cards(match, card_set, RecordedProposer(trace, DEMO_TRACE))
+    assert [r.card_id for r in reviews] == [r["card_id"] for r in trace["reviews"]]
+    for review, recorded in zip(reviews, trace["reviews"], strict=True):
+        assert review.proposer == RECORDED and review.fallback_reason is None
+        assert [(v.attempt, v.status) for v in review.verdicts] == [
+            (v["attempt"], v["status"]) for v in recorded["verdicts"]
+        ]
+    # A real model self-correction: rejected in attempt 1, all verified in attempt 2.
+    fixed = next(r for r in reviews if r.card_id == "analyst:goal:ml1-01206")
+    rejected = [v for v in fixed.verdicts if v.attempt == 1 and not v.verified]
+    assert len(fixed.attempts) == 2 and len(rejected) == 1
+    assert rejected[0].reasons[0].startswith("cited events are not sources of away.pressures")
+    assert all(v.verified for v in fixed.verdicts if v.attempt == 2)
+    # Only published corrections are called published; a superseded one went back to the agent.
+    text = format_review(fixed)
+    assert "sent back to the agent with the reason (see attempt 2)" in text
+    assert "published instead" not in text
+    injected = format_review(next(r for r in reviews if r.card_id == GOAL))
+    assert "published instead: Northbridge Rovers — Goals: 2 (as of 71')" in injected
+
+
+def test_public_builds_replay_the_committed_trace():
+    for workflow in ("deploy-pages.yml", "deploy-swa.yml"):
+        text = (ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
+        assert f"export-site --offline --agent-trace {DEMO_TRACE}" in text
 
 
 def test_bundle_carries_reviews_for_analyst_cards(match):
