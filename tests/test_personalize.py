@@ -354,3 +354,49 @@ def test_personalize_review_needs_azure_and_known_variants(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     assert main(["personalize-review"]) == 2
     assert main(["personalize-review", "--variants", "fr|neutral"]) == 2
+
+
+# --- Score order, Russian letters, and the committed run -----------------------------------
+
+
+def test_a_score_keeps_its_home_first_order(names):
+    source = "Eastvale Athletic were 2-1 down in minute 71 and won 2-3."
+    ok = "Eastvale Athletic lagen in der 71. Minute 2:1 zurück und gewannen 2:3."
+    flipped = "Eastvale Athletic lagen in der 71. Minute mit 1-2 zurück und gewannen 2-3."
+    assert check_line(source, ok, "de", names) == []
+    reasons = check_line(source, flipped, "de", names)
+    assert reasons == ["score order changed (keep 2-1, 2-3, home first)"]
+    # "minute 81: 2-3" holds one score, not "81-2".
+    assert (
+        check_line("Ugo Vale scores in minute 81: 2-3.", "Ugo Vale trifft (81.): 2:3", "de", names)
+        == []
+    )
+
+
+def test_russian_letters_are_not_ukrainian(names):
+    source = "Goals in minutes 77 and 81 turned it around."
+    assert check_line(source, "Голи на 77-й і 81-й хвилинах змінили хід гри.", "uk", names) == []
+    reasons = check_line(source, "Голы в 77 і 81 хвилинах змінили хід гри.", "uk", names)
+    assert reasons == ["Russian letters in a Ukrainian text"]
+
+
+def test_the_committed_run_replays_with_the_flipped_scores_kept_in_english(match, cards):
+    from pathlib import Path
+
+    from matchlens.personalize import PERSONALIZE_TRACE
+
+    trace = json.loads((Path(__file__).parents[1] / PERSONALIZE_TRACE).read_text("utf-8"))
+    assert trace_problems(trace) == [] and len(trace["runs"]) == len(VARIANTS) * len(cards.cards)
+    results = personalize_cards(match, cards, RecordedPersonalizer(trace, PERSONALIZE_TRACE))
+    lines = [(r, ln) for r in results for ln in r.lines]
+    kept = [(r, ln) for r, ln in lines if ln.status == KEPT]
+    assert len(lines) == 232 and len(kept) == 12
+    # The worst slip of the run: "Eastvale Athletic перемагають 3-2" on a 2-3 scoreboard.
+    title = next(
+        ln
+        for r, ln in kept
+        if (r.lang, r.focus, r.card_id) == ("uk", "away", FT) and ln.index == TITLE
+    )
+    assert "3-2" not in title.text and title.text == title.source
+    assert all("3-2" not in ln.text for _, ln in lines)
+    assert not any("ы" in ln.text for _, ln in lines)

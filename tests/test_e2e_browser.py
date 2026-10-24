@@ -24,6 +24,7 @@ import pytest
 
 from matchlens.agent import DEMO_TRACE, RecordedProposer
 from matchlens.generator import generate_match
+from matchlens.personalize import PERSONALIZE_TRACE, RecordedPersonalizer
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, demo_extra_bundles, dumps
 from matchlens.server import export_site, make_server
 
@@ -57,7 +58,11 @@ def target(request, tmp_path_factory):
     # The same bundle the public build serves: replaying the recorded Foundry agent run.
     trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
     proposer = RecordedProposer(trace, DEMO_TRACE)
-    bundle = json.loads(dumps(build_bundle(generate_match(DEFAULT_DEMO_SEED), proposer=proposer)))
+    personalizer = RecordedPersonalizer(
+        json.loads((ROOT / PERSONALIZE_TRACE).read_text(encoding="utf-8")), PERSONALIZE_TRACE
+    )
+    match = generate_match(DEFAULT_DEMO_SEED)
+    bundle = json.loads(dumps(build_bundle(match, proposer=proposer, personalizer=personalizer)))
     extras = _extras()
     if request.param == "app-server":
         srv = _start(make_server(bundle, port=0, extras=extras))
@@ -766,7 +771,7 @@ def test_language_and_club_rewrite_the_casual_cards(page, personalized_base):
     assert lines[2]["text"] in items.nth(1).text_content()
     note = art.locator(".personalized-note").text_content()
     assert "Українська, for Eastvale Athletic fans" in note and "recorded run" in note
-    assert "tone not checked" in note and "1 line(s) kept in English" in note
+    assert "meaning and tone not checked" in note and "1 line(s) kept in English" in note
     chip = art.locator(".narrative .status").text_content()
     assert chip == "AI wording (Foundry personalizer) · numbers & names checked"
     assert "Offline template" not in art.text_content()
@@ -788,3 +793,20 @@ def test_language_can_be_set_by_url(page, personalized_base):
     _open(page, "?t=5400&lang=fr")  # unknown: the English source
     assert page.eval_on_selector("#p-lang", "s => s.value") == "en"
     assert page.locator("#cards .personalized-note").count() == 0
+
+
+def test_the_recorded_personalizer_run_is_live_on_the_page(page, bundle):
+    """Production bundle: the committed run, re-checked; a flipped score stays English."""
+    p = bundle.get("personalized")
+    if not p:
+        pytest.skip("this deployment has no personalizer run")
+    ft = next(c for c in bundle["cards"]["casual"] if c["kind"] == "full_time")
+    title = p["variants"]["uk|away"]["cards"][ft["card_id"]]["lines"][0]
+    assert title["index"] == -1 and title["status"] == "kept_original"  # "3-2" was rejected
+    _open(page, f"?t={bundle['duration_s']}&lang=uk&follow=away")
+    art = page.locator(f"#cards [data-card-id='{ft['card_id']}']")
+    assert art.locator("h3").text_content() == ft["title"]
+    assert art.locator("h3").get_attribute("lang") == "en"
+    note = art.locator(".personalized-note").text_content()
+    assert "recorded run" in note and "kept in English" in note
+    assert "3-2" not in art.text_content()
