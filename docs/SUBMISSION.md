@@ -3,7 +3,7 @@
 The form asks for a pitch, the Microsoft technologies used, a public GitHub link, a public demo video under 2 minutes, and testing instructions. All texts below are in English, ready to paste.
 
 ## Links
-- **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag `v1.1-submission` (set once the remaining improvements are merged; the earlier tag [`v1.0-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.0-submission) is `2b9da2a`).
+- **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag [`v1.1-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.1-submission), commit `c79b15e` (the earlier tag `v1.0-submission` is `2b9da2a`).
 - **Demo (primary, Azure):** <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>
 - **Demo (backup, GitHub Pages, static only):** <https://vbabenko97.github.io/matchlens-ai/>
 - **Demo video:** *add the YouTube/Vimeo URL*

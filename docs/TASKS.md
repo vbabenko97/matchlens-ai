@@ -30,7 +30,9 @@ Update this file after verified work. A task is done only when the acceptance ch
   - `python -m pytest -q` -> 592 passed, 2 skipped (incl. e2e on local Chromium); `ruff` clean.
   - New unit tests: features cover open-play passes only; geometry (progress <= length); pressed passes follow an opponent's pressure; team steps causal and consistent; heuristics labelled; the xPass sum within 3 % on seeds 100–129, with pressed completion below unpressed; xPass monotone; deterministic bundle.
   - New e2e tests: the tile follows the match; the table labels heuristics and its button selects exactly the counted passes; 320 px reflow.
-- **Next:** PR -> merge -> deploy; then tag `v1.1-submission` (operator), video, screen reader, external test, `/submission-audit`, form.
+- **Merged and deployed:** PR #21 squash-merged as `c79b15e`. SWA [run 40129323269](https://github.com/vbabenko97/matchlens-ai/actions/runs/40129323269) and Pages [run 40129325494](https://github.com/vbabenko97/matchlens-ai/actions/runs/40129325494) succeeded, including smoke.
+- **Tag `v1.1-submission` -> `c79b15e`** (annotated, pushed by the operator). `git ls-remote` confirms it.
+- **Next (operator):** video per `docs/VIDEO_SCRIPT.md`, screen-reader pass, external test, `/submission-audit`, Innovation Studio form.
 
 ## Checkpoint (2026-10-24): player focus mode (improvement 2 of 3)
 - **Critic published:** PR #19 squash-merged as `6731fb0`. SWA [run 40127310562](https://github.com/vbabenko97/matchlens-ai/actions/runs/40127310562) and Pages [run 40127312193](https://github.com/vbabenko97/matchlens-ai/actions/runs/40127312193) succeeded, including smoke.

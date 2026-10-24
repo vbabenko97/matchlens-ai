@@ -1,6 +1,6 @@
 # Demo video script (target 1:50, hard limit < 2:00)
 
-Version shown: tag `v1.1-submission` (to be set after the critic, player-focus and pass-metric PRs are merged), deployed on the Azure host. Voice-over: English, about 225 words: about 1:36 at 138 words per minute, which leaves room for pauses and the trimmed live wait. On-screen labels below are the exact UI texts.
+Version shown: tag `v1.1-submission` (`main` @ `c79b15e`), deployed on the Azure host. Voice-over: English, about 225 words: about 1:36 at 138 words per minute, which leaves room for pauses and the trimmed live wait. On-screen labels below are the exact UI texts.
 
 ## Before recording
 - **Host and capture.** Record the Azure host: <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>. Capture a 1920×1080 browser window at 110–125% zoom; hide bookmarks and extensions.
