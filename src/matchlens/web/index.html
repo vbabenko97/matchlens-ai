@@ -14,10 +14,10 @@
   <header class="topbar">
     <div class="brand">
       <span class="logo" aria-hidden="true">◎</span>
-      <span>MatchLens <strong>AI</strong></span>
-      <span class="pill synthetic" title="All teams, players and events are synthetic">Synthetic match</span>
+      <h1>MatchLens <strong>AI</strong></h1>
+      <span class="pill synthetic">Synthetic match<span class="sr-only">: all teams, players and events are fictional</span></span>
     </div>
-    <div class="scoreboard" aria-live="polite" aria-label="Scoreboard">
+    <div class="scoreboard" role="group" aria-label="Scoreboard">
       <span class="team home" id="home-name">Home</span>
       <span class="score"><span id="home-score">0</span><span class="dash">–</span><span id="away-score">0</span></span>
       <span class="team away" id="away-name">Away</span>
@@ -25,8 +25,8 @@
       <span class="period" id="period">1H</span>
     </div>
     <div class="mode-toggle" role="radiogroup" aria-label="Audience mode">
-      <button type="button" role="radio" data-mode="casual" aria-checked="true">Casual Fan</button>
-      <button type="button" role="radio" data-mode="analyst" aria-checked="false">Analyst</button>
+      <button type="button" role="radio" data-mode="casual" aria-checked="true" tabindex="0">Casual Fan</button>
+      <button type="button" role="radio" data-mode="analyst" aria-checked="false" tabindex="-1">Analyst</button>
     </div>
   </header>
 
@@ -38,7 +38,7 @@
           <g id="trail"></g>
           <g id="highlight"></g>
         </svg>
-        <div class="lower-third" id="lower-third" hidden>
+        <div class="lower-third" id="lower-third" aria-hidden="true" hidden>
           <span class="lt-kind" id="lt-kind"></span>
           <span class="lt-title" id="lt-title"></span>
           <span class="lt-fact" id="lt-fact"></span>
@@ -50,13 +50,13 @@
         </div>
       </div>
 
-      <div class="stats" id="stats" aria-label="Match statistics so far">
+      <div class="stats" id="stats" role="group" aria-label="Match statistics so far">
         <div><span class="stat-label">Shots</span><span id="stat-shots">0 – 0</span></div>
-        <div><span class="stat-label">Synthetic xG <abbr title="Synthetic heuristic, not empirically calibrated">ⓘ</abbr></span><span id="stat-xg">0.00 – 0.00</span></div>
+        <div><span class="stat-label">Synthetic xG <span aria-hidden="true" title="Synthetic heuristic, not empirically calibrated">ⓘ</span><span class="sr-only"> (synthetic heuristic, not empirically calibrated)</span></span><span id="stat-xg">0.00 – 0.00</span></div>
         <div><span class="stat-label">Last event</span><span id="stat-last">—</span></div>
       </div>
 
-      <div class="controls" aria-label="Replay controls">
+      <div class="controls" role="group" aria-label="Replay controls">
         <button type="button" id="play" aria-label="Play">▶</button>
         <button type="button" id="restart" aria-label="Restart">⟲</button>
         <button type="button" id="prev" aria-label="Previous key moment">⏮</button>
@@ -70,20 +70,21 @@
             <option value="240">240×</option>
           </select>
         </label>
-        <a id="download" class="button" href="data/overlays.json" download>⬇ Overlay JSON</a>
+        <a id="download" class="button" href="data/overlays.json" download><span aria-hidden="true">⬇</span> Overlay JSON</a>
+        <p class="hint keys" id="keys-hint">Keys: Space play/pause · ← / → seek 30 s</p>
       </div>
 
       <div class="timeline">
-        <div class="markers" id="markers"></div>
-        <input type="range" id="seek" min="0" max="5400" step="1" value="0" aria-label="Seek match time">
+        <div class="markers" id="markers" role="group" aria-label="Key moments on the timeline"></div>
+        <input type="range" id="seek" min="0" max="5400" step="1" value="0" aria-label="Seek match time" aria-valuetext="00:00">
         <div class="ticks" aria-hidden="true"><span>0'</span><span>45'</span><span>90'</span></div>
       </div>
     </section>
 
-    <aside class="side" aria-label="Insight cards">
+    <aside class="side" aria-labelledby="cards-heading" tabindex="0">
       <h2 id="cards-heading">Key moments</h2>
       <p class="hint" id="cards-hint">Press play — cards appear as moments happen.</p>
-      <div id="cards" aria-live="polite"></div>
+      <div id="cards"></div>
       <section class="inspector" id="inspector" hidden aria-label="Evidence inspector">
         <h2>Evidence inspector</h2>
         <p class="hint" id="inspector-hint">Select an event or metric ID on a card.</p>
@@ -91,6 +92,8 @@
       </section>
     </aside>
   </main>
+
+  <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <footer class="footer">
     <p id="disclosure">Loading…</p>

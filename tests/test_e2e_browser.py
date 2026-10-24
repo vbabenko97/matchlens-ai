@@ -207,3 +207,102 @@ def test_mobile_layout_has_no_horizontal_scroll(browser, base_url):
     pg.wait_for_selector("body[data-ready=true]")
     assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     pg.close()
+
+
+# --- Accessibility (docs/ACCESSIBILITY.md) ---------------------------------------------
+
+
+def test_structure_names_and_live_regions(page):
+    _open(page, "?mode=analyst&t=5400")
+    assert page.locator("h1").count() == 1
+    # Ticking content must not be a live region; one polite status region instead.
+    assert page.locator("[aria-live]").count() == 1
+    assert page.get_attribute("#announcer", "role") == "status"
+    unnamed = page.evaluate(
+        """[...document.querySelectorAll('button, a[href], input, select')]
+             .filter((e) => !(e.getAttribute('aria-label') || e.textContent.trim()
+                              || (e.labels && e.labels.length)))
+             .map((e) => e.outerHTML)"""
+    )
+    assert unnamed == []
+
+
+def test_mode_radiogroup_arrow_keys_and_roving_tabindex(page):
+    _open(page)
+    casual = page.locator(".mode-toggle button[data-mode=casual]")
+    analyst = page.locator(".mode-toggle button[data-mode=analyst]")
+    assert (casual.get_attribute("tabindex"), analyst.get_attribute("tabindex")) == ("0", "-1")
+    casual.focus()
+    page.keyboard.press("ArrowRight")
+    assert analyst.get_attribute("aria-checked") == "true"
+    assert page.evaluate("document.activeElement.dataset.mode") == "analyst"
+    assert (casual.get_attribute("tabindex"), analyst.get_attribute("tabindex")) == ("-1", "0")
+    page.keyboard.press("Home")
+    assert casual.get_attribute("aria-checked") == "true"
+
+
+def test_chip_activation_keeps_keyboard_focus(page):
+    _open(page, "?mode=analyst&t=5400")
+    chip = page.locator("#cards .chip[data-event-id]").first
+    event_id = chip.get_attribute("data-event-id")
+    chip.focus()
+    page.keyboard.press("Enter")
+    focused = page.evaluate(
+        "(a => [a.dataset.eventId, a.getAttribute('aria-pressed')])(document.activeElement)"
+    )
+    assert focused == [event_id, "true"]  # same chip, not <body>, after the cards re-render
+
+
+def test_new_moment_is_announced_once(page, bundle):
+    _open(page)
+    page.click("#next")
+    first = bundle["cards"]["casual"][0]
+    page.wait_for_function(
+        "(t) => document.getElementById('announcer').textContent.includes(t)", arg=first["title"]
+    )
+
+
+def test_seek_slider_speaks_match_clock(page):
+    _open(page, "?t=600")
+    assert page.get_attribute("#seek", "aria-valuetext") == "10:00, 1H"
+
+
+def test_shortcuts_leave_native_controls_alone(page):
+    _open(page, "?t=600")
+    page.focus("#play")
+    page.keyboard.press("ArrowRight")
+    assert page.evaluate("window.matchlens.state.t") == 600
+    page.evaluate("document.activeElement.blur()")
+    page.keyboard.press("ArrowRight")
+    assert page.evaluate("window.matchlens.state.t") == 630
+
+
+def test_interactive_targets_are_at_least_24px(page):
+    _open(page, "?mode=analyst&t=5400")
+    small = page.evaluate(
+        """[...document.querySelectorAll('#markers button, #cards .chip')]
+             .map((e) => e.getBoundingClientRect())
+             .filter((r) => r.width < 24 || r.height < 24).length"""
+    )
+    assert small == 0
+
+
+@pytest.mark.parametrize("width", [320, 390])
+def test_narrow_screens_reflow_without_overlapping_markers(browser, base_url, width):
+    pg = browser.new_page(viewport={"width": width, "height": 800})  # 320px = 1280px at 400%
+    pg.goto(base_url + "?t=5400")
+    pg.wait_for_selector("body[data-ready=true]")
+    assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    overlaps = pg.evaluate(
+        """(() => {
+             const r = [...document.querySelectorAll('#markers button')]
+               .map((e) => e.getBoundingClientRect());
+             let n = 0;
+             for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++)
+               if (r[i].left < r[j].right && r[j].left < r[i].right
+                   && r[i].top < r[j].bottom && r[j].top < r[i].bottom) n++;
+             return n;
+           })()"""
+    )
+    assert overlaps == 0
+    pg.close()
