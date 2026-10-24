@@ -21,7 +21,9 @@ which are deliberately wrong and only exercise the validator.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+import time
+import urllib.error
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -49,7 +51,10 @@ MAX_RETRIES = 1
 MAX_MODEL_CALLS = 6  # per attempt, tool rounds included
 MAX_TOOL_CALLS = 16  # per attempt
 MAX_EVENTS_PER_CALL = 25
-MAX_OUTPUT_TOKENS = 1000
+MAX_OUTPUT_TOKENS = 400  # Azure counts this against the per-minute token limit up front
+RATE_LIMIT_RETRIES = 4  # per model call, on HTTP 429
+RATE_LIMIT_MAX_WAIT_S = 60.0
+RATE_LIMIT_DEFAULT_WAIT_S = 10.0
 TRACE_SCHEMA = "matchlens.agent-trace/v1"
 OFFLINE_LABEL = "Offline deterministic proposer — no AI; drafts the card's own metric claims."
 INJECTED_LABEL = "Injected test claim — deliberately wrong, to show the validator rejecting it."
@@ -99,11 +104,9 @@ def _event_record(ctx: ReviewContext, e: Event) -> dict[str, Any]:
     }
 
 
-def list_metrics(ctx: ReviewContext) -> list[dict[str, Any]]:
-    return [
-        {"metric_id": m.metric_id, "label": m.label, "team": m.team, "window": m.window}
-        for m in ctx.metrics.values()
-    ]
+def list_metrics(ctx: ReviewContext) -> list[str]:
+    """Metric IDs only, to keep requests small; ``get_metric`` gives label and value."""
+    return list(ctx.metrics)
 
 
 def get_metric(ctx: ReviewContext, metric_id: str) -> dict[str, Any]:
@@ -136,7 +139,11 @@ TOOL_SPECS = [
     {
         "type": "function",
         "name": "list_metrics",
-        "description": "List the metric IDs available when the card is published.",
+        "description": (
+            "List the metric IDs available when the card is published, e.g. "
+            "'home.shots@3600-4500:asof:<event>' (window in match seconds) or "
+            "'away.goals:asof:<event>' (match so far)."
+        ),
         "parameters": _object({}),
         "strict": True,
     },
@@ -335,7 +342,19 @@ def agent_brief(ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> st
     return "\n".join(lines)
 
 
-def _call_record(response: dict, calls: list[dict]) -> dict[str, Any]:
+def retry_after_s(exc: urllib.error.HTTPError) -> float:
+    """Azure's requested wait (``retry-after-ms`` or ``retry-after``), capped, else a default."""
+    headers = exc.headers or {}
+    for key, scale in (("retry-after-ms", 0.001), ("retry-after", 1.0)):
+        try:
+            value = float(headers.get(key))
+        except (TypeError, ValueError):
+            continue
+        return min(max(value * scale, 0.0), RATE_LIMIT_MAX_WAIT_S)
+    return RATE_LIMIT_DEFAULT_WAIT_S
+
+
+def _call_record(response: dict, calls: list[dict], waits: list[float]) -> dict[str, Any]:
     if not isinstance(response.get("id"), str) or not isinstance(response.get("model"), str):
         raise ResponseFormatError("response id or model missing")
     usage = response.get("usage") if isinstance(response.get("usage"), dict) else {}
@@ -345,6 +364,7 @@ def _call_record(response: dict, calls: list[dict]) -> dict[str, Any]:
         "status": response["status"],
         "usage": {k: usage.get(k) for k in ("input_tokens", "output_tokens")},
         "tool_calls": [{"name": c["name"], "arguments": c["arguments"][:500]} for c in calls],
+        "rate_limit_waits_s": waits,
     }
 
 
@@ -354,15 +374,32 @@ class FoundryAgentProposer:
     name = FOUNDRY
 
     def __init__(
-        self, config: AzureOpenAIConfig, transport: Transport | None = None, timeout_s=30.0
+        self,
+        config: AzureOpenAIConfig,
+        transport: Transport | None = None,
+        timeout_s: float = 30.0,
+        sleep: Callable[[float], None] = time.sleep,
     ):
         self.config = config
         self.transport = transport
         self.timeout_s = timeout_s
+        self.sleep = sleep
         self.label = (
             f"Microsoft Foundry agent (deployment {config.deployment}, Responses API v1), run "
             "when this output was built; every claim is checked by the deterministic validator."
         )
+
+    def _post(self, body: dict) -> tuple[dict, list[float]]:
+        """One model call; on HTTP 429 waits as Azure asks (bounded) and tries again."""
+        waits: list[float] = []
+        while True:
+            try:
+                return post_responses(self.config, body, self.transport, self.timeout_s), waits
+            except urllib.error.HTTPError as exc:
+                if exc.code != 429 or len(waits) >= RATE_LIMIT_RETRIES:
+                    raise
+                waits.append(retry_after_s(exc))
+                self.sleep(waits[-1])
 
     def propose(self, ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> Proposal:
         items: list[dict[str, Any]] = [
@@ -380,7 +417,7 @@ class FoundryAgentProposer:
                 "max_output_tokens": MAX_OUTPUT_TOKENS,
                 "store": False,  # no server-side retention; the full input is resent instead
             }
-            response = post_responses(self.config, body, self.transport, self.timeout_s)
+            response, waits = self._post(body)
             if response.get("status") != "completed":
                 raise ResponseFormatError("response status is not 'completed'")
             output = response.get("output")
@@ -389,7 +426,7 @@ class FoundryAgentProposer:
             calls = [i for i in output if isinstance(i, dict) and i.get("type") == "function_call"]
             if not all(isinstance(c.get(k), str) for c in calls for k in _CALL_KEYS):
                 raise ResponseFormatError("function call is missing name, call_id or arguments")
-            records.append(_call_record(response, calls))
+            records.append(_call_record(response, calls, waits))
             if not calls:
                 claims, dropped = parse_claims(extract_output_text(response))
                 return Proposal(claims, tuple(records), dropped)

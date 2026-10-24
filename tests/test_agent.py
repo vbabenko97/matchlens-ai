@@ -4,6 +4,7 @@ The Foundry loop runs against a scripted fake Responses API; that exercises the 
 handling only and is not integration evidence.
 """
 
+import io
 import json
 import re
 import urllib.error
@@ -17,6 +18,8 @@ from matchlens.agent import (
     MAX_CLAIMS,
     MAX_MODEL_CALLS,
     OFFLINE,
+    RATE_LIMIT_MAX_WAIT_S,
+    RATE_LIMIT_RETRIES,
     RECORDED,
     REJECTED,
     TRACE_SCHEMA,
@@ -30,6 +33,7 @@ from matchlens.agent import (
     list_metrics,
     live_review,
     parse_claims,
+    retry_after_s,
     review_card,
     review_cards,
     review_context,
@@ -152,7 +156,7 @@ def test_context_is_cut_at_publication(match, goal, ctx):
 
 
 def test_tools_only_see_the_match_so_far(ctx):
-    ids = [m["metric_id"] for m in list_metrics(ctx)]
+    ids = list_metrics(ctx)
     assert ids == list(ctx.metrics) and SHOTS in ids
     shots = get_metric(ctx, SHOTS)
     assert shots["value"] == 3 and "ml1-01166" not in shots["source_event_ids"]
@@ -308,6 +312,41 @@ def test_agent_failures_fall_back_offline_unless_strict(match, goal, replies, er
         )
 
 
+def _rate_limited(headers, body=b""):
+    return urllib.error.HTTPError("u", 429, "Too Many Requests", headers, io.BytesIO(body))
+
+
+def test_rate_limits_wait_as_azure_asks_then_continue(match, goal):
+    waits = []
+    script = [_rate_limited({"retry-after": "7"}), _rate_limited({"retry-after-ms": "1500"})]
+    fake = FakeResponses(script + _goal_script())
+    proposer = FoundryAgentProposer(_config(), fake, sleep=waits.append)
+    review = review_card(match, goal, proposer, strict=True)
+    assert waits == [7.0, 1.5] and review.proposer == FOUNDRY
+    assert review.attempts[0].calls[0]["rate_limit_waits_s"] == [7.0, 1.5]
+    assert review.attempts[0].calls[1]["rate_limit_waits_s"] == []
+
+
+def test_rate_limit_waits_are_capped_and_bounded(match, goal):
+    assert retry_after_s(_rate_limited({"retry-after": "900"})) == RATE_LIMIT_MAX_WAIT_S
+    assert retry_after_s(_rate_limited({"retry-after": "soon"})) == 10.0
+    assert retry_after_s(_rate_limited({})) == 10.0
+    waits = []
+    fake = FakeResponses(
+        [_rate_limited({"retry-after": "1"}) for _ in range(RATE_LIMIT_RETRIES + 1)]
+    )
+    proposer = FoundryAgentProposer(_config(), fake, sleep=waits.append)
+    with pytest.raises(urllib.error.HTTPError):
+        review_card(match, goal, proposer, strict=True)
+    assert waits == [1.0] * RATE_LIMIT_RETRIES and not fake.replies
+    other = FakeResponses([urllib.error.HTTPError("u", 500, "err", {}, None)])
+    with pytest.raises(urllib.error.HTTPError):  # only 429 is retried
+        review_card(
+            match, goal, FoundryAgentProposer(_config(), other, sleep=waits.append), strict=True
+        )
+    assert len(waits) == RATE_LIMIT_RETRIES
+
+
 def test_failed_retry_drops_the_rejected_claims(match, goal):
     script = _goal_script()[:3] + [OSError("down")]
     review = review_card(match, goal, FoundryAgentProposer(_config(), FakeResponses(script)))
@@ -423,6 +462,13 @@ def test_cli_live_review_writes_redacted_trace(capsys, monkeypatch, tmp_path):
     monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses([OSError("down")]))
     assert main(["agent-review", "--seed", "1", "--limit", "1"]) == 1  # strict: no fallback
     assert "live agent run failed: OSError" in capsys.readouterr().err
+
+    body = json.dumps({"error": {"code": "RateLimitReached", "message": "x"}}).encode()
+    limited = [_rate_limited({"retry-after": "0"}, body) for _ in range(RATE_LIMIT_RETRIES + 1)]
+    monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses(limited))
+    assert main(["agent-review", "--seed", "1", "--limit", "1"]) == 1
+    err = capsys.readouterr().err
+    assert "HTTP 429 (error code RateLimitReached, retry-after 0 s, still rate-limited" in err
 
 
 @pytest.mark.parametrize(

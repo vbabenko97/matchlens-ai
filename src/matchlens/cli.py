@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -244,6 +245,26 @@ def _main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _short_token(value: object) -> str | None:
+    """Echo a header or error code only when it is a short plain token (never free text)."""
+    text = str(value) if value is not None else ""
+    return text if text and len(text) <= 64 and text.replace(".", "").isalnum() else None
+
+
+def _http_detail(exc: urllib.error.HTTPError) -> str:
+    code = None
+    with contextlib.suppress(Exception):  # the body may be absent or not JSON
+        code = _short_token(json.loads(exc.read()).get("error", {}).get("code"))
+    after = _short_token(exc.headers.get("retry-after")) if exc.headers else None
+    parts = [f"error code {code}" if code else "", f"retry-after {after} s" if after else ""]
+    detail = ", ".join(p for p in parts if p)
+    if exc.code == 429:
+        detail += (
+            ", " if detail else ""
+        ) + "still rate-limited after waiting; see AZURE_VERIFICATION.md 5b"
+    return f" ({detail})" if detail else ""
+
+
 def _agent_review(args: argparse.Namespace) -> int:
     match = assert_valid(generate_match(args.seed))
     card_set = build_cards(match, ANALYST, OfflineTemplateProvider(), args.limit)
@@ -260,7 +281,7 @@ def _agent_review(args: argparse.Namespace) -> int:
         try:
             reviews, trace = live_review(match, card_set, config, timeout_s=args.timeout)
         except urllib.error.HTTPError as exc:
-            print(f"live agent run failed: HTTP {exc.code}", file=sys.stderr)
+            print(f"live agent run failed: HTTP {exc.code}{_http_detail(exc)}", file=sys.stderr)
             return 1
         except Exception as exc:  # never echo exception text that could contain headers
             print(f"live agent run failed: {type(exc).__name__}", file=sys.stderr)

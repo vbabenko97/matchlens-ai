@@ -54,6 +54,12 @@ python -m matchlens agent-review --seed 1 --out agent-trace.json | tee agent-rev
 grep -F -c -- "$AZURE_OPENAI_API_KEY" agent-trace.json agent-review.txt   # both must print 0
 ```
 Run it with the key already exported and non-empty. A rerun should use new file names.
+In zsh, do not paste trailing `# comments`: interactive zsh passes them to the command as arguments.
+
+**HTTP 429 (rate limit).** Each model call that gets a 429 waits as Azure asks (`retry-after-ms`/`retry-after`, at most 60 s, default 10 s) and retries, up to 4 times. The waits are recorded per call as `rate_limit_waits_s`.
+- A request is kept small: metric IDs only from `list_metrics`, and `max_output_tokens: 400`. Azure counts the output limit against the per-minute quota up front.
+- A full seed-1 run is still roughly 20–30K tokens within a few minutes.
+- If it fails with `HTTP 429 (… still rate-limited …)`, raise the deployment's *Tokens per Minute Rate Limit* in the Foundry portal (Deployments → the deployment → Edit), within your subscription quota. On pay-per-token deployments the limit itself is not billed; usage is. Then rerun.
 `agent-review` runs the bounded Foundry claim agent on the four analyst cards of seed 1. That is about 2–5 Responses API calls per card, plus one retry per card if the validator rejects a claim. It is **strict**, and a trace is written only when the run is acceptable evidence:
 - Any failure exits `1` (`live agent run failed: <type>`) and writes nothing, so a recorded trace never holds fallback output.
 - A completed run also exits `1` and writes nothing when `trace_problems` finds that the evidence falls short. It checks that every model call has a response ID and positive token usage, that the run made at least one real tool call, that no card holds offline fallback claims, and that each card has at least one model claim the validator accepted. The reasons are printed. An empty claim list therefore cannot pass.
