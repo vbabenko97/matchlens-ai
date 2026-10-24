@@ -12,7 +12,7 @@ Update this file after verified work. A task is done only when the acceptance ch
 
 ## Latest checkpoint (2026-10-24): cards no longer look ahead
 - **Bug (reproduced on `main` @ `c838aad`, seed 1):** 5 of the 8 public-demo cues cited events that had not happened yet.
-  - The analyst 71' goal card (shown at 70:13) said "Shots: 4" for 60'–75'. Only 3 had been taken; the 4th, `ml1-01166`, is at 77'. Window metrics were computed over the full window.
+  - The analyst 71' goal card (shown at 70:13) said "Shots: 4" for 60'–75'. Only 3 had been taken; the 4th, `ml1-01166`, is at 74:05.8 (minute 75). Window metrics were computed over the full window.
   - Press-win cards appeared at the tackle, but the shot they cite comes later. For `press_win:ml1-00126` the shot `ml1-00130` comes 14.0 s later.
   - Missed-chance cards cited the save that comes after the shot.
 - **Fix:**
@@ -26,6 +26,7 @@ Update this file after verified work. A task is done only when the acceptance ch
   - a bundle-level check, as the browser sees it;
   - an e2e check that a card is hidden between its anchor and its publication.
   - The bundle check and the new e2e test fail on the pre-fix code. The hand-checked expectation that encoded the leak ("Shots: 3" at 1') is corrected to 2.
+- **Scope:** sources and timing are causal, but the replay is precomputed and the top-4 moments are chosen over the whole match. State this precisely in the submission.
 - **Verified:** `python -m pytest -q` -> 287 passed (incl. 42 e2e on local Chromium); `ruff check .` and `ruff format --check .` clean.
 - **Next:** after merge, redeploy Pages, since the public demo still serves the look-ahead bundle. Then confirm the smoke job: `MATCHLENS_BASE_URL=https://vbabenko97.github.io/matchlens-ai/ python -m pytest -q -m e2e`.
 

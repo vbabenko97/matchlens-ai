@@ -210,7 +210,7 @@ def test_seed_1_cards_do_not_look_ahead():
     shots_id = "home.shots@3600-4500:asof:ml1-01112"
     shots = next(f for f in goal.facts if f.metric_ids == (shots_id,))
     assert shots.text.startswith("Northbridge Rovers — Shots: 3 (between 60' and 75', as of 71')")
-    # The full 60'-75' window has 4 home shots; the 4th (ml1-01166, 77') comes later.
+    # The full 60'-75' window has 4 home shots; the 4th (ml1-01166, 74:05.8) comes later.
     assert compute_metrics(m)["home.shots@3600-4500"].value == 4
     assert clock["ml1-01166"] > goal.publish_clock_s
     cited = {x.metric_id: x for x in analyst.metrics}
