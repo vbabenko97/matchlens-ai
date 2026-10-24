@@ -1,6 +1,9 @@
 """Deterministic key-moment detectors.
 
 Each ``KeyMoment`` is derived only from simulated events and lists them as evidence.
+Some detectors need events after the anchor (the shot after a press win, the save after a
+missed chance), so a moment is fully known only at ``known_clock_s``, the time of its last
+evidence event; anything shown during a replay must wait until then.
 Detectors:
 - ``goal``: a goal with its build-up, i.e. the scoring possession chain up to the shot.
 - ``big_chance_missed``: a non-goal shot whose synthetic xG heuristic >= ``BIG_CHANCE_XG``.
@@ -31,6 +34,7 @@ class KeyMoment:
     anchor_event_id: str
     clock_s: float  # anchor event time
     start_clock_s: float  # earliest evidence event time
+    known_clock_s: float  # last evidence event time: the moment cannot be known before it
     event_ids: tuple[str, ...]  # evidence, in match order
     details: dict[str, Any]
 
@@ -45,6 +49,7 @@ def _moment(kind: str, anchor: Event, evidence: list[Event], **details: Any) -> 
         anchor_event_id=anchor.event_id,
         clock_s=anchor.clock_s,
         start_clock_s=evidence[0].clock_s,
+        known_clock_s=evidence[-1].clock_s,
         event_ids=tuple(e.event_id for e in evidence),
         details=details,
     )

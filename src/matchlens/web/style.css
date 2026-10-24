@@ -142,7 +142,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .facts li .check { color: var(--ok); font-weight: 700; }
 .facts li.heuristic .check { color: var(--away); }
 .chips { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.25rem; }
-.chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; padding: 0.1rem 0.45rem; border-radius: 6px; min-height: 24px; }
+.chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; padding: 0.1rem 0.45rem; border-radius: 6px; min-height: 24px; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
 .chip.metric { border-color: var(--accent); }
 .chip[aria-pressed="true"] { background: var(--accent); color: #111; }
 .narrative { border-top: 1px dashed var(--line); padding-top: 0.45rem; font-size: 0.85rem; }

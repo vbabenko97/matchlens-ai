@@ -10,7 +10,26 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): cache-busting deployed; zoom check done
+## Latest checkpoint (2026-10-24): cards no longer look ahead
+- **Bug (reproduced on `main` @ `c838aad`, seed 1):** 5 of the 8 public-demo cues cited events that had not happened yet.
+  - The analyst 71' goal card (shown at 70:13) said "Shots: 4" for 60'–75'. Only 3 had been taken; the 4th, `ml1-01166`, is at 77'. Window metrics were computed over the full window.
+  - Press-win cards appeared at the tackle, but the shot they cite comes later. For `press_win:ml1-00126` the shot `ml1-00130` comes 14.0 s later.
+  - Missed-chance cards cited the save that comes after the shot.
+- **Fix:**
+  - `KeyMoment.known_clock_s` is the time of the last evidence event. A card's new `publish_clock_s` is set to it, and the card is shown from then on (UI, overlay `start_s`; `end_s` = publish + 12 s). Overlay cues add `anchor_s`.
+  - Analyst window metrics use `compute_metrics(..., as_of_event_id=last evidence)`. IDs look like `home.shots@3600-4500:asof:ml1-01112` and the text adds "as of 71'".
+  - `future_sources()` re-checks every cited event, evidence event and metric source against publication. Any card that fails is suppressed with the offending IDs.
+- **Tests:**
+  - seed-1 regression (3 shots as of 70:13, not 4; press win published at its shot);
+  - causality invariant over seeds 1–20 with all detected moments, checked against metrics recomputed on the match truncated at publication;
+  - a guard test that reintroduces the old full-window metrics;
+  - a bundle-level check, as the browser sees it;
+  - an e2e check that a card is hidden between its anchor and its publication.
+  - The bundle check and the new e2e test fail on the pre-fix code. The hand-checked expectation that encoded the leak ("Shots: 3" at 1') is corrected to 2.
+- **Verified:** `python -m pytest -q` -> 287 passed (incl. 42 e2e on local Chromium); `ruff check .` and `ruff format --check .` clean.
+- **Next:** after merge, redeploy Pages, since the public demo still serves the look-ahead bundle. Then confirm the smoke job: `MATCHLENS_BASE_URL=https://vbabenko97.github.io/matchlens-ai/ python -m pytest -q -m e2e`.
+
+## Checkpoint (2026-10-24): cache-busting deployed; zoom check done
 - **Pages redeployed** from `main` @ `0aa672c` (PR #6 merge), [run 40082219742](https://github.com/vbabenko97/matchlens-ai/actions/runs/40082219742): build, deploy (09:30 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.
 - **After the redeploy**, the operator's screenshots (normal window and incognito) showed the current styles: screen-reader text hidden, styled `h1`, 24px markers, and the keyboard hint on its own line. The stale-CSS issue is resolved.
 - **Operator zoom check, 200%/400%:** reflow works, there is no horizontal scroll, and all regions are reachable. Two defects were found and fixed in this checkpoint:

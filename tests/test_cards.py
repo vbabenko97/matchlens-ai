@@ -3,12 +3,14 @@ from dataclasses import replace
 
 import pytest
 
-from matchlens.cards import build_cards, format_card
+from matchlens import cards as cards_module
+from matchlens.cards import DISPLAY_AFTER_S, build_cards, format_card, future_sources
 from matchlens.cli import main
 from matchlens.generator import generate_match
-from matchlens.metrics import compute_metrics
+from matchlens.metrics import as_of_id, compute_metrics
 from matchlens.moments import detect_moments
 from matchlens.narrative import AI_UNVERIFIED, ANALYST, CASUAL, OFFLINE_LABEL, TEMPLATE
+from matchlens.schema import Match
 
 from .conftest import DEMO_FIXTURE
 from .hand_match import eid, hand_match
@@ -45,7 +47,17 @@ def test_casual_cards_hand_checked(match):
         "won the ball in minute 1."
     )
     assert press.facts[1].event_ids == (eid(8),)
-    assert (goal.start_clock_s, goal.anchor_clock_s, goal.end_clock_s) == (44.0, 50.0, 62.0)
+    # (lead-in, anchor, publish, end): a card is published at its last evidence event.
+    assert (goal.start_clock_s, goal.anchor_clock_s, goal.publish_clock_s, goal.end_clock_s) == (
+        44.0,
+        50.0,
+        50.0,
+        62.0,
+    )
+    # The press win (tackle at 6 s) is known only once its shot (12 s) has happened, and
+    # the missed chance (shot at 70 s) only once the keeper's recovery (72 s) has.
+    assert (press.anchor_clock_s, press.publish_clock_s, press.end_clock_s) == (6.0, 12.0, 24.0)
+    assert (chance.anchor_clock_s, chance.publish_clock_s) == (70.0, 72.0)
 
 
 def test_analyst_goal_card_hand_checked(match):
@@ -59,18 +71,20 @@ def test_analyst_goal_card_hand_checked(match):
         f"[evidence: {eid(12)}, {eid(13)}, {eid(14)}]"
     )
     assert texts[4].startswith("Shot quality 0.084 xG [synthetic heuristic")
-    # Window metrics for the window containing the goal (the whole 120 s match here).
+    # Window metrics for the window containing the goal (the whole 120 s match here),
+    # counted only up to the goal: the home shot at 70 s has not happened yet.
     assert [f.metric_ids for f in goal.facts[5:]] == [
-        ("home.shots@0-120",),
-        ("home.xg_heuristic@0-120",),
-        ("away.pressures@0-120",),
+        (f"home.shots@0-120:asof:{eid(14)}",),
+        (f"home.xg_heuristic@0-120:asof:{eid(14)}",),
+        (f"away.pressures@0-120:asof:{eid(14)}",),
     ]
     assert texts[5] == (
-        "Northbridge Rovers — Shots: 3 (between 0' and 2') [evidence: metric home.shots@0-120]"
+        "Northbridge Rovers — Shots: 2 (between 0' and 2', as of 1') "
+        f"[evidence: metric home.shots@0-120:asof:{eid(14)}]"
     )
     assert texts[7] == (
-        "Eastvale Athletic — Pressures applied: 1 (between 0' and 2') "
-        "[evidence: metric away.pressures@0-120]"
+        "Eastvale Athletic — Pressures applied: 1 (between 0' and 2', as of 1') "
+        f"[evidence: metric away.pressures@0-120:asof:{eid(14)}]"
     )
 
 
@@ -91,8 +105,9 @@ def test_modes_differ_in_content(match):
 @pytest.mark.parametrize("mode", [CASUAL, ANALYST])
 def test_every_fact_cites_existing_evidence(match, mode):
     event_ids = {e.event_id for e in match.events}
-    metrics = compute_metrics(match)
-    for card in build_cards(match, mode).cards:
+    card_set = build_cards(match, mode)
+    metrics = {m.metric_id: m for m in card_set.metrics}
+    for card in card_set.cards:
         for fact in card.facts:
             assert fact.event_ids or fact.metric_ids
             assert set(fact.event_ids) <= event_ids
@@ -162,3 +177,93 @@ def test_cli_reports_bad_azure_config_without_traceback(capsys, monkeypatch):
     err = capsys.readouterr().err
     assert "must be an https:// URL" in err and "secret-value-123" not in err
     assert main(["demo", "--seed", "1", "--limit", "1", "--offline"]) == 0
+
+
+def _assert_causal(match, card_set):
+    """Every card source has happened by publication; cited metrics match a replay cut there."""
+    by_id = {e.event_id: e for e in match.events}
+    metrics = {m.metric_id: m for m in card_set.metrics}
+    published = [c.publish_clock_s for c in card_set.cards]
+    assert published == sorted(published)  # the UI shows the last published card as active
+    for card in card_set.cards:
+        last = by_id[card.evidence_event_ids[-1]]
+        assert card.publish_clock_s == last.clock_s >= card.anchor_clock_s >= card.start_clock_s
+        assert card.end_clock_s == card.publish_clock_s + DISPLAY_AFTER_S
+        args = (card.publish_clock_s, card.evidence_event_ids, card.facts, match, metrics)
+        assert future_sources(*args) == ()
+        # Independent oracle: the same metric computed on the match as replayed so far.
+        so_far = compute_metrics(Match(match.meta, match.events[: last.seq]))
+        for metric_id in {m for f in card.facts for m in f.metric_ids}:
+            metric = metrics[metric_id]
+            assert metric.as_of_event_id == last.event_id
+            plain = so_far[metric_id.removesuffix(f":asof:{last.event_id}")]
+            assert (metric.value, metric.source_event_ids) == (plain.value, plain.source_event_ids)
+
+
+def test_seed_1_cards_do_not_look_ahead():
+    """Regression: seed 1 cards counted a later shot and cited shots not yet taken."""
+    m = generate_match(1)
+    clock = {e.event_id: e.clock_s for e in m.events}
+    analyst = build_cards(m, ANALYST)
+    goal = next(c for c in analyst.cards if c.moment_id == "goal:ml1-01112")
+    assert goal.publish_clock_s == goal.anchor_clock_s == 4213.6  # 70:13
+    shots_id = "home.shots@3600-4500:asof:ml1-01112"
+    shots = next(f for f in goal.facts if f.metric_ids == (shots_id,))
+    assert shots.text.startswith("Northbridge Rovers — Shots: 3 (between 60' and 75', as of 71')")
+    # The full 60'-75' window has 4 home shots; the 4th (ml1-01166, 77') comes later.
+    assert compute_metrics(m)["home.shots@3600-4500"].value == 4
+    assert clock["ml1-01166"] > goal.publish_clock_s
+    cited = {x.metric_id: x for x in analyst.metrics}
+    assert "ml1-01166" not in cited[shots_id].source_event_ids
+
+    all_moments = detect_moments(m)
+    for mode in (CASUAL, ANALYST):
+        card_set = build_cards(m, mode, moments=all_moments)
+        assert card_set.suppressed == ()
+        by_moment = {c.moment_id: c for c in card_set.cards}
+        # The press win's tackle is at 7:51.5, but its shot ml1-00130 only comes 14 s later.
+        press = by_moment["press_win:ml1-00126"]
+        assert (
+            press.anchor_clock_s == 471.5 and press.publish_clock_s == clock["ml1-00130"] == 485.5
+        )
+        chance = by_moment["big_chance_missed:ml1-00591"]
+        assert (chance.anchor_clock_s, chance.publish_clock_s) == (2267.3, clock["ml1-00592"])
+        _assert_causal(m, card_set)
+
+
+@pytest.mark.parametrize("seed", range(1, 21))
+def test_cards_never_cite_the_future(seed):
+    m = generate_match(seed)
+    moments = detect_moments(m)
+    for mode in (CASUAL, ANALYST):
+        for card_set in (build_cards(m, mode), build_cards(m, mode, moments=moments)):
+            assert card_set.suppressed == ()
+            _assert_causal(m, card_set)
+
+
+def test_future_sources_flags_early_publication():
+    m = generate_match(1)
+    card_set = build_cards(m, CASUAL, moments=detect_moments(m))
+    press = next(c for c in card_set.cards if c.moment_id == "press_win:ml1-00126")
+    # Shown at the tackle instead of after the shot, the card would cite the future.
+    late = future_sources(press.anchor_clock_s, press.evidence_event_ids, press.facts, m, {})
+    assert late == ("ml1-00130",)
+
+
+def test_card_with_look_ahead_metrics_is_suppressed(monkeypatch):
+    """The old full-window metrics, relabelled as as-of metrics, are caught by the guard."""
+
+    def leaky(match, window_s, as_of_event_id):
+        return {
+            as_of_id(k, as_of_event_id): replace(
+                v, metric_id=as_of_id(k, as_of_event_id), as_of_event_id=as_of_event_id
+            )
+            for k, v in compute_metrics(match, window_s).items()
+        }
+
+    monkeypatch.setattr(cards_module, "compute_metrics", leaky)
+    result = build_cards(generate_match(1), ANALYST)
+    reasons = dict(result.suppressed)
+    assert "goal:ml1-01112" not in {c.moment_id for c in result.cards}
+    assert reasons["goal:ml1-01112"].startswith("card cites events after it is published:")
+    assert "ml1-01166" in reasons["goal:ml1-01112"]

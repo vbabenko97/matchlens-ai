@@ -10,7 +10,6 @@ from dataclasses import asdict
 from typing import Any
 
 from .cards import build_cards
-from .metrics import compute_metrics
 from .narrative import MODES, NarrativeProvider, OfflineTemplateProvider
 from .overlays import build_overlay_document
 from .schema import AWAY, HOME, Match, minute_of
@@ -50,8 +49,7 @@ def minute_series(match: Match) -> dict[str, list[float]]:
 def build_bundle(match: Match, provider: NarrativeProvider | None = None, limit: int = 4) -> dict:
     provider = provider or OfflineTemplateProvider()
     card_sets = [build_cards(match, mode, provider, limit) for mode in MODES]
-    metrics = compute_metrics(match)
-    cited = sorted({m for cs in card_sets for c in cs.cards for f in c.facts for m in f.metric_ids})
+    metrics = {m.metric_id: m for cs in card_sets for m in cs.metrics}
     meta = match.meta
     return {
         "schema": BUNDLE_SCHEMA,
@@ -62,7 +60,7 @@ def build_bundle(match: Match, provider: NarrativeProvider | None = None, limit:
         "events": [{**e.to_record(), "minute": minute_of(e.clock_s)} for e in match.events],
         "cards": {cs.mode: [asdict(c) for c in cs.cards] for cs in card_sets},
         "suppressed": {cs.mode: [list(s) for s in cs.suppressed] for cs in card_sets},
-        "metrics": {m: metrics[m].to_record() for m in cited},
+        "metrics": {m: metrics[m].to_record() for m in sorted(metrics)},
         "series": minute_series(match),
         "overlays": build_overlay_document(match, card_sets),
     }

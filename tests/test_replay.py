@@ -50,7 +50,8 @@ def test_cards_and_overlays_agree(bundle):
         mode_cues = [c for c in cues if c["mode"] == mode]
         assert [c["cue_id"] for c in mode_cues] == [c["card_id"] for c in cards]
         for card, cue in zip(cards, mode_cues, strict=True):
-            assert cue["start_s"] == card["anchor_clock_s"] < cue["end_s"] == card["end_clock_s"]
+            assert cue["start_s"] == card["publish_clock_s"] < cue["end_s"] == card["end_clock_s"]
+            assert cue["anchor_s"] == card["anchor_clock_s"] <= cue["start_s"]
             assert cue["facts"] == card["facts"]
             assert cue["narrative"]["status"] == TEMPLATE
     assert [c["start_s"] for c in cues] == sorted(c["start_s"] for c in cues)
@@ -66,6 +67,21 @@ def test_every_cited_id_is_inspectable(bundle):
                 assert all(m in bundle["metrics"] for m in fact["metric_ids"])
     for metric in bundle["metrics"].values():
         assert set(metric["source_event_ids"]) <= event_ids
+
+
+def test_cues_cite_only_events_that_have_happened(bundle):
+    """As the browser sees it: when a card appears, every event it relies on is in the past."""
+    clock = {e["event_id"]: e["clock_s"] for e in bundle["events"]}
+    cards = {c["card_id"]: c for cs in bundle["cards"].values() for c in cs}
+    assert bundle["overlays"]["cues"]
+    for cue in bundle["overlays"]["cues"]:
+        cited = set(cue["evidence_event_ids"])
+        for fact in cue["facts"]:
+            cited.update(fact["event_ids"])
+            for metric_id in fact["metric_ids"]:
+                cited.update(bundle["metrics"][metric_id]["source_event_ids"])
+        assert max(clock[i] for i in cited) <= cue["start_s"]
+        assert cue["start_s"] == cards[cue["cue_id"]]["publish_clock_s"]
 
 
 def test_minute_series_matches_metric_totals(match, bundle):

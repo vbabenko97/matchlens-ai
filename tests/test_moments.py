@@ -99,6 +99,7 @@ def test_generated_match_properties(seed):
         assert mo.anchor_event_id in mo.event_ids
         assert [e.seq for e in evidence] == sorted(e.seq for e in evidence)
         assert mo.start_clock_s == evidence[0].clock_s <= mo.clock_s
+        assert mo.clock_s <= mo.known_clock_s == evidence[-1].clock_s
         if mo.kind == "goal":
             assert {e.possession_id for e in evidence} == {by_id[mo.anchor_event_id].possession_id}
         if mo.kind == "press_win":

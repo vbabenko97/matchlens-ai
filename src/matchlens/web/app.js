@@ -170,10 +170,10 @@ function cardsForMode() {
 
 function activeCard() {
   const holdMatch = HOLD_REAL_S * state.speed;
-  const visible = cardsForMode().filter((c) => c.anchor_clock_s <= state.t);
+  const visible = cardsForMode().filter((c) => c.publish_clock_s <= state.t);
   const last = visible[visible.length - 1];
   if (!last) return null;
-  const until = Math.max(last.end_clock_s, last.anchor_clock_s + holdMatch);
+  const until = Math.max(last.end_clock_s, last.publish_clock_s + holdMatch);
   return state.t <= until ? last : null;
 }
 
@@ -206,8 +206,10 @@ function inspectMetric(id) {
   body.appendChild(el("h3", {}, `Metric ${id}`));
   const dl = el("dl");
   const value = m.value === null ? "undefined" : String(m.value);
-  for (const [k, v] of [["Label", m.label], ["Value", value], ["Kind", m.kind], ["Definition", m.definition],
-    ["Sources", `${m.source_event_ids.length} events`]]) {
+  const rows = [["Label", m.label], ["Value", value], ["Kind", m.kind], ["Definition", m.definition]];
+  if (m.as_of_event_id) rows.push(["Counted up to", `event ${m.as_of_event_id} (inclusive)`]);
+  rows.push(["Sources", `${m.source_event_ids.length} events`]);
+  for (const [k, v] of rows) {
     dl.appendChild(el("dt", {}, k));
     dl.appendChild(el("dd", {}, v));
   }
@@ -310,7 +312,8 @@ function announceCards(visible) {
 
 function renderCards() {
   const active = activeCard();
-  const visible = cardsForMode().filter((c) => c.anchor_clock_s <= state.t);
+  // A card appears only once its last evidence event has happened (publish_clock_s).
+  const visible = cardsForMode().filter((c) => c.publish_clock_s <= state.t);
   announceCards(visible);
   const key = [state.mode, visible.length, active ? active.card_id : "", state.selected.join(",")].join("|");
   if (key !== state.cardsKey) {
@@ -434,9 +437,9 @@ function frame(now) {
 function jumpMoment(dir) {
   const cards = cardsForMode();
   const target = dir > 0
-    ? cards.find((c) => c.anchor_clock_s > state.t + 0.5)
-    : [...cards].reverse().find((c) => c.anchor_clock_s < state.t - 0.5);
-  if (target) seek(target.anchor_clock_s);
+    ? cards.find((c) => c.publish_clock_s > state.t + 0.5)
+    : [...cards].reverse().find((c) => c.publish_clock_s < state.t - 0.5);
+  if (target) seek(target.publish_clock_s);
 }
 
 function bindControls() {

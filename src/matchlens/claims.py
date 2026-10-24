@@ -70,9 +70,15 @@ def format_value(metric: Metric) -> str:
 def render_metric(metric: Metric, match: Match) -> str:
     team = match.meta.team(metric.team).name
     text = f"{team} — {metric.label}: {format_value(metric)}"
+    span = []
     if metric.window is not None:
         lo, hi = metric.window
-        text += f" (between {int(lo // 60)}' and {int(hi // 60)}')"
+        span.append(f"between {int(lo // 60)}' and {int(hi // 60)}'")
+    if metric.as_of_event_id is not None:
+        clock = next(e.clock_s for e in match.events if e.event_id == metric.as_of_event_id)
+        span.append(f"as of {minute_of(clock)}'")
+    if span:
+        text += f" ({', '.join(span)})"
     if metric.kind == HEURISTIC:
         text += f" [{HEURISTIC_NOTE}]"
     return text
