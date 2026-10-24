@@ -102,7 +102,11 @@ After the runs: the new trace gets its own editorial review, then the deploy wor
 **Status: deployed and verified with one live call.**
 - **Live call.** An independent review of `main` @ `ff20751`, after the deploy, reported one live call on the Azure host: 7.2 s, 3 model calls, 8,058 tokens, 4 claims verified by the validator.
 - **Quota store.** A live reply also shows that `MATCHLENS_LIVE_COUNTER_URL` is set and the Table Storage reservation works: without it the API answers `not_configured` and makes no model call.
-- **Still open:** the forced `daily_limit` fallback (step 7).
+- **Forced `daily_limit` fallback (step 7): done by the operator on the previous deploy.** The API refused the call with `daily_limit` and the table's `Count` stayed at 2. Repeating it on `2b9da2a` would only re-check the same code after the update.
+- **Re-check of tag `v1.0-submission` (`2b9da2a`), independent review:**
+  - published HTML, JS, CSS and data match a build from the tag;
+  - a fresh live request: HTTP 200, 8,051 tokens, 4 claims verified, 7.5 s on the server and 13.1 s end to end;
+  - the API then reported `remaining_today: 1`, kept for the video.
 
 What it is: on Azure Static Web Apps, each analyst card gets a **Check this card live with Microsoft Foundry** button. It sends `POST /api/live-check` with `{"card_id": ...}` and nothing else. The function in `api/live_check/` (code: `src/matchlens/live.py`) builds the request itself from the demo match and runs the same bounded agent and validator as `agent-review`. The reply replaces the recorded claim check on that card and is labelled as a live call, with response IDs, token use and latency. The key stays in the app settings; the browser never sees it. GitHub Pages builds have no button (no server side).
 

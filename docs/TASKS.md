@@ -10,7 +10,27 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): review fixes before the video (translations, one deadline, docs)
+## Latest checkpoint (2026-10-24): submission version tagged; video script and submission texts
+- **Merged and deployed:** PR #18 squash-merged as `2b9da2a`. SWA [run 40121694703](https://github.com/vbabenko97/matchlens-ai/actions/runs/40121694703) and Pages [run 40121697289](https://github.com/vbabenko97/matchlens-ai/actions/runs/40121697289) succeeded, including their smoke jobs.
+- **Tag `v1.0-submission` -> `2b9da2a`** (annotated). The operator pushed it, because this session can push only its own branch. `git ls-remote` confirms it on GitHub.
+- **Independent re-check of the tag (reported):**
+  - both hosts serve a build identical to the tag;
+  - 438 passed, 1 skipped locally;
+  - all 12 editorial rejections applied and the trace unchanged;
+  - the quota reservation counts against the deadline;
+  - a fresh live request: HTTP 200, 8,051 tokens, 4 claims verified, 7.5 s server / 13.1 s end to end; `remaining_today: 1` left for the video.
+  - The forced `daily_limit` check was done by the operator on the previous deploy (refused; `Count` stayed 2).
+- **New docs:**
+  - `docs/VIDEO_SCRIPT.md`: 7 shots, ~1:50, about 220 words of English voice-over, exact UI labels, deep links, and a one-live-call warning.
+  - `docs/SUBMISSION.md`: links, elevator pitch, Microsoft technologies, English testing instructions, the category note and a pre-submit checklist.
+- **Next (operator):**
+  1. Record and publish the video, then put the link in README and the form.
+  2. Screen-reader pass and a short external test.
+  3. `/submission-audit` with the final package.
+  4. Submit in Innovation Studio and confirm it shows as submitted.
+  5. Keep both hosts up through 2026-11-10.
+
+## Checkpoint (2026-10-24): review fixes before the video (translations, one deadline, docs)
 - **Source:** an independent review of `main` @ `ff20751`.
   - Reported: tests and CI green; both hosts HTTP 200; one live Foundry call on the Azure host (7.2 s, 3 model calls, 8,058 tokens, 4 claims verified); overlay and match picker checked in a browser.
   - Found: meaning errors in accepted personalizer lines; a deadline gap; stale docs.
