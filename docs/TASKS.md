@@ -5,12 +5,23 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [x] M0 (Oct 20): Decide minimal Python stack, project layout, install/format/test commands. Initialize tests and CI. Record deployment plan and available Azure/Microsoft credentials without copying credentials to git.
 - [x] M1 (Oct 20-21): New deterministic synthetic generator and schema validator; reproducibility and invariant tests; checked-in tiny demo fixture.
 - [x] M2 (Oct 21-22): Metrics and 2-4 robust key-moment detectors; unit tests with hand-checked fixtures.
-- [ ] M3 (Oct 23-24; code done, live Azure run blocked on access): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
+- [ ] M3 (Oct 23-24; code done on Responses API v1, live Foundry call confirmed by operator outside MatchLens, recorded `azure-check` run pending): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
 - [x] M4 (Oct 20, local; public hosting is M5): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
 - [ ] M5 (Oct 26; deployment prepared, waiting on operator Azure/Pages steps): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-20)
+## Latest checkpoint (2026-10-24): Responses API v1 migration
+- **Operator-reported:** a live Microsoft Foundry Responses API call succeeded (`gpt-4.1-mini` deployment, `status: completed`, response ID, 17 input / 27 output tokens). It was made outside MatchLens and no live request ran in Claude Code.
+- **Changed:**
+  - `AzureOpenAIProvider` now calls `POST {endpoint}/openai/v1/responses` with `model` (= deployment), `input`, `max_output_tokens: 200` and `store: false`. The legacy chat-completions path, `temperature` and `api-version` are gone.
+  - `AZURE_OPENAI_API_VERSION` is no longer required. The endpoint may be given as the base URL, `.../openai/v1` or the full `.../openai/v1/responses`.
+  - `extract_output_text` joins the `output_text` parts of `message` items in `output`. Non-`completed` status, missing or ill-typed `output`/`content`/`text`, refusal-only replies and the legacy chat shape raise `ResponseFormatError`, and cards fall back to the labelled offline template.
+  - `azure-check` requires `status == completed`, a response ID, a model and positive `input_tokens`/`output_tokens`. Otherwise it exits 1 with `error: InvalidResponse` and a `problems` list. The success report adds `api`, `request_path`, `response_status`, `usage` and `store: false`.
+- **Verified:** `python -m pytest -q` -> 216 passed, 1 skipped (e2e module skipped here because Playwright is not installed; CI runs it). `ruff check .` and `ruff format --check .` clean. All Azure tests use mocked transports and are **not** integration evidence.
+- **Next:** the operator runs one real `python -m matchlens azure-check` (docs/AZURE_VERIFICATION.md §2) and commits the redacted JSON as `docs/evidence/azure-check-<date>.json`; then M5 deployment.
+- **Next command:** `python -m matchlens azure-check | tee azure-check.json` (operator, key entered with `read -rs`).
+
+## Checkpoint (2026-10-20)
 - **PR #2 merged** (`ad818eb`) after review. Two blocking fixes landed first (CI green at `d11dad6`):
   - `export-site` used to `rmtree` its `--out` directory (`--out .` would wipe the working tree); it now refuses non-empty non-export directories and never deletes;
   - an invalid Azure config gives exit code 2 with a message instead of a traceback.

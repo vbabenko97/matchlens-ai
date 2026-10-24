@@ -1,40 +1,39 @@
 # Checklist: verify one real Microsoft Foundry / Azure OpenAI inference
 
-Goal: record evidence of **one live chat-completions call** from MatchLens to a Microsoft Foundry (Azure OpenAI) model deployment. Mocked transports in the test suite do **not** count. Neither does a `demo` run that silently used the offline fallback.
+Goal: record evidence of **one live Responses API (v1) call** from MatchLens to a Microsoft Foundry (Azure OpenAI) model deployment. Mocked transports in the test suite do **not** count. Neither does a `demo` run that silently used the offline fallback.
 
 Every step marked **[operator]** needs your Azure account, credentials or approval. Claude must stop there.
 
 ## 0. Before you start
-- [ ] **[operator]** Approve the spend. A Standard (pay-as-you-go) deployment bills per token. The check sends one request of about 250 input and at most 200 output tokens, a fraction of a cent on small models, but it is not free.
+- [ ] **[operator]** Approve the spend. A Standard (pay-as-you-go) deployment bills per token. The check sends one request of about 250 input and at most 200 output tokens (`max_output_tokens: 200`, `store: false`), a fraction of a cent on small models, but it is not free.
 - [ ] **[operator]** Set a budget alert on the subscription or resource group (Cost Management → Budgets), e.g. USD 5.
 - [ ] Never paste the key into chat, issues, commits, screenshots or CI logs. MatchLens never prints it.
 
 ## 1. Create the model deployment [operator]
 - [ ] In the Microsoft Foundry portal (ai.azure.com), create or select a project in a region that has quota for your chosen model.
-- [ ] Deploy a **non-reasoning chat model**, e.g. `gpt-4o-mini` or `gpt-4.1-mini`, deployment type *Standard* or *Global Standard*.
-  - MatchLens sends `temperature` and `max_tokens`, which reasoning models (o-series, gpt-5 family) reject with HTTP 400 `unsupported_parameter`.
-- [ ] Open the deployment's details and copy from the **Target URI** and **Key** fields:
-  - `AZURE_OPENAI_ENDPOINT`: the scheme and host only, e.g. `https://<resource>.openai.azure.com/` or `https://<resource>.cognitiveservices.azure.com/`;
-  - `AZURE_OPENAI_DEPLOYMENT`: the deployment name (the path segment after `/deployments/`);
-  - `AZURE_OPENAI_API_VERSION`: the `api-version` query value in the Target URI;
+- [ ] Deploy a chat-capable model that supports the Responses API, e.g. `gpt-4.1-mini` (the verified choice) or `gpt-4o-mini`, deployment type *Standard* or *Global Standard*.
+  - Reasoning models also accept the request, but they spend output tokens on reasoning, so a 200-token limit can end as `status: incomplete`, which the check reports as a failure.
+- [ ] From the deployment's details copy:
+  - `AZURE_OPENAI_ENDPOINT`: the resource base URL, e.g. `https://<resource>.services.ai.azure.com` or `https://<resource>.openai.azure.com`. The target URI `https://<resource>.services.ai.azure.com/openai/v1/responses` is also accepted and normalised;
+  - `AZURE_OPENAI_DEPLOYMENT`: the deployment name, sent as the request's `model`;
   - `AZURE_OPENAI_API_KEY`: Key 1.
+  - No `api-version` is needed: the v1 API has none, and `AZURE_OPENAI_API_VERSION` is ignored.
 
 ## 2. Run the strict check locally [operator: environment holds the key]
 ```bash
 pip install -e .
-export AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/
+export AZURE_OPENAI_ENDPOINT=https://<resource>.services.ai.azure.com
 export AZURE_OPENAI_DEPLOYMENT=<deployment-name>
-export AZURE_OPENAI_API_VERSION=<api-version from Target URI>
 read -rs AZURE_OPENAI_API_KEY && export AZURE_OPENAI_API_KEY   # avoids shell history
 python -m matchlens azure-check | tee azure-check.json
 ```
-`azure-check` makes **exactly one** request and **never falls back**. Exit codes: `0` live response received; `1` request failed (`error`, `error_code` such as `DeploymentNotFound`, `401`, `429`); `2` missing or invalid configuration.
+`azure-check` makes **exactly one** `POST {endpoint}/openai/v1/responses` and **never falls back**. Exit codes: `0` live, valid response received; `1` request failed (`error` such as `HTTP 401` with `error_code` such as `DeploymentNotFound`, `TimeoutError`) or the reply was not valid evidence (`error: InvalidResponse` with a `problems` list); `2` missing or invalid configuration.
 
 ## 3. Acceptance criteria (all must hold)
 - [ ] Exit code `0` and `"ok": true`.
-- [ ] `endpoint_host`, `deployment` and `api_version` match the Foundry deployment.
-- [ ] `response_id` (e.g. `chatcmpl-…`) and `model` are present, and `usage` shows non-zero `prompt_tokens` and `completion_tokens`.
-- [ ] `completion` is model text, and `completion_status` is `unverified_ai_wording`. The wording is presentation only and is not a verified fact.
+- [ ] `api` is `responses-v1`, `request_path` is `/openai/v1/responses`, and `endpoint_host` and `deployment` match the Foundry deployment.
+- [ ] `response_status` is `completed`, `response_id` (e.g. `resp_…`) and `model` are present, and `usage` shows positive `input_tokens` and `output_tokens`. The check enforces all of these and exits `1` otherwise.
+- [ ] `completion` is the model's `output_text`, and `completion_status` is `unverified_ai_wording`. The wording is presentation only and is not a verified fact.
 - [ ] The Foundry portal (deployment → Metrics, or Monitoring) shows a request at `checked_at_utc` (allow a few minutes for metrics to appear).
 - [ ] `azure-check.json` contains no key (`grep -c "$AZURE_OPENAI_API_KEY" azure-check.json` prints `0`).
 

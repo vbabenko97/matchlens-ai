@@ -156,7 +156,6 @@ def test_cli_reports_bad_azure_config_without_traceback(capsys, monkeypatch):
         "AZURE_OPENAI_ENDPOINT": "http://insecure.example",
         "AZURE_OPENAI_API_KEY": "secret-value-123",
         "AZURE_OPENAI_DEPLOYMENT": "d",
-        "AZURE_OPENAI_API_VERSION": "v",
     }.items():
         monkeypatch.setenv(key, value)
     assert main(["demo", "--seed", "1", "--limit", "1"]) == 2

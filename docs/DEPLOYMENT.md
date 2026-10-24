@@ -49,10 +49,10 @@ MATCHLENS_BASE_URL=https://<public-url>/ python -m pytest -q -m e2e
 Verified locally against independent static hosts: the app server, a plain static server under a sub-path, and a separately hosted export via `MATCHLENS_BASE_URL`. A real public URL has not been tested yet because nothing is deployed.
 
 ## Microsoft Foundry / Azure OpenAI inference
-- **Code path:** `src/matchlens/narrative.py` (`AzureOpenAIProvider`), configured by the four `AZURE_OPENAI_*` variables in `.env.example`. Real values live only in your shell or a secret store.
+- **Code path:** `src/matchlens/narrative.py` (`AzureOpenAIProvider`), Responses API v1 (`/openai/v1/responses`), configured by the three `AZURE_OPENAI_*` variables in `.env.example`. Real values live only in your shell or a secret store.
 - **Strict check:** `python -m matchlens azure-check` (one call, no fallback, redacted evidence).
 - **Checklist:** [docs/AZURE_VERIFICATION.md](AZURE_VERIFICATION.md).
-- **Status: not yet verified against a live deployment.** Mocked tests do not count.
+- **Status (2026-10-24):** the operator confirmed a live Foundry Responses API call (`gpt-4.1-mini` deployment, `status: completed`, response ID, 17 input / 27 output tokens) made outside MatchLens. A recorded MatchLens `azure-check` run is still pending. Mocked tests do not count.
 
 The public static demo never calls Azure at runtime (that would need the key in the browser). A build-time Azure-worded bundle, with the key held only in a CI secret, is a possible later step. It needs operator approval and would keep the "not verified" label.
 
@@ -62,7 +62,7 @@ The public static demo never calls Azure at runtime (that would need the key in 
 | Azure subscription | **unconfirmed** — operator |
 | Static Web App (Free) + `AZURE_STATIC_WEB_APPS_API_TOKEN` secret | **not created** — operator |
 | GitHub Pages source = GitHub Actions | **not enabled** — operator |
-| Foundry / Azure OpenAI model deployment + key | **not created** — operator; spend approval needed |
+| Foundry / Azure OpenAI model deployment + key | **created** (`gpt-4.1-mini`, operator-reported 2026-10-24); key held by the operator only |
 | `PUBLIC_DEMO_URL` repository variable | **not set** — after first deploy |
 
 ## Operator decisions (2026-10-20)

@@ -2,7 +2,7 @@
 
 Evidence-grounded synthetic football match intelligence for Microsoft × Premier League Inside the Game: Developer Hackathon.
 
-**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 code (insight cards, Casual/Analyst modes, Azure OpenAI provider with offline fallback) done; the Azure path has not yet been run against a live endpoint. M4 browser replay UI done; M5 deployment prepared (Azure Static Web Apps Free / GitHub Pages workflows) but not yet deployed. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
+**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 code (insight cards, Casual/Analyst modes, Azure OpenAI provider with offline fallback) done; the provider now uses the Responses API v1, and the operator has confirmed a live Foundry Responses call outside MatchLens, while a recorded MatchLens `azure-check` run is still pending. M4 browser replay UI done; M5 deployment prepared (Azure Static Web Apps Free / GitHub Pages workflows) but not yet deployed. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
 Project page: https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828
 
@@ -45,15 +45,16 @@ Data format, geometry and possession rules: [docs/DATA_MODEL.md](docs/DATA_MODEL
 
 ## Microsoft Azure OpenAI / Foundry (optional)
 
-Card wording can come from an Azure OpenAI / Microsoft Foundry chat deployment. Export all four variables from `.env.example` (the CLI reads the process environment; it does not load `.env` files):
+Card wording can come from a Microsoft Foundry / Azure OpenAI model deployment through the **Responses API v1** (`POST {endpoint}/openai/v1/responses` with `model`, `input`, `max_output_tokens` and `store: false`). Export the three variables from `.env.example` (the CLI reads the process environment; it does not load `.env` files):
 
 ```bash
-export AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/
-export AZURE_OPENAI_API_KEY=...            # never commit
-export AZURE_OPENAI_DEPLOYMENT=<deployment-name>
-export AZURE_OPENAI_API_VERSION=<api-version>
+export AZURE_OPENAI_ENDPOINT=https://<resource>.services.ai.azure.com
+export AZURE_OPENAI_DEPLOYMENT=<deployment-name>   # sent as "model"
+read -rs AZURE_OPENAI_API_KEY && export AZURE_OPENAI_API_KEY   # never commit
 python -m matchlens demo --seed 42
 ```
+
+`AZURE_OPENAI_API_VERSION` is no longer used; the v1 API takes no `api-version`.
 
 To verify one real call with no fallback, run `python -m matchlens azure-check` (see [docs/AZURE_VERIFICATION.md](docs/AZURE_VERIFICATION.md)).
 
