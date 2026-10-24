@@ -86,6 +86,18 @@ Facts are the only factual content. Each is rendered from verified structured da
 
 No narrative is ever `verified`; model output never changes a card's facts.
 
+## Claim agent (`matchlens.agent`)
+One bounded agent, no framework. For each analyst card, a proposer drafts up to 4 **structured** claims: `metric_id` + `value` and/or `cited_event_ids`. Claims never carry free text.
+- **Context.** `review_context(match, card)` cuts the match at the card's last evidence event, computes as-of metrics there, and records which events come later.
+- **Tools.** The Foundry agent can call three read-only tools bound to that state: `list_metrics`, `get_metric` (value, definition, sources) and `get_events` (up to 25). A later event and an unknown one both return `{"error": "not available"}`, so the tools reveal nothing about the future.
+- **Agent loop.** `FoundryAgentProposer` uses the Responses API v1 with function tools, a strict `json_schema` answer format and `store: false`. Each call is echoed back without item IDs. An attempt makes at most 6 model calls. The last one, or the first after 16 tool calls, is sent with `tool_choice: "none"`, so the model must answer with its claims instead of looking things up again.
+- **Verdicts.** `check_claim` runs `verify_claim` against the cut-off state. A claim citing a later event is rejected with "cited events happen after the card is published". When a claim names a real metric with a wrong value or wrong sources, the computed value is rendered as a **correction**.
+- **Retry.** `review_card` sends all verdicts back once (`MAX_RETRIES = 1`, fresh conversation). Claims still rejected are dropped. `published` = verified final claims + corrections, all template-rendered.
+- **Failure.** A proposer failure falls back to `OfflineProposer`, which claims the card's own metrics, with `fallback_reason` (exception type only). `strict=True` (CLI `agent-review`) raises instead.
+- **Injected test claim.** On the first goal card, an injected test claim states the scoring team's goals +1 (seed 1: `home.goals:asof:ml1-01112 = 3`, actual 2). It is labelled as deliberately wrong and exercises the validator; it is never presented as model output.
+- **Recording.** A live run is recorded as a redacted `matchlens.agent-trace/v1` file: claims, response IDs, model, usage and tool-call names/arguments, never the key. `RecordedProposer` replays its claims for `export-site --agent-trace`, the verdicts are **recomputed**, and the label says "not a live call".
+- **Bundle and UI.** The bundle holds `reviews` keyed by analyst card ID. Their cited metrics are added to `metrics`. Analyst cards show a "Claim check" section with source, verdict, reasons, correction and chips.
+
 ## Overlay cues (`matchlens.overlays`, M4) — schema `matchlens.overlays/v1`
 Top level: `match_id`, `seed`, `synthetic: true`, `time_unit: "match_seconds"`, `teams`, `final_score`, `notes`, `cues`. Each cue is one card in one mode: `cue_id`, `mode`, `kind`, `team`, `start_s` (card publication = last evidence event; every cited event and metric source is at or before it), `end_s` (`start_s` + 12 s), `anchor_s` (anchor event), `lead_in_s` (first evidence event), `title`, `facts` (verified text + `event_ids`/`metric_ids` + `kind`), `evidence_event_ids`, and `narrative` with its `status` and `label`. Consumers must show `facts` as facts and `narrative` only as labelled wording.
 

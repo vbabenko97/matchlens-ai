@@ -10,7 +10,30 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): cards no longer look ahead
+## Latest checkpoint (2026-10-24): live Foundry claim-agent run recorded and wired in
+- **Live run (operator, 11:10 UTC):** `agent-review --seed 1` exited 0 on the fifth attempt. Committed as `docs/evidence/agent-trace-2026-10-24.json`.
+  - 4 analyst cards; 19 Responses API calls, each with its own response ID and positive usage (≈ 40K input / 1.8K output tokens); 27 real tool calls; 13 HTTP 429 waits absorbed; no fallback; `trace_problems` passes.
+  - **Model self-correction (77' card):** the validator rejected `away.pressures:asof:ml1-01206 = 131` because it cited the goal-move events, not pressure events. The retry cited real pressure events and was verified.
+  - On the 81' card the model misspelled a metric ID, got "unknown metric" from the tool, and fixed it with another lookup.
+  - **Injected test claim (71'):** `home.goals = 3` rejected ("claimed 3 but … = 2"), and "Goals: 2 (as of 71')" published.
+  - Checks: no key-like strings or auth headers in the file; replaying the trace reproduces every verdict exactly (regression test).
+- **Earlier recording attempts and the fixes they forced** (all in PR #10):
+  1. HTTP 429 → wait per `Retry-After`, leaner requests.
+  2. `URLError` → bounded network retries, progress output.
+  3. Retry spent every call on lookups → the last call runs with `tool_choice: "none"`.
+  4. Answer cut off at the output cap → resend once with a larger cap; print reasons.
+- **Wired in:**
+  - The Pages and SWA workflows build with `--agent-trace docs/evidence/agent-trace-2026-10-24.json`.
+  - The page disclosure says claim checks replay a recorded run and were re-checked at build time.
+  - The e2e tests use the same bundle as production.
+  - The UI and CLI no longer call a superseded attempt-1 correction "published"; it reads "sent back to the agent". The raw CLI text of the run used the old wording, so only the JSON trace is committed as evidence.
+- **Verified:** `python -m pytest -q` -> 323 passed (incl. 44 e2e on local Chromium); `ruff check .` and `ruff format --check .` clean.
+- **Next (approval needed):**
+  1. Merge PR #10 and redeploy Pages in one go; until then the daily public smoke test would fail on the new e2e checks.
+  2. Confirm the public smoke job.
+  3. Video: card → Casual/Analyst → evidence → claim check (77' self-correction, 71' injected rejection) → recorded response IDs.
+
+## Checkpoint (2026-10-24): cards no longer look ahead
 - **Merged and deployed:**
   - PR #8 squash-merged as `3dd2b45`; CI was green on the PR head (3.11, 3.13, e2e).
   - Pages redeployed from `main` @ `3dd2b45` by [run 40085133359](https://github.com/vbabenko97/matchlens-ai/actions/runs/40085133359): `build`, `deploy` (10:15 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.

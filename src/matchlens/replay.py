@@ -9,8 +9,9 @@ import json
 from dataclasses import asdict
 from typing import Any
 
+from .agent import ClaimProposer, OfflineProposer, review_cards, review_record
 from .cards import build_cards
-from .narrative import MODES, NarrativeProvider, OfflineTemplateProvider
+from .narrative import ANALYST, MODES, NarrativeProvider, OfflineTemplateProvider
 from .overlays import build_overlay_document
 from .schema import AWAY, HOME, Match, minute_of
 
@@ -46,10 +47,19 @@ def minute_series(match: Match) -> dict[str, list[float]]:
     return {k: [round(v, 3) for v in vals] for k, vals in series.items()}
 
 
-def build_bundle(match: Match, provider: NarrativeProvider | None = None, limit: int = 4) -> dict:
+def build_bundle(
+    match: Match,
+    provider: NarrativeProvider | None = None,
+    limit: int = 4,
+    proposer: ClaimProposer | None = None,
+) -> dict:
+    """``proposer`` drafts the claims checked for each analyst card (default: offline)."""
     provider = provider or OfflineTemplateProvider()
     card_sets = [build_cards(match, mode, provider, limit) for mode in MODES]
     metrics = {m.metric_id: m for cs in card_sets for m in cs.metrics}
+    analyst = next(cs for cs in card_sets if cs.mode == ANALYST)
+    reviews = review_cards(match, analyst, proposer or OfflineProposer())
+    metrics.update((m.metric_id, m) for r in reviews for m in r.metrics)
     meta = match.meta
     return {
         "schema": BUNDLE_SCHEMA,
@@ -61,6 +71,7 @@ def build_bundle(match: Match, provider: NarrativeProvider | None = None, limit:
         "cards": {cs.mode: [asdict(c) for c in cs.cards] for cs in card_sets},
         "suppressed": {cs.mode: [list(s) for s in cs.suppressed] for cs in card_sets},
         "metrics": {m: metrics[m].to_record() for m in sorted(metrics)},
+        "reviews": {r.card_id: review_record(r) for r in reviews},
         "series": minute_series(match),
         "overlays": build_overlay_document(match, card_sets),
     }

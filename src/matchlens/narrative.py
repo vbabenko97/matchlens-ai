@@ -172,6 +172,19 @@ def extract_output_text(response: object) -> str:
     return text
 
 
+def post_responses(
+    config: AzureOpenAIConfig, body: dict, transport: Transport | None, timeout_s: float
+) -> dict:
+    """POST one Responses API (v1) request; returns the parsed JSON object (raises on failure)."""
+    headers = {"Content-Type": "application/json", "api-key": config.api_key}
+    url = config.endpoint + RESPONSES_PATH
+    raw = (transport or _urllib_transport)(url, headers, json.dumps(body).encode(), timeout_s)
+    response = json.loads(raw)
+    if not isinstance(response, dict):
+        raise ResponseFormatError("response is not a JSON object")
+    return response
+
+
 _SYSTEM_PROMPT = {
     CASUAL: (
         "You write one or two short, lively sentences for casual football fans watching a "
@@ -224,13 +237,7 @@ class AzureOpenAIProvider:
             "max_output_tokens": MAX_OUTPUT_TOKENS,
             "store": False,  # no server-side retention of prompts or responses
         }
-        headers = {"Content-Type": "application/json", "api-key": self.config.api_key}
-        transport = self.transport or _urllib_transport
-        raw = transport(self.url(), headers, json.dumps(body).encode(), self.timeout_s)
-        response = json.loads(raw)
-        if not isinstance(response, dict):
-            raise ResponseFormatError("response is not a JSON object")
-        return response
+        return post_responses(self.config, body, self.transport, self.timeout_s)
 
     def render(self, request: NarrativeRequest) -> str:
         return extract_output_text(self.complete(request))
