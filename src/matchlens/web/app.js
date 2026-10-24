@@ -8,7 +8,8 @@ const BALL_TYPES = new Set(["pass", "shot", "tackle", "interception", "recovery"
 const TRAIL = 7; // recent ball events drawn on the pitch
 const HOLD_REAL_S = 5; // keep the lower-third up at least this long in real time
 const EVIDENCE_RE = /\s*\[evidence:[^\]]*\]/g;
-const KIND_LABEL = { goal: "Goal", big_chance_missed: "Big chance", press_win: "Press win" };
+const KIND_LABEL = { goal: "Goal", big_chance_missed: "Big chance", press_win: "Press win", full_time: "Full time" };
+const MARKER_GLYPH = { goal: "G", big_chance_missed: "!", press_win: "P", full_time: "FT" };
 const SOURCE_LABEL = {
   foundry_agent: "Foundry agent",
   recorded_foundry_agent: "Foundry agent (recorded run)",
@@ -25,6 +26,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   bundle: null, t: 0, playing: false, speed: 60, mode: "casual",
   selected: [], lastFrame: null, cardsKey: "", eventsById: new Map(),
+  openChains: new Set(), spotlight: null, // UI state kept across card re-renders
   announced: { cards: -1, mode: "", fullTime: false }, announceTimer: null,
 };
 
@@ -59,6 +61,7 @@ function fmtClock(t) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 const minuteOf = (t) => Math.floor(t / 60) + 1;
+const whenOf = (card) => (card.kind === "full_time" ? "FT" : `${minuteOf(card.anchor_clock_s)}'`);
 
 // Index of the last event with clock_s <= t (-1 if none).
 function indexAt(t) {
@@ -69,6 +72,19 @@ function indexAt(t) {
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     if (ev[mid].clock_s <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  return ans;
+}
+
+// Last stat step (one per shot) with seq <= seq, or null before the first shot.
+function stepAt(seq) {
+  const steps = state.bundle.stat_steps;
+  let lo = 0;
+  let hi = steps.length - 1;
+  let ans = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (steps[mid].seq <= seq) { ans = steps[mid]; lo = mid + 1; } else hi = mid - 1;
   }
   return ans;
 }
@@ -157,14 +173,16 @@ function renderScoreboard(idx) {
   $("clock").textContent = fmtClock(state.t);
   const half = state.bundle.meta.period_length_s;
   $("period").textContent = state.t >= state.bundle.duration_s ? "FT" : state.t >= half ? "2H" : "1H";
-  const s = state.bundle.series;
-  const m = Math.min(Math.floor(state.t / 60), s["home.shots"].length - 1);
-  $("stat-shots").textContent = `${s["home.shots"][m]} – ${s["away.shots"][m]}`;
-  $("stat-xg").textContent = `${s["home.xg_heuristic"][m].toFixed(2)} – ${s["away.xg_heuristic"][m].toFixed(2)}`;
+  // Totals after the last shot at or before the current event: in step with the scoreboard.
+  const s = stepAt(e ? e.seq : 0) || { "home.shots": 0, "away.shots": 0, "home.xg_heuristic": 0, "away.xg_heuristic": 0 };
+  $("stat-shots").textContent = `${s["home.shots"]} – ${s["away.shots"]}`;
+  $("stat-xg").textContent = `${s["home.xg_heuristic"].toFixed(2)} – ${s["away.xg_heuristic"].toFixed(2)}`;
   if (e && e.team) {
     const team = e.team === "home" ? state.bundle.meta.home.name : state.bundle.meta.away.name;
     const what = (e.subtype && e.subtype !== "open_play" ? e.subtype : e.type).replace("_", " ");
     $("stat-last").textContent = `${e.minute}' ${team}: ${what}${e.outcome ? ` (${e.outcome.replace("_", " ")})` : ""}`;
+  } else if (e && e.type === "period_end") {
+    $("stat-last").textContent = e.period === 2 ? "Full time" : "Half time";
   } else {
     $("stat-last").textContent = "—";
   }
@@ -239,36 +257,49 @@ function metricChip(id) {
   return b;
 }
 
+// One verified fact. "why" facts (why the moment matters) lead and stand out.
+function factItem(f, analyst) {
+  const heuristic = f.kind === "heuristic";
+  const li = el("li", { class: [f.role === "why" ? "why" : "", heuristic ? "heuristic" : ""].join(" ").trim() });
+  li.appendChild(el("span", { class: "check", title: "Verified from structured event data", "aria-hidden": "true" }, "✓"));
+  const body = el("div");
+  body.appendChild(el("span", { class: "sr-only" }, heuristic ? "Verified, heuristic value: " : "Verified: "));
+  body.appendChild(el("span", {}, f.text));
+  if (analyst && (f.event_ids.length || f.metric_ids.length)) body.appendChild(factChips(f));
+  li.appendChild(body);
+  return li;
+}
+
 function renderCard(card, isActive) {
   const analyst = state.mode === "analyst";
-  const art = el("article", { class: `card ${card.team}${isActive ? " active" : ""}`, "data-card-id": card.card_id });
+  const art = el("article", { class: `card ${card.team} ${card.kind}${isActive ? " active" : ""}`, "data-card-id": card.card_id });
   const head = el("header");
   head.appendChild(el("span", { class: "kind" }, KIND_LABEL[card.kind] || card.kind));
-  head.appendChild(el("span", { class: "minute" }, `${minuteOf(card.anchor_clock_s)}'`));
+  head.appendChild(el("span", { class: "minute" }, whenOf(card)));
   head.appendChild(el("h3", {}, card.title));
   art.appendChild(head);
 
   const facts = el("ul", { class: "facts", "aria-label": "Verified facts" });
-  for (const f of card.facts) {
-    const heuristic = f.kind === "heuristic";
-    const li = el("li", { class: heuristic ? "heuristic" : "" });
-    li.appendChild(el("span", { class: "check", title: "Verified from structured event data", "aria-hidden": "true" }, "✓"));
-    const body = el("div");
-    body.appendChild(el("span", { class: "sr-only" }, heuristic ? "Verified, heuristic value: " : "Verified: "));
-    body.appendChild(el("span", {}, f.text));
-    if (analyst && (f.event_ids.length || f.metric_ids.length)) {
-      const chips = el("div", { class: "chips" });
-      f.event_ids.forEach((id) => chips.appendChild(eventChip(id)));
-      f.metric_ids.forEach((id) => chips.appendChild(metricChip(id)));
-      body.appendChild(chips);
-    }
-    li.appendChild(body);
-    facts.appendChild(li);
-  }
+  card.facts.filter((f) => f.role !== "chain").forEach((f) => facts.appendChild(factItem(f, analyst)));
   art.appendChild(facts);
 
+  // Analyst: the move event by event, folded so the card reads as an explanation first.
+  const chain = card.facts.filter((f) => f.role === "chain");
+  if (analyst && chain.length) {
+    const det = el("details", { class: "chain" });
+    det.open = state.openChains.has(card.card_id);
+    det.addEventListener("toggle", () => {
+      if (det.open) state.openChains.add(card.card_id); else state.openChains.delete(card.card_id);
+    });
+    det.appendChild(el("summary", {}, `Event chain (${chain.length} event${chain.length > 1 ? "s" : ""})`));
+    const list = el("ul", { class: "facts", "aria-label": "Evidence events" });
+    chain.forEach((f) => list.appendChild(factItem(f, analyst)));
+    det.appendChild(list);
+    art.appendChild(det);
+  }
+
   const review = analyst && state.bundle.reviews ? state.bundle.reviews[card.card_id] : null;
-  if (review) art.appendChild(renderReview(review));
+  if (review) art.appendChild(renderReview(review, state.spotlight === card.card_id));
 
   if (analyst) {
     const all = el("button", { type: "button", class: "chip", "data-evidence": card.card_id },
@@ -277,11 +308,12 @@ function renderCard(card, isActive) {
     art.appendChild(all);
   }
 
-  // Narrative: wording only, always labelled; never shown as a verified fact.
+  // One label line: facts are checked; the wording's source is always named (never a fact).
   const n = card.narrative;
   const nar = el("div", { class: "narrative", "data-status": n.status });
   const unverified = n.status === "unverified_ai_wording";
-  nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}` },
+  nar.appendChild(el("span", { class: "verified-note" }, "✓ checked against match events"));
+  nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}`, title: n.label },
     unverified ? "AI wording · NOT VERIFIED" : "Offline template · not an Azure response"));
   const duplicate = n.text === card.facts.map((f) => f.text).join(" ");
   if (unverified) {
@@ -292,7 +324,6 @@ function renderCard(card, isActive) {
     det.appendChild(el("p", { class: "text" }, n.text));
     nar.appendChild(det);
   }
-  nar.appendChild(el("p", { class: "hint" }, n.label));
   if (n.fallback_reason) nar.appendChild(el("p", { class: "warn" }, n.fallback_reason));
   for (const w of n.warnings) nar.appendChild(el("p", { class: "warn" }, `⚠ ${w} (heuristic check only)`));
   art.appendChild(nar);
@@ -313,45 +344,79 @@ function factChips(f) {
   return chips;
 }
 
-// Claim check: every proposed claim with the validator's verdict. Only ✓ claims and
-// corrections rendered from computed metrics are published; the browser decides nothing.
-function renderReview(r) {
-  const sec = el("section", { class: "review", "aria-label": "Claim check" });
+const INJECTED = "injected_test_claim";
+
+function reviewSummary(r) {
+  const parts = [];
+  for (let a = 1; a <= r.attempts.length; a++) {
+    const vs = r.verdicts.filter((v) => v.attempt === a && v.source !== INJECTED);
+    const bad = vs.filter((v) => v.status !== "verified").length;
+    let text = `Attempt ${a}: ${vs.length - bad} of ${vs.length} claims verified`;
+    if (bad) text += a < r.attempts.length ? `, ${bad} rejected and sent back` : `, ${bad} rejected`;
+    parts.push(text);
+  }
+  const tests = r.verdicts.filter((v) => v.source === INJECTED);
+  if (tests.length) parts.push(`test claim ${tests.every((v) => v.status === "verified") ? "verified" : "rejected"}`);
+  return `${parts.join(" · ")}.`;
+}
+
+function verdictItem(r, v, published) {
+  const ok = v.status === "verified";
+  const li = el("li", { class: ok ? "ok" : "rejected", "data-source": v.source });
+  li.appendChild(el("span", { class: "check", "aria-hidden": "true" }, ok ? "✓" : "✗"));
+  const body = el("div");
+  const where = v.source === INJECTED ? "" : ` · attempt ${v.attempt}`;
+  body.appendChild(el("span", { class: "source" }, `${SOURCE_LABEL[v.source] || v.source}${where}`));
+  body.appendChild(el("span", { class: "sr-only" }, ok ? " Verified: " : " Rejected: "));
+  body.appendChild(el("code", { class: "claim" }, claimText(v.claim)));
+  for (const reason of v.reasons) body.appendChild(el("p", { class: "reason" }, `Rejected: ${reason}`));
+  if (!ok && v.attempt === 1 && r.attempts.length > 1) {
+    body.appendChild(el("p", { class: "hint" }, "Sent back to the agent with this reason; see attempt 2."));
+  } else if (v.correction && published.has(v.correction.text)) {
+    const fix = el("p", { class: "correction" });
+    fix.appendChild(el("strong", {}, "Published instead: "));
+    fix.appendChild(el("span", {}, v.correction.text));
+    body.appendChild(fix);
+    body.appendChild(factChips(v.correction));
+  }
+  li.appendChild(body);
+  return li;
+}
+
+// Claim check: every proposed claim with the validator's verdict, attempt by attempt. Only
+// ✓ claims and corrections rendered from computed metrics are published; the browser decides nothing.
+function renderReview(r, spotlight) {
+  const sec = el("section", { class: `review${spotlight ? " spotlight" : ""}`, "aria-label": "Claim check", tabindex: "-1", "data-review": r.card_id });
   sec.appendChild(el("h4", {}, "Claim check"));
   sec.appendChild(el("p", { class: "hint" }, r.proposer_label));
   if (r.fallback_reason) sec.appendChild(el("p", { class: "warn" }, r.fallback_reason));
+  sec.appendChild(el("p", { class: "summary" }, reviewSummary(r)));
   const calls = r.attempts.flatMap((a) => a.calls);
   if (calls.length) {
-    const tools = calls.reduce((n, c) => n + c.tool_calls.length, 0);
     sec.appendChild(el("p", { class: "hint" },
-      `${r.attempts.length} attempt(s), ${calls.length} model call(s), ${tools} tool call(s); ` +
-      `responses ${calls.map((c) => c.response_id).join(", ")}`));
+      "The agent proposes structured claims (metric, value, event IDs) using read-only tools " +
+      "that see the match only up to this card; the validator accepts or rejects each one, and " +
+      "rejections go back to the agent once. Only verified claims are published."));
+    const tools = calls.reduce((n, c) => n + c.tool_calls.length, 0);
+    const ids = el("details", { class: "calls" });
+    ids.appendChild(el("summary", {},
+      `${r.attempts.length} attempt(s), ${calls.length} model call(s), ${tools} tool call(s): response IDs`));
+    ids.appendChild(el("p", { class: "hint" }, calls.map((c) => c.response_id).join(", ")));
+    sec.appendChild(ids);
   }
   const published = new Set(r.published.map((f) => f.text));
-  const list = el("ul", { class: "verdicts" });
-  for (const v of r.verdicts) {
-    const ok = v.status === "verified";
-    const li = el("li", { class: ok ? "ok" : "rejected", "data-source": v.source });
-    li.appendChild(el("span", { class: "check", "aria-hidden": "true" }, ok ? "✓" : "✗"));
-    const body = el("div");
-    const where = v.source === "injected_test_claim" ? "" : ` · attempt ${v.attempt}`;
-    body.appendChild(el("span", { class: "source" }, `${SOURCE_LABEL[v.source] || v.source}${where}`));
-    body.appendChild(el("span", { class: "sr-only" }, ok ? " Verified: " : " Rejected: "));
-    body.appendChild(el("code", { class: "claim" }, claimText(v.claim)));
-    for (const reason of v.reasons) body.appendChild(el("p", { class: "reason" }, `Rejected: ${reason}`));
-    if (!ok && v.attempt === 1 && r.attempts.length > 1) {
-      body.appendChild(el("p", { class: "hint" }, "Sent back to the agent with this reason; see attempt 2."));
-    } else if (v.correction && published.has(v.correction.text)) {
-      const fix = el("p", { class: "correction" });
-      fix.appendChild(el("strong", {}, "Published instead: "));
-      fix.appendChild(el("span", {}, v.correction.text));
-      body.appendChild(fix);
-      body.appendChild(factChips(v.correction));
-    }
-    li.appendChild(body);
-    list.appendChild(li);
+  const groups = r.attempts.map((_, i) => [
+    i === 0 ? "Attempt 1 — proposed claims" : `Attempt ${i + 1} — after the validator's feedback`,
+    r.verdicts.filter((v) => v.source !== INJECTED && v.attempt === i + 1),
+  ]);
+  groups.push(["Test claim — deliberately wrong", r.verdicts.filter((v) => v.source === INJECTED)]);
+  for (const [title, verdicts] of groups) {
+    if (!verdicts.length) continue;
+    sec.appendChild(el("h5", {}, title));
+    const list = el("ul", { class: "verdicts" });
+    verdicts.forEach((v) => list.appendChild(verdictItem(r, v, published)));
+    sec.appendChild(list);
   }
-  sec.appendChild(list);
   for (const n of r.notes) sec.appendChild(el("p", { class: "warn" }, n));
   return sec;
 }
@@ -371,7 +436,8 @@ function announceCards(visible) {
   if (a.mode !== state.mode) { a.mode = state.mode; a.cards = visible.length; return; }
   if (visible.length > a.cards && visible.length) {
     const c = visible[visible.length - 1];
-    announce(`${KIND_LABEL[c.kind] || c.kind}, minute ${minuteOf(c.anchor_clock_s)}: ${c.title}`);
+    const when = c.kind === "full_time" ? "full time" : `minute ${minuteOf(c.anchor_clock_s)}`;
+    announce(`${KIND_LABEL[c.kind] || c.kind}, ${when}: ${c.title}`);
   }
   a.cards = visible.length;
 }
@@ -399,8 +465,8 @@ function renderCards() {
     lt.hidden = false;
     $("lt-kind").textContent = KIND_LABEL[active.kind] || active.kind;
     $("lt-title").textContent = active.title;
-    // Prefer a summary fact (not a single-event line) and drop evidence brackets on the graphic.
-    const summary = active.facts.find((f) => f.event_ids.length !== 1 || f.metric_ids.length) || active.facts[0];
+    // The caption says why the moment matters; evidence brackets are dropped on the graphic.
+    const summary = active.facts.find((f) => f.role === "why") || active.facts[0];
     $("lt-fact").textContent = summary ? summary.text.replace(EVIDENCE_RE, "") : "";
   } else {
     lt.hidden = true;
@@ -421,8 +487,8 @@ function renderMarkers() {
     }
   }
   for (const c of cardsForMode()) {
-    const b = el("button", { type: "button", class: `marker ${c.kind}`, "aria-label": `${KIND_LABEL[c.kind]} ${minuteOf(c.anchor_clock_s)}': ${c.title}`, title: c.title },
-      c.kind === "goal" ? "G" : c.kind === "press_win" ? "P" : "!");
+    const b = el("button", { type: "button", class: `marker ${c.kind}`, "aria-label": `${KIND_LABEL[c.kind]} ${whenOf(c)}: ${c.title}`, title: c.title },
+      MARKER_GLYPH[c.kind] || "•");
     b.style.left = `${(100 * c.anchor_clock_s) / d}%`;
     b.addEventListener("click", () => seek(c.start_clock_s));
     box.appendChild(b);
@@ -476,6 +542,7 @@ function setMode(mode) {
   document.body.dataset.mode = mode;
   $("inspector").hidden = mode !== "analyst";
   state.selected = [];
+  state.spotlight = null;
   state.cardsKey = "";
   renderMarkers();
   render();
@@ -506,6 +573,35 @@ function jumpMoment(dir) {
     ? cards.find((c) => c.publish_clock_s > state.t + 0.5)
     : [...cards].reverse().find((c) => c.publish_clock_s < state.t - 0.5);
   if (target) seek(target.publish_clock_s);
+}
+
+// Demo shortcut: the analyst card whose claims the validator checked (and the agent fixed).
+function showAiCheck(target) {
+  setPlaying(false);
+  setMode("analyst");
+  state.spotlight = target.card_id;
+  seek(target.publish_s);
+  const sec = document.querySelector(`[data-review="${CSS.escape(target.card_id)}"]`);
+  if (!sec) return;
+  const side = sec.closest(".side");
+  if (side.scrollHeight > side.clientHeight + 1) { // desktop: scroll the card panel only
+    side.scrollTop += sec.getBoundingClientRect().top - side.getBoundingClientRect().top - 8;
+  } else {
+    sec.scrollIntoView({ block: "start" });
+  }
+  sec.focus({ preventScroll: true });
+}
+
+function bindShortcuts(h) {
+  const add = (id, label, action, play) => {
+    const b = $(id);
+    b.replaceChildren(el("span", { "aria-hidden": "true" }, play ? "▶ " : "✓ "), document.createTextNode(label));
+    b.hidden = false;
+    b.addEventListener("click", action);
+  };
+  if (h.turning_point) add("jump-turning", h.turning_point.label, () => { seek(h.turning_point.start_s); setPlaying(true); }, true);
+  if (h.ai_check) add("jump-ai", h.ai_check.label, () => showAiCheck(h.ai_check), false);
+  $("shortcuts").hidden = !(h.turning_point || h.ai_check);
 }
 
 function bindControls() {
@@ -564,6 +660,7 @@ function init(bundle) {
       : "");
   drawMarkings();
   bindControls();
+  bindShortcuts(bundle.highlights || {});
   const params = new URLSearchParams(location.search);
   const speed = Number(params.get("speed"));
   if ([15, 30, 60, 120, 240].includes(speed)) { state.speed = speed; $("speed").value = String(speed); }

@@ -8,6 +8,7 @@ Target: **WCAG 2.2 AA** for the replay UI (`src/matchlens/web/`). The audit was 
   - The only item flagged "needs review" is colour contrast on glyph-only elements (◎, ✓, ⓘ). They were measured by hand at 6.1:1 or higher.
   - Before the fixes, axe reported a target-size violation at 390px (overlapping timeline markers) and two prohibited `aria-label`s on plain `div`s.
   - axe was run ad hoc, injected into a test browser with CSP bypassed. It is not a project dependency.
+- **Re-run after the match-story redesign** (axe-core 4.10.2, WCAG tags only, Chromium): start, Casual at full time, Analyst at full time (1400×900), after "See the AI get fact-checked" with every `<details>` open (1400×900), and Casual at full time on a phone (390×844). **0 violations** in all five. New controls: the two shortcut buttons have visible text (the ▶/✓ glyphs are `aria-hidden`); the analyst event chain is a native `<details>` whose open state survives re-renders, so focus returns to the chip that was activated (browser test); the AI-check shortcut moves focus to the claim check it opens; the 24px target test now skips elements inside closed `<details>`, which are not rendered.
 - **Contrast**, computed from the CSS tokens:
   - text is at least 5.66:1 (`--warn` on `--panel-2`), and body text is 13.3:1;
   - control borders (`--control-border`) are at least 3.6:1;

@@ -4,11 +4,19 @@ from dataclasses import replace
 import pytest
 
 from matchlens import cards as cards_module
-from matchlens.cards import DISPLAY_AFTER_S, build_cards, format_card, future_sources
+from matchlens.cards import (
+    CHAIN,
+    DISPLAY_AFTER_S,
+    WHAT,
+    WHY,
+    build_cards,
+    format_card,
+    future_sources,
+)
 from matchlens.cli import main
 from matchlens.generator import generate_match
-from matchlens.metrics import as_of_id, compute_metrics
-from matchlens.moments import detect_moments
+from matchlens.metrics import HEURISTIC, as_of_id, compute_metrics
+from matchlens.moments import detect_moments, select_key_moments
 from matchlens.narrative import AI_UNVERIFIED, ANALYST, CASUAL, OFFLINE_LABEL, TEMPLATE
 from matchlens.schema import Match
 
@@ -28,25 +36,36 @@ def _name(match, player_id):
 
 def test_casual_cards_hand_checked(match):
     cards = build_cards(match, CASUAL).cards
-    assert [c.kind for c in cards] == ["press_win", "goal", "big_chance_missed"]
-    press, goal, chance = cards
-    assert goal.title == "GOAL! Northbridge Rovers score"
-    assert [f.text for f in goal.facts] == [
-        f"{_name(match, 'NBR-09')} scores for Northbridge Rovers in minute 1.",
-        "That puts Northbridge Rovers ahead, 1-0.",
-        "The move started with a tackle that won the ball back.",
+    # Every goal, every missed big chance and the final whistle; press wins get no card.
+    assert [c.kind for c in cards] == ["goal", "big_chance_missed", "full_time"]
+    goal, chance, ft = cards
+    scorer = _name(match, "NBR-09")
+    assert goal.title == "Northbridge Rovers strike first"
+    assert [(f.text, f.role) for f in goal.facts] == [
+        (f"{scorer} scores in minute 1: 1-0.", WHAT),
+        ("First goal of the match: Northbridge Rovers lead 1-0.", WHY),
+        ("The move began with a tackle that won the ball back, then 1 pass.", WHAT),
     ]
-    assert goal.facts[0].event_ids == (eid(14),)
+    assert goal.facts[0].event_ids == goal.facts[1].event_ids == (eid(14),)
     assert goal.facts[2].event_ids == (eid(12), eid(13), eid(14))
-    assert [f.text for f in chance.facts] == [
-        f"{_name(match, 'NBR-11')} had a great chance in minute 2, but the shot was saved.",
-        "The score stays 1-0.",
+    assert [(f.text, f.role) for f in chance.facts] == [
+        (f"{_name(match, 'NBR-11')} had a great chance in minute 2, but the shot was saved.", WHAT),
+        ("It stays 1-0; a goal would have doubled Northbridge Rovers' lead.", WHY),
     ]
-    assert press.facts[0].text == (
-        f"Eastvale Athletic pressed Northbridge Rovers and {_name(match, 'EVA-03')} "
-        "won the ball in minute 1."
+    assert chance.facts[1].event_ids == (eid(22),)
+    # Full time: shots 3-2 (10, 14, 22 vs 8, 19); xG 0.002 + 0.084 + 0.207 vs 0.001 + 0.001.
+    assert ft.title == "Full time: Northbridge Rovers win 1-0"
+    assert [f.text for f in ft.facts] == [
+        "Northbridge Rovers win 1-0.",
+        f"{scorer} scored the winner in minute 1.",
+        "Northbridge Rovers had more shots (3–2) and the better chances "
+        "(synthetic xG, a heuristic: 0.29 vs 0.00).",
+    ]
+    assert all(f.role == WHY for f in ft.facts) and ft.facts[2].kind == HEURISTIC
+    assert ft.facts[0].event_ids == (eid(14), eid(24))
+    assert ft.facts[2].metric_ids == tuple(
+        f"{side}.{n}:asof:{eid(24)}" for side in ("home", "away") for n in ("shots", "xg_heuristic")
     )
-    assert press.facts[1].event_ids == (eid(8),)
     # (lead-in, anchor, publish, end): a card is published at its last evidence event.
     assert (goal.start_clock_s, goal.anchor_clock_s, goal.publish_clock_s, goal.end_clock_s) == (
         44.0,
@@ -54,37 +73,57 @@ def test_casual_cards_hand_checked(match):
         50.0,
         62.0,
     )
-    # The press win (tackle at 6 s) is known only once its shot (12 s) has happened, and
-    # the missed chance (shot at 70 s) only once the keeper's recovery (72 s) has.
-    assert (press.anchor_clock_s, press.publish_clock_s, press.end_clock_s) == (6.0, 12.0, 24.0)
+    # The missed chance (shot at 70 s) is known only once the keeper's recovery (72 s) is;
+    # the full-time card appears at the whistle.
     assert (chance.anchor_clock_s, chance.publish_clock_s) == (70.0, 72.0)
+    assert (ft.start_clock_s, ft.publish_clock_s, ft.end_clock_s) == (120.0, 120.0, 132.0)
 
 
 def test_analyst_goal_card_hand_checked(match):
     goal = next(c for c in build_cards(match, ANALYST).cards if c.kind == "goal")
     assert goal.title == "Goal 1' — Northbridge Rovers (1-0)"
     texts = [f.text for f in goal.facts]
+    assert (
+        texts[0] == f"First goal of the match: Northbridge Rovers lead 1-0. [evidence: {eid(14)}]"
+    )
+    assert [f.role for f in goal.facts] == [WHY, CHAIN, CHAIN, CHAIN] + [WHAT] * 5
     # The evidence chain, one verified event fact per event, in match order.
-    assert [f.event_ids for f in goal.facts[:3]] == [(eid(12),), (eid(13),), (eid(14),)]
-    assert texts[3] == (
+    assert [f.event_ids for f in goal.facts[1:4]] == [(eid(12),), (eid(13),), (eid(14),)]
+    assert texts[4] == (
         "Possession #5: 3 events, 1 pass(es) before the shot, started by tackle. "
         f"[evidence: {eid(12)}, {eid(13)}, {eid(14)}]"
     )
-    assert texts[4].startswith("Shot quality 0.084 xG [synthetic heuristic")
+    assert texts[5].startswith("Shot quality 0.084 xG [synthetic heuristic")
     # Window metrics for the window containing the goal (the whole 120 s match here),
     # counted only up to the goal: the home shot at 70 s has not happened yet.
-    assert [f.metric_ids for f in goal.facts[5:]] == [
+    assert [f.metric_ids for f in goal.facts[6:]] == [
         (f"home.shots@0-120:asof:{eid(14)}",),
         (f"home.xg_heuristic@0-120:asof:{eid(14)}",),
         (f"away.pressures@0-120:asof:{eid(14)}",),
     ]
-    assert texts[5] == (
+    assert texts[6] == (
         "Northbridge Rovers — Shots: 2 (between 0' and 2', as of 1') "
         f"[evidence: metric home.shots@0-120:asof:{eid(14)}]"
     )
-    assert texts[7] == (
+    assert texts[8] == (
         "Eastvale Athletic — Pressures applied: 1 (between 0' and 2', as of 1') "
         f"[evidence: metric away.pressures@0-120:asof:{eid(14)}]"
+    )
+
+
+def test_analyst_full_time_card_lists_verified_totals(match):
+    ft = build_cards(match, ANALYST).cards[-1]
+    assert ft.title == "Full time — Northbridge Rovers 1-0 Eastvale Athletic"
+    assert ft.facts[0].text == f"Northbridge Rovers win 1-0. [evidence: {eid(14)}, {eid(24)}]"
+    totals = [f for f in ft.facts if f.role == WHAT]
+    assert [f.metric_ids[0].split(":")[0] for f in totals[:4]] == [
+        "home.goals",
+        "away.goals",
+        "home.shots",
+        "away.shots",
+    ]
+    assert totals[0].text == (
+        f"Northbridge Rovers — Goals: 1 (at full time) [evidence: metric home.goals:asof:{eid(24)}]"
     )
 
 
@@ -94,10 +133,13 @@ def test_modes_differ_in_content(match):
     casual_texts = {f.text for c in casual for f in c.facts}
     analyst_texts = {f.text for c in analyst for f in c.facts}
     assert casual_texts.isdisjoint(analyst_texts)
-    assert all("[evidence:" not in t and "xG" not in t for t in casual_texts)
+    assert all("[evidence:" not in t for t in casual_texts)
     assert all("[evidence:" in t for t in analyst_texts)
     assert any(f.metric_ids for c in analyst for f in c.facts)
-    assert not any(f.metric_ids for c in casual for f in c.facts)
+    # Casual cards carry no statistics, except the labelled full-time chance comparison.
+    stats = [f for c in casual for f in c.facts if f.metric_ids or "xG" in f.text]
+    assert [(f.role, f.kind) for f in stats] == [(WHY, HEURISTIC)]
+    assert "synthetic xG, a heuristic" in stats[0].text
     for c, a in zip(casual, analyst, strict=True):
         assert len(a.facts) > len(c.facts) and c.title != a.title
 
@@ -151,7 +193,9 @@ def test_generated_cards_are_deterministic_and_grounded(seed):
     m = generate_match(seed)
     for mode in (CASUAL, ANALYST):
         a, b = build_cards(m, mode), build_cards(m, mode)
-        assert a == b and 1 <= len(a.cards) <= 4 and a.suppressed == ()
+        chosen = select_key_moments(detect_moments(m))
+        assert a == b and [c.moment_id for c in a.cards] == [x.moment_id for x in chosen]
+        assert a.suppressed == ()
 
 
 def test_cli_cards_and_demo(capsys, monkeypatch):

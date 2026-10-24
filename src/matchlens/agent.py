@@ -24,7 +24,7 @@ import json
 import time
 import urllib.error
 from collections.abc import Callable, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Protocol
 from urllib.parse import urlparse
@@ -65,6 +65,10 @@ DEMO_TRACE = (
 )
 OFFLINE_LABEL = "Offline deterministic proposer — no AI; drafts the card's own metric claims."
 INJECTED_LABEL = "Injected test claim — deliberately wrong, to show the validator rejecting it."
+NOT_RECORDED = (
+    "This card is not part of the recorded Foundry run; its claims come from the offline "
+    "deterministic proposer (no AI)."
+)
 
 
 class AgentError(RuntimeError):
@@ -281,13 +285,13 @@ class ClaimProposer(Protocol):
 
 
 class OfflineProposer:
-    """Deterministic fallback: claims the card's own window metrics at their computed values."""
+    """Deterministic fallback: claims the card's own metric facts at their computed values."""
 
     name = OFFLINE
     label = OFFLINE_LABEL
 
     def propose(self, ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> Proposal:
-        ids = [m for f in ctx.card.facts for m in f.metric_ids]
+        ids = [f.metric_ids[0] for f in ctx.card.facts if len(f.metric_ids) == 1]
         return Proposal(tuple(Claim(m, ctx.metrics[m].value) for m in ids[:MAX_CLAIMS]))
 
 
@@ -521,11 +525,20 @@ class RecordedProposer:
             raise ValueError("not acceptable evidence: " + "; ".join(problems))
         self.match_id = trace["match_id"]
         self._attempts = {r["card_id"]: r["attempts"] for r in trace["reviews"]}
+        # Where the run put its injected test claim, so a replay puts it on the same card.
+        self.injected_card_ids = frozenset(
+            r["card_id"]
+            for r in trace["reviews"]
+            if any(v["source"] == INJECTED for v in r["verdicts"])
+        )
         self.label = (
             f"Recorded Microsoft Foundry agent run ({trace['recorded_at_utc']}, deployment "
             f"{trace['deployment']}), replayed from {source} — not a live call. The claims "
             "are re-checked by the validator when this output is built."
         )
+
+    def covers(self, card_id: str) -> bool:
+        return card_id in self._attempts
 
     def propose(self, ctx: ReviewContext, feedback: Sequence[ClaimVerdict] = ()) -> Proposal:
         if ctx.match.meta.match_id != self.match_id:
@@ -644,12 +657,24 @@ def review_cards(
     strict: bool = False,
     log: Callable[[str], None] = lambda line: None,
 ) -> tuple[ClaimReview, ...]:
-    """Review every card; the injected test claim goes to the first goal card only."""
+    """Review every card; the injected test claim goes to the first goal card only.
+
+    A recorded run is replayed on the cards it covers, with the injected claim where the run
+    had it; a card it does not cover (the card set has grown since it was recorded) is
+    reviewed by ``OfflineProposer`` and says so in its notes.
+    """
+    recorded = isinstance(proposer, RecordedProposer)
     first_goal = next((c.card_id for c in card_set.cards if c.kind == "goal"), None)
-    return tuple(
-        review_card(match, c, proposer, c.card_id == first_goal, strict, log)
-        for c in card_set.cards
-    )
+    injected = proposer.injected_card_ids if recorded else {first_goal}
+    reviews = []
+    for c in card_set.cards:
+        if recorded and not proposer.covers(c.card_id):
+            review = review_card(match, c, OfflineProposer(), False, strict, log)
+            review = replace(review, notes=(*review.notes, NOT_RECORDED))
+        else:
+            review = review_card(match, c, proposer, c.card_id in injected, strict, log)
+        reviews.append(review)
+    return tuple(reviews)
 
 
 def review_record(review: ClaimReview) -> dict[str, Any]:

@@ -6,10 +6,16 @@ rendered from structured data that was verified first — metric and event facts
 ``verify_claim``, moment facts from the verified moment's fields — and carries its event
 and metric IDs. The narrative is wording only (see ``matchlens.narrative``).
 
+Every card leads with why the moment matters (``role == WHY``): match-story lines from
+``matchlens.story`` (comeback, equaliser, what a missed chance would have meant, how the
+match was won), each re-checked against its cited events by ``check_line``; a line that
+fails is dropped and reported in ``suppressed``. Then come the facts of what happened.
+
 Casual Fan and Analyst modes differ in content, not just headings: casual cards state who,
-when, the score situation and how the move began, in plain language without statistics;
-analyst cards add the evidence event chain, possession/build-up structure, the labelled
-xG heuristic and window metrics, each with IDs in the text.
+when, why it matters and how the move began, in plain language; analyst cards add the
+evidence event chain (``role == CHAIN``), possession/build-up structure, the labelled xG
+heuristic and window metrics, each with IDs in the text. The full-time card compares shots
+with chance quality (synthetic xG) in both modes.
 
 Causality: a card is published at ``publish_clock_s``, the time of the moment's last evidence
 event, and its window metrics are computed as of that event. ``future_sources`` re-checks
@@ -31,8 +37,9 @@ from .metrics import (
     compute_metrics,
     window_bounds,
 )
-from .moments import KeyMoment, detect_moments, select_key_moments
+from .moments import DRAW, KeyMoment, detect_moments, select_key_moments
 from .narrative import (
+    ANALYST,
     CASUAL,
     MODES,
     Narrative,
@@ -42,8 +49,12 @@ from .narrative import (
     narrate,
 )
 from .schema import AWAY, HOME, Match, minute_of
+from .story import StoryLine, chance_story, check_line, full_time_story, goal_story
 
 DISPLAY_AFTER_S = 12.0  # how long a card stays up after it is published
+WHY = "why"  # why the moment matters: match-story and comparison lines
+WHAT = "what"  # what happened
+CHAIN = "chain"  # one evidence event of the move (analyst)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +63,7 @@ class Fact:
     kind: str  # FACT or HEURISTIC
     event_ids: tuple[str, ...] = ()
     metric_ids: tuple[str, ...] = ()
+    role: str = WHAT  # WHY, WHAT or CHAIN
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,41 +137,122 @@ _STARTS = {
 }
 
 
-def _score_situation(match: Match, side: str, score: tuple[int, int]) -> str:
-    team = match.meta.team(side).name
-    mine, theirs = (score[0], score[1]) if side == HOME else (score[1], score[0])
-    if mine == theirs:
-        return f"That levels the score at {score[0]}-{score[1]}."
-    if mine - theirs == 1:
-        return f"That puts {team} ahead, {score[0]}-{score[1]}."
-    if mine > theirs:
-        return f"That stretches {team}'s lead to {score[0]}-{score[1]}."
-    return f"That pulls one back: {score[0]}-{score[1]}."
+_GOAL_TITLES = {
+    "opener": "{team} strike first",
+    "equaliser": "{team} draw level",
+    "comeback": "Comeback! {team} take the lead",
+    "back_in_front": "{team} back in front",
+    "extends_lead": "{team} extend their lead",
+    "pulls_back": "{team} pull one back",
+}
 
 
-def _score_at(match: Match, event_id: str) -> tuple[int, int]:
-    e = next(e for e in match.events if e.event_id == event_id)
-    return (e.home_score, e.away_score)
+def _story_facts(
+    lines: tuple[StoryLine, ...],
+    match: Match,
+    as_of_event_id: str,
+    dropped: list[str],
+    evidence: bool,
+) -> tuple[list[Fact], set[str]]:
+    """WHY facts and kinds of the story lines that ``check_line`` accepts; the reasons for
+    the others go to ``dropped``."""
+    out, kinds = [], set()
+    for line in lines:
+        reasons = check_line(line, match, as_of_event_id)
+        if reasons:
+            dropped.append(f"story line {line.kind} dropped: {'; '.join(reasons)}")
+            continue
+        text = line.text + (f" [evidence: {', '.join(line.event_ids)}]" if evidence else "")
+        out.append(Fact(text, FACT, line.event_ids, (), WHY))
+        kinds.add(line.kind)
+    return out, kinds
 
 
-def _casual(moment: KeyMoment, match: Match) -> tuple[str, list[Fact]]:
+def _move(d: dict, ids: tuple[str, ...]) -> Fact:
+    start = _STARTS.get(d["chain_start"], d["chain_start"].replace("_", " "))
+    n = d["build_up_passes"]
+    if n == 0:
+        return Fact(f"It came straight from {start}.", FACT, ids)
+    return Fact(f"The move began with {start}, then {n} pass{'es' if n > 1 else ''}.", FACT, ids)
+
+
+def _shots_vs_chances(
+    match: Match, metrics: dict[str, Metric], end_id: str, evidence: bool
+) -> Fact | None:
+    """Full time: who had more shots and who had the better chances (synthetic xG)."""
+    ids = {
+        (side, name): as_of_id(f"{side}.{name}", end_id)
+        for side in (HOME, AWAY)
+        for name in ("shots", "xg_heuristic")
+    }
+    for metric_id in ids.values():
+        metric = metrics.get(metric_id)
+        check = verify_claim(Claim(metric_id, metric.value), metrics, match) if metric else None
+        if check is None or not check.verified:
+            return None
+    shots = {side: metrics[ids[side, "shots"]].value for side in (HOME, AWAY)}
+    xg = {side: metrics[ids[side, "xg_heuristic"]].value for side in (HOME, AWAY)}
+    name = {side: match.meta.team(side).name for side in (HOME, AWAY)}
+    more = max((HOME, AWAY), key=lambda side: shots[side])
+    better = max((HOME, AWAY), key=lambda side: xg[side])
+    if shots[HOME] == shots[AWAY] or xg[HOME] == xg[AWAY]:
+        return None
+    s = f"{shots[more]}–{shots[_other(more)]}"
+    x = f"{xg[better]:.2f} vs {xg[_other(better)]:.2f}"
+    if more == better:
+        text = f"{name[more]} had more shots ({s}) and the better chances (synthetic xG {x})."
+    else:
+        text = (
+            f"{name[more]} had more shots ({s}), but {name[better]} had the better chances "
+            f"(synthetic xG {x})."
+        )
+    if evidence:
+        text += f" [{HEURISTIC_NOTE}] [evidence: {', '.join('metric ' + m for m in ids.values())}]"
+    else:
+        text = text.replace("(synthetic xG ", "(synthetic xG, a heuristic: ")
+    return Fact(text, HEURISTIC, (), tuple(ids.values()), WHY)
+
+
+def _full_time(
+    moment: KeyMoment, match: Match, metrics: dict[str, Metric], dropped: list[str], analyst: bool
+) -> tuple[str, list[Fact | None]]:
+    """Title and WHY facts of the full-time card: the result, how it was won, shots vs
+    chance quality."""
+    last = moment.event_ids[-1]
+    story = full_time_story(match, last)
+    facts, kinds = _story_facts(story, match, last, dropped, evidence=analyst)
+    h, a = moment.details["score"]
+    home, away = match.meta.home.name, match.meta.away.name
+    if analyst:
+        title = f"Full time — {home} {h}-{a} {away}"
+    elif moment.team == DRAW:
+        title = f"Full time: {home} {h}-{a} {away}"
+    else:
+        won = "come from behind to win" if "ft_comeback" in kinds else "win"
+        title = f"Full time: {match.meta.team(moment.team).name} {won} {h}-{a}"
+    return title, [*facts, _shots_vs_chances(match, metrics, last, evidence=analyst)]
+
+
+def _casual(
+    moment: KeyMoment, match: Match, metrics: dict[str, Metric], dropped: list[str]
+) -> tuple[str, list[Fact | None]]:
     d = moment.details
     team = match.meta.team(moment.team).name
     who = player_name(match, moment.team, d.get("player_id"))
     minute = minute_of(moment.clock_s)
     ids = moment.event_ids
     anchor = (moment.anchor_event_id,)
+    last = ids[-1]
     if moment.kind == "goal":
+        why, kinds = _story_facts(goal_story(match, anchor[0]), match, last, dropped, False)
+        situation = next((k for k in _GOAL_TITLES if k in kinds), "")
+        title = _GOAL_TITLES.get(situation, "GOAL! {team} score").format(team=team)
         h, a = d["score"]
-        start = _STARTS.get(d["chain_start"], d["chain_start"].replace("_", " "))
-        return f"GOAL! {team} score", [
-            Fact(f"{who} scores for {team} in minute {minute}.", FACT, anchor),
-            Fact(_score_situation(match, moment.team, (h, a)), FACT, anchor),
-            Fact(f"The move started with {start}.", FACT, ids),
-        ]
+        scored = Fact(f"{who} scores in minute {minute}: {h}-{a}.", FACT, anchor)
+        return title, [scored, *why, _move(d, ids)]
     if moment.kind == "big_chance_missed":
         outcome = {"saved": "saved", "off_target": "off target", "blocked": "blocked"}
-        h, a = _score_at(match, moment.anchor_event_id)
+        why, _ = _story_facts(chance_story(match, anchor[0]), match, last, dropped, False)
         return f"So close for {team}!", [
             Fact(
                 f"{who} had a great chance in minute {minute}, but the shot was "
@@ -167,8 +260,10 @@ def _casual(moment: KeyMoment, match: Match) -> tuple[str, list[Fact]]:
                 FACT,
                 ids,
             ),
-            Fact(f"The score stays {h}-{a}.", FACT, anchor),
+            *why,
         ]
+    if moment.kind == "full_time":
+        return _full_time(moment, match, metrics, dropped, analyst=False)
     opponent = match.meta.team(_other(moment.team)).name
     return f"{team} win it back", [
         Fact(f"{team} pressed {opponent} and {who} won the ball in minute {minute}.", FACT, ids),
@@ -194,23 +289,40 @@ def _metric_fact(metric_id: str, metrics: dict[str, Metric], match: Match) -> Fa
 
 def _event_fact(event_id: str, metrics: dict[str, Metric], match: Match) -> Fact | None:
     check = verify_claim(Claim(cited_event_ids=(event_id,)), metrics, match)
-    return Fact(check.text, FACT, (event_id,)) if check.verified else None
+    return Fact(check.text, FACT, (event_id,), (), CHAIN) if check.verified else None
 
 
 def _analyst(
-    moment: KeyMoment, match: Match, metrics: dict[str, Metric]
+    moment: KeyMoment, match: Match, metrics: dict[str, Metric], dropped: list[str]
 ) -> tuple[str, list[Fact | None]]:
     """``metrics`` must be computed as of the moment's last evidence event."""
     d = moment.details
+    ids = moment.event_ids
+    if moment.kind == "full_time":
+        title, why = _full_time(moment, match, metrics, dropped, analyst=True)
+        names = ("goals", "shots", "shots_on_target", "xg_heuristic", "pass_completion")
+        totals = [
+            _metric_fact(as_of_id(f"{side}.{n}", ids[-1]), metrics, match)
+            for n in names
+            for side in (HOME, AWAY)
+        ]
+        return title, why + totals
     team = match.meta.team(moment.team).name
     minute = minute_of(moment.clock_s)
-    ids = moment.event_ids
     lo, hi = _window_of(match, moment.clock_s)
     win = f"@{lo}-{hi}"
     side, opp = moment.team, _other(moment.team)
     evidence = f" [evidence: {', '.join(ids)}]"
     xg = d["xg_heuristic"]
-    facts: list[Fact | None] = [_event_fact(i, metrics, match) for i in ids]
+    story = (
+        goal_story(match, moment.anchor_event_id)
+        if moment.kind == "goal"
+        else chance_story(match, moment.anchor_event_id)
+        if moment.kind == "big_chance_missed"
+        else ()
+    )
+    facts: list[Fact | None] = [*_story_facts(story, match, ids[-1], dropped, True)[0]]
+    facts += [_event_fact(i, metrics, match) for i in ids]
     if moment.kind == "goal":
         poss = next(e.possession_id for e in match.events if e.event_id == moment.anchor_event_id)
         title = f"Goal {minute}' — {team} ({d['score'][0]}-{d['score'][1]})"
@@ -255,13 +367,13 @@ def build_cards(
     match: Match,
     mode: str,
     provider: NarrativeProvider | None = None,
-    limit: int = 4,
+    limit: int | None = None,
     moments: list[KeyMoment] | None = None,
 ) -> CardSet:
     """Build verified cards for the selected key moments (or for ``moments`` if given).
 
-    Each card is published when its moment's last evidence event happens, and analyst
-    metrics count only the events up to that one.
+    Each card is published when its moment's last evidence event happens, and metrics count
+    only the events up to that one. ``limit`` keeps the first ``limit`` moments.
     """
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
@@ -276,12 +388,13 @@ def build_cards(
             suppressed.append((moment.moment_id, "moment is not reproduced by the detectors"))
             continue
         metrics: dict[str, Metric] = {}
-        if mode == CASUAL:
-            title, facts = _casual(moment, match)
-        else:
+        if mode == ANALYST or moment.kind == "full_time":
             metrics = compute_metrics(match, DEFAULT_WINDOW_S, as_of_event_id=moment.event_ids[-1])
-            title, maybe = _analyst(moment, match, metrics)
-            facts = [f for f in maybe if f is not None]
+        dropped: list[str] = []
+        build = _casual if mode == CASUAL else _analyst
+        title, maybe = build(moment, match, metrics, dropped)
+        facts = [f for f in maybe if f is not None]
+        suppressed += [(moment.moment_id, reason) for reason in dropped]
         late = future_sources(moment.known_clock_s, moment.event_ids, facts, match, metrics)
         if late:
             suppressed.append(
@@ -315,7 +428,8 @@ def build_cards(
 
 def format_card(card: InsightCard) -> str:
     """Plain-text rendering for the CLI demo: verified facts first, wording clearly labelled."""
-    lines = [f"[{card.mode.upper()}] {card.title}  ({minute_of(card.anchor_clock_s)}')"]
+    when = "FT" if card.kind == "full_time" else f"{minute_of(card.anchor_clock_s)}'"
+    lines = [f"[{card.mode.upper()}] {card.title}  ({when})"]
     lines += [f"  ✓ {f.text}" for f in card.facts]
     n = card.narrative
     lines.append(f"  Wording ({n.label}): {n.text}")

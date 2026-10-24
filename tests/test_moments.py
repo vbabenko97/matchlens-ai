@@ -5,13 +5,17 @@ import pytest
 from matchlens.claims import HEURISTIC_NOTE
 from matchlens.generator import generate_match
 from matchlens.moments import (
+    CARD_KINDS,
+    DRAW,
     describe_moment,
     detect_big_chances_missed,
+    detect_full_time,
     detect_goals,
     detect_moments,
     detect_press_wins,
     select_key_moments,
 )
+from matchlens.schema import Match
 
 from .hand_match import eid, hand_match
 
@@ -61,20 +65,39 @@ def test_press_win(match):
 
 def test_detect_and_select(match):
     moments = detect_moments(match)
-    assert [m.kind for m in moments] == ["press_win", "goal", "big_chance_missed"]
-    top2 = select_key_moments(moments, limit=2)
-    assert [m.kind for m in top2] == ["goal", "big_chance_missed"]
-    # With room for only one, the goal wins; diversity never displaces the top moment.
+    assert [m.kind for m in moments] == ["press_win", "goal", "big_chance_missed", "full_time"]
+    # Every goal, every missed big chance and the final whistle get a card, in match order.
+    chosen = select_key_moments(moments)
+    assert [m.kind for m in chosen] == ["goal", "big_chance_missed", "full_time"]
+    assert select_key_moments(moments, limit=2) == chosen[:2]
     assert [m.kind for m in select_key_moments(moments, limit=1)] == ["goal"]
 
 
-def test_selection_reserves_a_slot_for_a_non_goal(match):
-    goal = detect_goals(match)[0]
-    others = [m for m in detect_moments(match) if m.kind != "goal"]
-    fake_goals = [replace(goal, moment_id=f"goal:{i}", clock_s=float(i)) for i in range(5)]
-    chosen = select_key_moments(fake_goals + others, limit=4)
-    assert [m.kind for m in chosen].count("goal") == 3
-    assert "big_chance_missed" in [m.kind for m in chosen]
+def test_full_time_moment(match):
+    [ft] = detect_full_time(match)
+    assert ft.moment_id == f"full_time:{eid(24)}" and ft.team == "home"
+    assert ft.event_ids == _ids(14, 24)  # every goal, then the final whistle
+    assert ft.clock_s == ft.start_clock_s == ft.known_clock_s == 120.0
+    assert ft.details == {"score": (1, 0), "goal_event_ids": _ids(14)}
+    cut = Match(match.meta, match.events[:-1])  # no final whistle yet
+    assert detect_full_time(cut) == []
+    level = Match(match.meta, tuple(replace(e, home_score=0) for e in match.events))
+    assert detect_full_time(level)[0].team == DRAW
+
+
+@pytest.mark.parametrize("seed", range(1, 21))
+def test_selection_never_depends_on_later_events(seed):
+    """Cut the match right after a moment is known: it is still chosen, and so is every
+    earlier choice. A "top N of the match" pick would fail this."""
+    m = generate_match(seed)
+    chosen = select_key_moments(detect_moments(m))
+    goals = [e.event_id for e in m.events if e.type == "shot" and e.outcome == "goal"]
+    assert [c.anchor_event_id for c in chosen if c.kind == "goal"] == goals  # every goal
+    seq = {e.event_id: e.seq for e in m.events}
+    for c in chosen:
+        cut = Match(m.meta, m.events[: seq[c.event_ids[-1]]])
+        so_far = select_key_moments(detect_moments(cut))
+        assert so_far == [x for x in chosen if seq[x.event_ids[-1]] <= len(cut.events)]
 
 
 def test_descriptions_are_templated_and_cite_evidence(match):
@@ -98,12 +121,17 @@ def test_generated_match_properties(seed):
         evidence = [by_id[i] for i in mo.event_ids]
         assert mo.anchor_event_id in mo.event_ids
         assert [e.seq for e in evidence] == sorted(e.seq for e in evidence)
-        assert mo.start_clock_s == evidence[0].clock_s <= mo.clock_s
+        if mo.kind == "full_time":  # a summary: shown from the whistle, cites every goal
+            assert mo.start_clock_s == mo.clock_s == mo.known_clock_s == evidence[-1].clock_s
+            assert len(evidence) == sum(m.final_score) + 1
+        else:
+            assert mo.start_clock_s == evidence[0].clock_s <= mo.clock_s
         assert mo.clock_s <= mo.known_clock_s == evidence[-1].clock_s
         if mo.kind == "goal":
             assert {e.possession_id for e in evidence} == {by_id[mo.anchor_event_id].possession_id}
         if mo.kind == "press_win":
             assert mo.details["seconds_to_win"] <= 8.0
     chosen = select_key_moments(moments)
-    assert 1 <= len(chosen) <= 4
+    assert chosen == [mo for mo in moments if mo.kind in CARD_KINDS]
+    assert chosen[-1].kind == "full_time"
     assert chosen == select_key_moments(list(reversed(moments)))

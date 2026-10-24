@@ -16,7 +16,7 @@ pip install -e .
 python -m matchlens serve            # seed 1 (2-3), http://127.0.0.1:8000/
 ```
 
-The replay UI shows a scoreboard, pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen. You can play, pause, seek, jump to the previous/next moment and change speed (15×–240×), and switch between **Casual Fan** and **Analyst** modes. In Analyst mode, every event and metric ID on a card can be clicked to inspect it and highlight it on the pitch. **⬇ Overlay JSON** downloads the timed overlay cues (`matchlens.overlays/v1`). Keyboard: Space plays or pauses, ← / → seek 30 s (when focus is not on a control); ← / → also switch the audience mode when the mode toggle is focused. Accessibility target and audit: [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
+The replay UI shows a scoreboard, pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen: one for every goal and missed big chance, and a full-time card. Each card leads with why the moment matters (a comeback, an equaliser, what a missed chance would have meant, how the match was won), checked against the events it cites. Two shortcuts save a viewer the 90 minutes: **Watch the comeback** plays the turning point, and **See the AI get fact-checked** opens the analyst card where the recorded Foundry agent's claim was rejected and fixed on retry. You can play, pause, seek, jump to the previous/next moment and change speed (15×–240×), and switch between **Casual Fan** and **Analyst** modes. In Analyst mode, every event and metric ID on a card can be clicked to inspect it and highlight it on the pitch. **⬇ Overlay JSON** downloads the timed overlay cues (`matchlens.overlays/v1`). Keyboard: Space plays or pauses, ← / → seek 30 s (when focus is not on a control); ← / → also switch the audience mode when the mode toggle is focused. Accessibility target and audit: [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
 
 Deployment (static export on GitHub Pages) and the public-URL Playwright smoke test are described in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -37,7 +37,7 @@ python -m pytest -q -m e2e
 python -m matchlens generate --seed 42 --out match.jsonl   # full 90-minute synthetic match
 python -m matchlens validate match.jsonl                    # format + invariant checks
 python -m matchlens metrics match.jsonl                     # event-grounded metrics as JSON
-python -m matchlens moments match.jsonl                     # 2-4 key moments with evidence IDs
+python -m matchlens moments match.jsonl                     # card moments (goals, big chances, full time) with evidence IDs
 python -m matchlens cards match.jsonl --mode casual         # verified insight cards (--json, --offline)
 python -m matchlens demo --seed 1 --offline                 # end-to-end demo, both audience modes
 python -m matchlens overlays match.jsonl --out overlays.json # timed overlay cues, both modes

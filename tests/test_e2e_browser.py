@@ -134,6 +134,20 @@ def test_seek_to_full_time_shows_final_score_and_cards(page, bundle):
     assert page.locator("#cards .card").count() == 0
 
 
+def test_stats_change_with_the_scoreboard(page, bundle):
+    """Shots and xG count a goal from the moment the scoreboard shows it, not a minute later."""
+    events = bundle["events"]
+    goal = next(e for e in events if e["type"] == "shot" and e["outcome"] == "goal")
+    _open(page)
+    page.evaluate(f"window.matchlens.seek({goal['clock_s']})")
+    shots = [e for e in events if e["type"] == "shot" and e["clock_s"] <= goal["clock_s"]]
+    counts = [sum(e["team"] == side for e in shots) for side in ("home", "away")]
+    assert page.text_content("#stat-shots") == f"{counts[0]} – {counts[1]}"
+    assert page.text_content("#home-score") == str(goal["home_score"])
+    xg = [sum(e["xg_heuristic"] for e in shots if e["team"] == s) for s in ("home", "away")]
+    assert page.text_content("#stat-xg") == f"{xg[0]:.2f} – {xg[1]:.2f}"
+
+
 def test_play_pause_and_speed(page):
     _open(page)
     page.select_option("#speed", "240")
@@ -336,7 +350,8 @@ def test_shortcuts_leave_native_controls_alone(page):
 def test_interactive_targets_are_at_least_24px(page):
     _open(page, "?mode=analyst&t=5400")
     small = page.evaluate(
-        """[...document.querySelectorAll('#markers button, #cards .chip')]
+        """[...document.querySelectorAll('#markers button, #cards .chip, .shortcuts button')]
+             .filter((e) => e.getClientRects().length)  // rendered (not in a closed <details>)
              .map((e) => e.getBoundingClientRect())
              .filter((r) => r.width < 24 || r.height < 24).length"""
     )
@@ -377,3 +392,75 @@ def test_goal_dot_only_for_goals_without_a_card(page, bundle):
     carded = {c["anchor_clock_s"] for c in bundle["cards"]["casual"] if c["kind"] == "goal"}
     expected = sum(1 for e in goals if e["clock_s"] not in carded)
     assert page.locator("#markers .goal-tick").count() == expected
+
+
+# --- Story and shortcuts -----------------------------------------------------------------
+
+
+def _poll(page, expr, timeout_ms=8000):
+    for _ in range(timeout_ms // 50):
+        if page.evaluate(expr):
+            return True
+        page.wait_for_timeout(50)
+    return False
+
+
+def test_every_card_leads_with_why_it_matters(page, bundle):
+    _open(page, "?t=5400")
+    cards = bundle["cards"]["casual"]
+    goals = [e for e in bundle["events"] if e["type"] == "shot" and e["outcome"] == "goal"]
+    assert sum(c["kind"] == "goal" for c in cards) == len(goals)  # every goal has a card
+    for card in cards:
+        why = [f["text"] for f in card["facts"] if f["role"] == "why"]
+        shown = page.locator(
+            f'#cards .card[data-card-id="{card["card_id"]}"] li.why div > span:last-child'
+        )
+        assert why and shown.all_text_contents() == why
+    ft = page.locator("#cards .card.full_time")
+    assert ft.count() == 1 and "Full time" in ft.locator("h3").text_content()
+    assert page.text_content("#lt-fact") == next(
+        f["text"] for f in cards[-1]["facts"] if f["role"] == "why"
+    )
+
+
+def test_turning_point_shortcut_plays_into_the_story(page, bundle):
+    tp = bundle["highlights"]["turning_point"]
+    _open(page, "?speed=240")
+    page.click("#jump-turning")
+    assert page.evaluate("window.matchlens.state.playing")
+    assert tp["start_s"] <= page.evaluate("window.matchlens.state.t") < tp["start_s"] + 60
+    first = next(c for c in bundle["cards"]["casual"] if c["publish_clock_s"] > tp["start_s"])
+    assert _poll(page, f"window.matchlens.state.t >= {first['publish_clock_s']}")
+    assert page.locator(f'#cards .card[data-card-id="{first["card_id"]}"] li.why').count() >= 1
+
+
+def test_ai_check_shortcut_opens_the_claim_check(page, bundle):
+    target = bundle["highlights"]["ai_check"]
+    review = bundle["reviews"][target["card_id"]]
+    _open(page)
+    page.click("#jump-ai")
+    assert page.get_attribute(".mode-toggle button[data-mode=analyst]", "aria-checked") == "true"
+    assert page.evaluate("window.matchlens.state.t") == target["publish_s"]
+    assert not page.evaluate("window.matchlens.state.playing")
+    sec = page.locator(f'.review.spotlight[data-review="{target["card_id"]}"]')
+    assert sec.count() == 1 and sec.is_visible()
+    assert page.evaluate("document.activeElement.dataset.review") == target["card_id"]
+    assert review["proposer_label"] == sec.locator(".hint").first.text_content()
+    if target["self_correction"]:  # the recorded Foundry run: rejected, sent back, fixed
+        assert "rejected and sent back" in sec.locator(".summary").text_content()
+        assert sec.locator("h5").first.text_content().startswith("Attempt 1")
+        assert sec.locator(".verdicts li.rejected").count() >= 1
+
+
+def test_event_chain_stays_open_while_inspecting(page):
+    _open(page, "?mode=analyst&t=5400")
+    chain = page.locator("#cards details.chain").first
+    card_id = chain.evaluate("(d) => d.closest('[data-card-id]').dataset.cardId")
+    assert not chain.evaluate("(d) => d.open")
+    chain.locator("summary").click()
+    chip = chain.locator(".chip[data-event-id]").first
+    event_id = chip.get_attribute("data-event-id")
+    chip.click()  # re-renders the cards; the chain must stay open and the chip focused
+    again = page.locator(f'#cards .card[data-card-id="{card_id}"] details.chain')
+    assert again.evaluate("(d) => d.open")
+    assert page.evaluate("document.activeElement.dataset.eventId") == event_id
