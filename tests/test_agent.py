@@ -416,6 +416,39 @@ def test_tool_budget_turns_tools_off_early(match, goal):
     assert review.proposer == FOUNDRY and review.verdicts[0].verified
 
 
+def _cut_off():
+    reply = _response("resp_cut", [])
+    reply.update(status="incomplete", incomplete_details={"reason": "max_output_tokens"})
+    return reply
+
+
+def test_cut_off_answer_is_asked_again_with_a_larger_limit(match, goal):
+    script = _goal_script()
+    fake = FakeResponses([*script[:2], _cut_off(), *script[2:]])
+    lines = []
+    proposer = FoundryAgentProposer(_config(), fake, log=lines.append)
+    review = review_card(match, goal, proposer, log=lines.append)
+    assert review.proposer == FOUNDRY and review.fallback_reason is None
+    limits = [body["max_output_tokens"] for _, _, body in fake.requests]
+    assert limits == [400, 400, 400, 1000, 400]
+    call = review.attempts[0].calls[2]
+    assert call["retries"] == [{"cause": "incomplete: max_output_tokens", "wait_s": 0}]
+    assert "  answer cut off at 400 tokens: asking again" in lines
+    # Rejections are logged between attempts, with the validator's reasons.
+    assert f"{GOAL} attempt 1: 1 verified, 1 rejected" in lines
+    assert any(
+        line.startswith("  rejected ") and f"claimed 4 but {SHOTS} = 3" in line for line in lines
+    )
+
+
+def test_answer_cut_off_twice_is_a_format_error(match, goal):
+    fake = FakeResponses([_cut_off(), _cut_off()])
+    with pytest.raises(
+        ResponseFormatError, match=r"response status is incomplete \(max_output_tokens\)"
+    ):
+        review_card(match, goal, FoundryAgentProposer(_config(), fake), strict=True)
+
+
 def test_failed_retry_drops_the_rejected_claims(match, goal):
     script = _goal_script()[:3] + [OSError("down")]
     review = review_card(match, goal, FoundryAgentProposer(_config(), FakeResponses(script)))
@@ -539,6 +572,11 @@ def test_cli_live_review_writes_redacted_trace(capsys, monkeypatch, tmp_path):
     err = capsys.readouterr().err
     assert "[agent] analyst:" in err and "attempt 1: model call 1" in err
     assert "live agent run failed: URLError (TimeoutError: timed out)" in err
+
+    monkeypatch.setattr(narrative, "_urllib_transport", FakeResponses([_cut_off(), _cut_off()]))
+    assert main(["agent-review", "--seed", "1", "--limit", "1"]) == 1
+    err = capsys.readouterr().err
+    assert "live agent run failed: ResponseFormatError (response status is incomplete" in err
 
     body = json.dumps({"error": {"code": "RateLimitReached", "message": "x"}}).encode()
     limited = [_rate_limited({"retry-after": "0"}, body) for _ in range(RATE_LIMIT_RETRIES + 1)]

@@ -52,6 +52,8 @@ MAX_MODEL_CALLS = 6  # per attempt, tool rounds included; the last one must answ
 MAX_TOOL_CALLS = 16  # per attempt; once reached, the next call must answer
 MAX_EVENTS_PER_CALL = 25
 MAX_OUTPUT_TOKENS = 400  # Azure counts this against the per-minute token limit up front
+MAX_OUTPUT_TOKENS_RETRY = 1000  # one resend when an answer is cut off at the limit above
+MAX_CITED_PER_CLAIM = 5
 RATE_LIMIT_RETRIES = 4  # per model call, on HTTP 429
 RATE_LIMIT_MAX_WAIT_S = 60.0
 RATE_LIMIT_DEFAULT_WAIT_S = 10.0
@@ -321,7 +323,9 @@ AGENT_INSTRUCTIONS = (
     "a metric_id with its exact value, and/or cited_event_ids. Use the tools to find metric "
     "IDs, values and events; only what has happened when the card is published is available. "
     "Be economical: call list_metrics once, then request every metric and event you need in "
-    "a single turn (several tool calls at once), then answer. Never invent IDs or values. A "
+    "a single turn (several tool calls at once), then answer. Cite at most "
+    f"{MAX_CITED_PER_CLAIM} event IDs per claim; a metric claim needs none. Never invent IDs "
+    "or values. A "
     "deterministic validator checks every claim and drops the ones it rejects. Reply only "
     "with JSON matching the schema."
 )
@@ -356,6 +360,19 @@ def retry_after_s(exc: urllib.error.HTTPError) -> float:
             continue
         return min(max(value * scale, 0.0), RATE_LIMIT_MAX_WAIT_S)
     return RATE_LIMIT_DEFAULT_WAIT_S
+
+
+def _token(value: object) -> str:
+    """A short plain word from a response (e.g. a status), or '?' for anything else."""
+    ok = isinstance(value, str) and 0 < len(value) <= 40 and value.replace("_", "").isalnum()
+    return value if ok else "?"
+
+
+def _incomplete_reason(response: dict) -> str | None:
+    if response.get("status") != "incomplete":
+        return None
+    details = response.get("incomplete_details")
+    return _token(details.get("reason")) if isinstance(details, dict) else None
 
 
 def _call_record(response: dict, calls: list[dict], retries: list[dict]) -> dict[str, Any]:
@@ -446,8 +463,17 @@ class FoundryAgentProposer:
                 "store": False,  # no server-side retention; the full input is resent instead
             }
             response, retries = self._post(body)
+            if _incomplete_reason(response) == "max_output_tokens":
+                self.log(f"  answer cut off at {MAX_OUTPUT_TOKENS} tokens: asking again")
+                body = {**body, "max_output_tokens": MAX_OUTPUT_TOKENS_RETRY}
+                response, more = self._post(body)
+                retries = [*retries, {"cause": "incomplete: max_output_tokens", "wait_s": 0}, *more]
             if response.get("status") != "completed":
-                raise ResponseFormatError("response status is not 'completed'")
+                status = _token(response.get("status"))
+                reason = _incomplete_reason(response)
+                raise ResponseFormatError(
+                    f"response status is {status}" + (f" ({reason})" if reason else "")
+                )
             output = response.get("output")
             if not isinstance(output, list):
                 raise ResponseFormatError("response has no output array")
@@ -540,6 +566,7 @@ def review_card(
     proposer: ClaimProposer,
     inject_test_claim: bool = False,
     strict: bool = False,
+    log: Callable[[str], None] = lambda line: None,
 ) -> ClaimReview:
     """Propose, verify, retry once with the reasons, then publish only what verifies.
 
@@ -559,6 +586,7 @@ def review_card(
         first = proposer.propose(ctx)
     attempts = [first]
     final = [check_claim(ctx, c, proposer.name, 1) for c in first.claims]
+    _log_verdicts(log, card.card_id, 1, final)
     verdicts = list(final)
     notes = []
     if first.dropped:
@@ -573,6 +601,7 @@ def review_card(
         else:
             attempts.append(second)
             final = [check_claim(ctx, c, proposer.name, 2) for c in second.claims]
+            _log_verdicts(log, card.card_id, 2, final)
             verdicts += final
     injected = injected_score_claim(ctx) if inject_test_claim else None
     tests = [check_claim(ctx, injected, INJECTED, 0)] if injected is not None else []
@@ -597,13 +626,26 @@ def review_card(
     )
 
 
+def _log_verdicts(log, card_id: str, attempt: int, verdicts: Sequence[ClaimVerdict]) -> None:
+    ok = sum(v.verified for v in verdicts)
+    log(f"{card_id} attempt {attempt}: {ok} verified, {len(verdicts) - ok} rejected")
+    for v in verdicts:
+        if not v.verified:
+            log(f"  rejected {json.dumps(claim_record(v.claim))}: {'; '.join(v.reasons)}")
+
+
 def review_cards(
-    match: Match, card_set: CardSet, proposer: ClaimProposer, strict: bool = False
+    match: Match,
+    card_set: CardSet,
+    proposer: ClaimProposer,
+    strict: bool = False,
+    log: Callable[[str], None] = lambda line: None,
 ) -> tuple[ClaimReview, ...]:
     """Review every card; the injected test claim goes to the first goal card only."""
     first_goal = next((c.card_id for c in card_set.cards if c.kind == "goal"), None)
     return tuple(
-        review_card(match, c, proposer, c.card_id == first_goal, strict) for c in card_set.cards
+        review_card(match, c, proposer, c.card_id == first_goal, strict, log)
+        for c in card_set.cards
     )
 
 
@@ -711,7 +753,7 @@ def live_review(
 ) -> tuple[tuple[ClaimReview, ...], dict[str, Any]]:
     """Strict live run (no fallback) and its redacted trace, for recording evidence."""
     proposer = FoundryAgentProposer(config, transport, timeout_s, log=log)
-    reviews = review_cards(match, card_set, proposer, strict=True)
+    reviews = review_cards(match, card_set, proposer, strict=True, log=log)
     return reviews, build_trace(match, reviews, config)
 
 

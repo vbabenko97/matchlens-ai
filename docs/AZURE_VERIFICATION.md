@@ -60,6 +60,9 @@ In zsh, do not paste trailing `# comments`: interactive zsh passes them to the c
 - If no HTTP response arrives at all (connection, DNS, TLS, timeout), the call is retried twice, 5 s apart.
 - A final failure prints the reason, e.g. `URLError (TimeoutError: timed out)`.
 - Retries are recorded per call as `retries` (`cause`, `wait_s`).
+- An answer cut off at the 400-token output cap is asked for once more with a 1000-token cap.
+- After each attempt, the run prints how many claims were verified and every rejected claim with the validator's reasons.
+- Format and agent errors print their (fixed) message.
 
 **HTTP 429 (rate limit).** Each model call that gets a 429 waits as Azure asks (`retry-after-ms`/`retry-after`, at most 60 s, default 10 s) and retries, up to 4 times. The waits are recorded per call in `retries`.
 - A request is kept small: metric IDs only from `list_metrics`, and `max_output_tokens: 400`. Azure counts the output limit against the per-minute quota up front.

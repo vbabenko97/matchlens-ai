@@ -12,6 +12,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .agent import (
+    AgentError,
     FoundryAgentProposer,
     OfflineProposer,
     RecordedProposer,
@@ -26,7 +27,14 @@ from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
 from .metrics import DEFAULT_WINDOW_S, compute_metrics
 from .moments import describe_moment, detect_moments, select_key_moments
-from .narrative import ANALYST, MODES, AzureOpenAIConfig, OfflineTemplateProvider, provider_from_env
+from .narrative import (
+    ANALYST,
+    MODES,
+    AzureOpenAIConfig,
+    OfflineTemplateProvider,
+    ResponseFormatError,
+    provider_from_env,
+)
 from .overlays import build_overlay_document
 from .replay import DEFAULT_DEMO_SEED, build_bundle, dumps
 from .server import export_site, make_server
@@ -295,6 +303,9 @@ def _agent_review(args: argparse.Namespace) -> int:
                 f"{type(reason).__name__}: {reason}" if isinstance(reason, Exception) else reason
             )
             print(f"live agent run failed: URLError ({str(detail)[:200]})", file=sys.stderr)
+            return 1
+        except (ResponseFormatError, AgentError) as exc:  # fixed messages, no content
+            print(f"live agent run failed: {type(exc).__name__} ({exc})", file=sys.stderr)
             return 1
         except Exception as exc:  # never echo exception text that could contain headers
             print(f"live agent run failed: {type(exc).__name__}", file=sys.stderr)
