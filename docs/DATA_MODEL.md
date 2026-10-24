@@ -28,7 +28,7 @@ A possession is a maximal run of ball events by one team. A new possession (ID =
 Unique IDs and gap-free `seq`; clock nondecreasing and inside its period; `period_start`/`period_end` bracket exactly periods 1 and 2; known types/outcomes/subtypes; players belong to their team; locations on the pitch; score changes only on goals, by one, for the scorer; a goal is followed by the conceding team's kick-off; `out` -> opposing throw-in, `off_target` -> opposing goal kick; possession IDs and ownership as above; ball continuity; `xg_heuristic` present exactly on shots and in `[0, 1]`.
 
 ## Known simplifications
-No stoppage time, corners, fouls, cards, substitutions, offside or pass recipients. The generator models event *structure*, not realistic football dynamics; its rates are tuned only so a demo match looks plausible (~24 shots, ~3.6 goals per match averaged over seeds 1-60).
+No stoppage time, corners, fouls, cards, substitutions, offside or pass recipients. The generator produces football-realistic event *structure* with simplified dynamics; its rates are tuned only so a demo match looks plausible (~24 shots, ~3.6 goals per match averaged over seeds 1-60).
 
 ## Metrics (`matchlens.metrics`, M2)
 `compute_metrics(match, window_s=900)` returns metrics keyed by stable IDs: `<team>.<name>` for full-match totals and `<team>.<name>@<start>-<end>` for clock windows `[start, end)` (the final window includes the end whistle). Each metric carries `value`, `unit`, `kind` (`fact` or `heuristic`), a plain-language `definition`, and the `source_event_ids` it was computed from (ratios also list `numerator_event_ids`).
