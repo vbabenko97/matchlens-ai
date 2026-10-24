@@ -10,14 +10,27 @@ Casual Fan and Analyst modes differ in content, not just headings: casual cards 
 when, the score situation and how the move began, in plain language without statistics;
 analyst cards add the evidence event chain, possession/build-up structure, the labelled
 xG heuristic and window metrics, each with IDs in the text.
+
+Causality: a card is published at ``publish_clock_s``, the time of the moment's last evidence
+event, and its window metrics are computed as of that event. ``future_sources`` re-checks
+that nothing a card cites happens later; a card that fails the check is suppressed.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .claims import HEURISTIC_NOTE, Claim, player_name, verify_claim
-from .metrics import DEFAULT_WINDOW_S, FACT, HEURISTIC, Metric, compute_metrics, window_bounds
+from .metrics import (
+    DEFAULT_WINDOW_S,
+    FACT,
+    HEURISTIC,
+    Metric,
+    as_of_id,
+    compute_metrics,
+    window_bounds,
+)
 from .moments import KeyMoment, detect_moments, select_key_moments
 from .narrative import (
     CASUAL,
@@ -30,7 +43,7 @@ from .narrative import (
 )
 from .schema import AWAY, HOME, Match, minute_of
 
-DISPLAY_AFTER_S = 12.0  # how long a card stays up after its anchor event
+DISPLAY_AFTER_S = 12.0  # how long a card stays up after it is published
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,8 +62,9 @@ class InsightCard:
     kind: str
     team: str
     title: str
-    start_clock_s: float
-    anchor_clock_s: float
+    start_clock_s: float  # earliest evidence event
+    anchor_clock_s: float  # the moment's anchor event (its minute is shown on the card)
+    publish_clock_s: float  # last evidence event: the card may not be shown before it
     end_clock_s: float
     facts: tuple[Fact, ...]
     evidence_event_ids: tuple[str, ...]
@@ -62,11 +76,38 @@ class CardSet:
     mode: str
     cards: tuple[InsightCard, ...]
     suppressed: tuple[tuple[str, str], ...]  # (moment_id, reason)
+    metrics: tuple[Metric, ...] = ()  # every metric the cards cite, by metric_id
 
 
 def verify_moment(moment: KeyMoment, detected: list[KeyMoment]) -> bool:
     """A moment is trusted only if the deterministic detectors reproduce it exactly."""
     return moment in detected
+
+
+def future_sources(
+    publish_clock_s: float,
+    evidence_event_ids: Sequence[str],
+    facts: Sequence[Fact],
+    match: Match,
+    metrics: dict[str, Metric],
+) -> tuple[str, ...]:
+    """Cited events that have not happened when the card is published, in match order.
+
+    Covers the evidence, each fact's events and the source events of each cited metric. An
+    event is in the future if it is after ``publish_clock_s`` or comes after the last
+    evidence event in match order.
+    """
+    by_id = {e.event_id: e for e in match.events}
+    known_seq = by_id[evidence_event_ids[-1]].seq
+    cited = set(evidence_event_ids)
+    for f in facts:
+        cited.update(f.event_ids)
+        for m in f.metric_ids:
+            cited.update(metrics[m].source_event_ids)
+    late = [
+        by_id[i] for i in cited if by_id[i].seq > known_seq or by_id[i].clock_s > publish_clock_s
+    ]
+    return tuple(e.event_id for e in sorted(late, key=lambda e: e.seq))
 
 
 def _other(side: str) -> str:
@@ -159,6 +200,7 @@ def _event_fact(event_id: str, metrics: dict[str, Metric], match: Match) -> Fact
 def _analyst(
     moment: KeyMoment, match: Match, metrics: dict[str, Metric]
 ) -> tuple[str, list[Fact | None]]:
+    """``metrics`` must be computed as of the moment's last evidence event."""
     d = moment.details
     team = match.meta.team(moment.team).name
     minute = minute_of(moment.clock_s)
@@ -205,7 +247,7 @@ def _analyst(
             Fact(f"Resulting shot {xg:.3f} xG [{HEURISTIC_NOTE}].{evidence}", HEURISTIC, ids),
         ]
         metric_ids = [f"{side}.pressures{win}", f"{opp}.turnovers{win}", f"{side}.shots{win}"]
-    facts += [_metric_fact(m, metrics, match) for m in metric_ids]
+    facts += [_metric_fact(as_of_id(m, ids[-1]), metrics, match) for m in metric_ids]
     return title, facts
 
 
@@ -216,24 +258,37 @@ def build_cards(
     limit: int = 4,
     moments: list[KeyMoment] | None = None,
 ) -> CardSet:
-    """Build verified cards for the selected key moments (or for ``moments`` if given)."""
+    """Build verified cards for the selected key moments (or for ``moments`` if given).
+
+    Each card is published when its moment's last evidence event happens, and analyst
+    metrics count only the events up to that one.
+    """
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
     provider = provider or OfflineTemplateProvider()
     detected = detect_moments(match)
     candidates = moments if moments is not None else select_key_moments(detected, limit)
-    metrics = compute_metrics(match, DEFAULT_WINDOW_S)
     cards: list[InsightCard] = []
     suppressed: list[tuple[str, str]] = []
+    cited: dict[str, Metric] = {}
     for moment in candidates:
         if not verify_moment(moment, detected):
             suppressed.append((moment.moment_id, "moment is not reproduced by the detectors"))
             continue
+        metrics: dict[str, Metric] = {}
         if mode == CASUAL:
             title, facts = _casual(moment, match)
         else:
+            metrics = compute_metrics(match, DEFAULT_WINDOW_S, as_of_event_id=moment.event_ids[-1])
             title, maybe = _analyst(moment, match, metrics)
             facts = [f for f in maybe if f is not None]
+        late = future_sources(moment.known_clock_s, moment.event_ids, facts, match, metrics)
+        if late:
+            suppressed.append(
+                (moment.moment_id, f"card cites events after it is published: {list(late)}")
+            )
+            continue
+        cited.update((m, metrics[m]) for f in facts for m in f.metric_ids)
         narrative = narrate(
             NarrativeRequest(mode=mode, title=title, facts=tuple(f.text for f in facts)),
             provider,
@@ -248,13 +303,14 @@ def build_cards(
                 title=title,
                 start_clock_s=moment.start_clock_s,
                 anchor_clock_s=moment.clock_s,
-                end_clock_s=moment.clock_s + DISPLAY_AFTER_S,
+                publish_clock_s=moment.known_clock_s,
+                end_clock_s=moment.known_clock_s + DISPLAY_AFTER_S,
                 facts=tuple(facts),
                 evidence_event_ids=moment.event_ids,
                 narrative=narrative,
             )
         )
-    return CardSet(mode, tuple(cards), tuple(suppressed))
+    return CardSet(mode, tuple(cards), tuple(suppressed), tuple(cited[m] for m in sorted(cited)))
 
 
 def format_card(card: InsightCard) -> str:

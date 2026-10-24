@@ -1,8 +1,10 @@
+from dataclasses import replace
+
 import pytest
 
 from matchlens.generator import generate_match, xg_heuristic
-from matchlens.metrics import FACT, HEURISTIC, compute_metrics, window_bounds
-from matchlens.schema import AWAY, HOME, SIDES
+from matchlens.metrics import FACT, HEURISTIC, as_of_id, compute_metrics, window_bounds
+from matchlens.schema import AWAY, HOME, SIDES, Match
 from matchlens.validate import validate_match
 
 from .hand_match import eid, hand_match
@@ -96,6 +98,28 @@ def test_window_counts(metrics):
 def test_metric_ids_are_unique_and_deterministic(match):
     a, b = compute_metrics(match), compute_metrics(match)
     assert list(a) == list(b) and a == b
+
+
+@pytest.mark.parametrize("seed", [1, 42])
+def test_as_of_metrics_equal_metrics_of_the_match_so_far(seed):
+    m = generate_match(seed)
+    for cut in (m.events[0], m.events[len(m.events) // 3], m.events[-1]):
+        as_of = compute_metrics(m, as_of_event_id=cut.event_id)
+        so_far = compute_metrics(Match(m.meta, m.events[: cut.seq]))
+        assert as_of
+        for metric_id, metric in as_of.items():
+            plain = metric_id.removesuffix(f":asof:{cut.event_id}")
+            assert metric_id == as_of_id(plain, cut.event_id)
+            assert metric.as_of_event_id == cut.event_id
+            assert replace(metric, metric_id=plain, as_of_event_id=None) == so_far[plain]
+        # Windows that have not started at the cut are left out, not reported as zero.
+        started = {k for k, v in so_far.items() if v.window is None or v.window[0] <= cut.clock_s}
+        assert {k.removesuffix(f":asof:{cut.event_id}") for k in as_of} == started
+
+
+def test_as_of_unknown_event_is_rejected(match):
+    with pytest.raises(ValueError, match="unknown event"):
+        compute_metrics(match, as_of_event_id="nope")
 
 
 def test_window_bounds_rejects_bad_size(match):

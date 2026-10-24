@@ -150,11 +150,27 @@ def test_cards_sync_with_moment_markers(page, bundle):
     first = bundle["cards"]["casual"][0]
     _open(page)
     page.click("#next")
-    assert page.evaluate("window.matchlens.state.t") == first["anchor_clock_s"]
+    assert page.evaluate("window.matchlens.state.t") == first["publish_clock_s"]
     card = page.locator(f'#cards .card[data-card-id="{first["card_id"]}"]')
     assert card.count() == 1 and "active" in card.get_attribute("class")
     assert page.is_visible("#lower-third")
     assert page.text_content("#lt-title") == first["title"]
+
+
+def test_card_waits_for_its_last_evidence_event(page, bundle):
+    """A card whose evidence ends after its anchor stays hidden until that event happens."""
+    card = next(
+        c
+        for mode in ("casual", "analyst")
+        for c in bundle["cards"][mode]
+        if c["publish_clock_s"] > c["anchor_clock_s"]
+    )
+    _open(page, f"?mode={card['mode']}")
+    locator = page.locator(f'#cards .card[data-card-id="{card["card_id"]}"]')
+    page.evaluate(f"window.matchlens.seek({card['anchor_clock_s']})")
+    assert locator.count() == 0
+    page.evaluate(f"window.matchlens.seek({card['publish_clock_s']})")
+    assert locator.count() == 1
 
 
 def test_modes_show_different_content(page, bundle):

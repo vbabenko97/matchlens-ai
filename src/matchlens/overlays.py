@@ -1,9 +1,11 @@
 """Timed, machine-readable overlay cues built from verified insight cards.
 
 Schema ``matchlens.overlays/v1``: one cue per card and audience mode, timed in match
-seconds. ``facts`` are the verified, template-rendered statements with their evidence;
-``narrative`` is wording only and keeps its status/label (offline template or
-unverified AI wording) so downstream graphics never present it as a verified fact.
+seconds. A cue starts when its card is published (the moment's last evidence event), never
+before the events it cites; ``anchor_s`` is the moment's anchor event. ``facts`` are the
+verified, template-rendered statements with their evidence; ``narrative`` is wording only
+and keeps its status/label (offline template or unverified AI wording) so downstream
+graphics never present it as a verified fact.
 """
 
 from __future__ import annotations
@@ -28,8 +30,9 @@ def build_overlay_document(match: Match, card_sets: list[CardSet]) -> dict[str, 
                     "mode": card.mode,
                     "kind": card.kind,
                     "team": card.team,
-                    "start_s": card.anchor_clock_s,
+                    "start_s": card.publish_clock_s,
                     "end_s": card.end_clock_s,
+                    "anchor_s": card.anchor_clock_s,
                     "lead_in_s": card.start_clock_s,
                     "title": card.title,
                     "facts": [asdict(f) for f in card.facts],

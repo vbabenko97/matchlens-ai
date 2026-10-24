@@ -3,12 +3,14 @@
 Every ``Metric`` records the exact events it was computed from (``source_event_ids``) and,
 for ratios, the subset that forms the numerator. ``kind`` separates facts counted from the
 simulated events from synthetic heuristics (the xG heuristic), which are never calibrated.
+``compute_metrics(..., as_of_event_id=...)`` gives the metrics as they stood when that event
+happened, so a card shown at that time never counts events that have not happened yet.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from .schema import AWAY, BALL_EVENTS, HOME, SIDES, Event, Match
@@ -30,6 +32,7 @@ class Metric:
     source_event_ids: tuple[str, ...]
     numerator_event_ids: tuple[str, ...] = ()
     window: tuple[float, float] | None = None  # [start, end) in match seconds
+    as_of_event_id: str | None = None  # set: only events up to and including this one count
 
     def to_record(self) -> dict[str, Any]:
         return asdict(self)
@@ -167,9 +170,28 @@ def _in_window(e: Event, lo: float, hi: float, last: bool) -> bool:
     return lo <= e.clock_s < hi or (last and e.clock_s == hi)
 
 
-def compute_metrics(match: Match, window_s: int = DEFAULT_WINDOW_S) -> dict[str, Metric]:
-    """All match metrics keyed by ``metric_id`` in a stable order."""
+def as_of_id(metric_id: str, event_id: str) -> str:
+    """ID of ``metric_id`` counted only up to and including ``event_id``."""
+    return f"{metric_id}:asof:{event_id}"
+
+
+def compute_metrics(
+    match: Match, window_s: int = DEFAULT_WINDOW_S, as_of_event_id: str | None = None
+) -> dict[str, Metric]:
+    """All match metrics keyed by ``metric_id`` in a stable order.
+
+    With ``as_of_event_id``, only the events up to and including that event in match order
+    are counted: the metrics known when it happened. Windows that start after it are left
+    out, and every ID gets the suffix ``:asof:<event_id>`` so it never collides with the
+    full-match metric of the same name.
+    """
     events = match.events
+    cutoff: Event | None = None
+    if as_of_event_id is not None:
+        idx = next((i for i, e in enumerate(events) if e.event_id == as_of_event_id), None)
+        if idx is None:
+            raise ValueError(f"unknown event {as_of_event_id!r}")
+        cutoff, events = events[idx], events[: idx + 1]
     out: list[Metric] = []
     for team in SIDES:
         out.extend(_count(name, team, events) for name in _COUNTS)
@@ -178,6 +200,8 @@ def compute_metrics(match: Match, window_s: int = DEFAULT_WINDOW_S) -> dict[str,
         out.append(_possessions(team, events))
     bounds = window_bounds(match, window_s)
     for i, (lo, hi) in enumerate(bounds):
+        if cutoff is not None and lo > cutoff.clock_s:
+            break  # this window has not started yet
         in_win = tuple(e for e in events if _in_window(e, lo, hi, i == len(bounds) - 1))
         suffix = f"@{int(lo)}-{int(hi)}"
         for team in SIDES:
@@ -186,4 +210,11 @@ def compute_metrics(match: Match, window_s: int = DEFAULT_WINDOW_S) -> dict[str,
                 for name in _WINDOW_COUNTS
             )
             out.append(_xg(team, in_win, window=(lo, hi), suffix=suffix))
+    if as_of_event_id is not None:
+        out = [
+            replace(
+                m, metric_id=as_of_id(m.metric_id, as_of_event_id), as_of_event_id=as_of_event_id
+            )
+            for m in out
+        ]
     return {m.metric_id: m for m in out}
