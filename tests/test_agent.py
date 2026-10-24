@@ -18,6 +18,7 @@ from matchlens.agent import (
     INJECTED,
     MAX_CLAIMS,
     MAX_MODEL_CALLS,
+    MAX_TOOL_CALLS,
     NETWORK_RETRIES,
     NETWORK_RETRY_WAIT_S,
     OFFLINE,
@@ -376,6 +377,43 @@ def test_rate_limit_waits_are_capped_and_bounded(match, goal):
             match, goal, FoundryAgentProposer(_config(), other, sleep=waits.append), strict=True
         )
     assert len(waits) == RATE_LIMIT_RETRIES
+
+
+class Browser:
+    """Fake agent that keeps calling tools until tools are turned off, then answers."""
+
+    def __init__(self, calls_per_turn=1):
+        self.calls_per_turn = calls_per_turn
+        self.bodies = []
+
+    def __call__(self, url, headers, body, timeout):
+        body = json.loads(body)
+        self.bodies.append(body)
+        n = len(self.bodies)
+        if body["tool_choice"] == "none":
+            output = [_final([_claim(SHOTS, 3)])]
+        else:
+            ids = [SHOTS] * self.calls_per_turn
+            output = [_call("get_metric", {"metric_id": m}, f"c{n}_{i}") for i, m in enumerate(ids)]
+        return json.dumps(_response(f"resp_{n}", output)).encode()
+
+
+def test_last_model_call_must_answer(match, goal):
+    lines = []
+    fake = Browser()
+    review = review_card(match, goal, FoundryAgentProposer(_config(), fake, log=lines.append))
+    assert review.proposer == FOUNDRY and len(fake.bodies) == MAX_MODEL_CALLS
+    assert [b["tool_choice"] for b in fake.bodies] == ["auto"] * (MAX_MODEL_CALLS - 1) + ["none"]
+    assert review.verdicts[0].verified and len(review.attempts) == 1
+    assert f"{GOAL} attempt 1: model call {MAX_MODEL_CALLS} (tools off: must answer)" in lines
+    assert lines[-1] == "  answer: 1 claim(s)" and "  tools: get_metric" in lines
+
+
+def test_tool_budget_turns_tools_off_early(match, goal):
+    fake = Browser(calls_per_turn=MAX_TOOL_CALLS)
+    review = review_card(match, goal, FoundryAgentProposer(_config(), fake))
+    assert [b["tool_choice"] for b in fake.bodies] == ["auto", "none"]
+    assert review.proposer == FOUNDRY and review.verdicts[0].verified
 
 
 def test_failed_retry_drops_the_rejected_claims(match, goal):

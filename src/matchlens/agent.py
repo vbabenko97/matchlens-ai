@@ -48,8 +48,8 @@ INJECTED = "injected_test_claim"
 REJECTED = "rejected"
 MAX_CLAIMS = 4
 MAX_RETRIES = 1
-MAX_MODEL_CALLS = 6  # per attempt, tool rounds included
-MAX_TOOL_CALLS = 16  # per attempt
+MAX_MODEL_CALLS = 6  # per attempt, tool rounds included; the last one must answer
+MAX_TOOL_CALLS = 16  # per attempt; once reached, the next call must answer
 MAX_EVENTS_PER_CALL = 25
 MAX_OUTPUT_TOKENS = 400  # Azure counts this against the per-minute token limit up front
 RATE_LIMIT_RETRIES = 4  # per model call, on HTTP 429
@@ -320,8 +320,10 @@ AGENT_INSTRUCTIONS = (
     f"{MAX_CLAIMS} factual claims an analyst graphic should show. Each claim is structured: "
     "a metric_id with its exact value, and/or cited_event_ids. Use the tools to find metric "
     "IDs, values and events; only what has happened when the card is published is available. "
-    "Never invent IDs or values. A deterministic validator checks every claim and drops the "
-    "ones it rejects. Reply only with JSON matching the schema."
+    "Be economical: call list_metrics once, then request every metric and event you need in "
+    "a single turn (several tool calls at once), then answer. Never invent IDs or values. A "
+    "deterministic validator checks every claim and drops the ones it rejects. Reply only "
+    "with JSON matching the schema."
 )
 
 
@@ -428,11 +430,17 @@ class FoundryAgentProposer:
         tool_calls = 0
         attempt = 2 if feedback else 1
         for n in range(1, MAX_MODEL_CALLS + 1):
-            self.log(f"{ctx.card.card_id} attempt {attempt}: model call {n}")
+            # The last allowed call (or the first after the tool budget) must answer.
+            must_answer = n == MAX_MODEL_CALLS or tool_calls >= MAX_TOOL_CALLS
+            self.log(
+                f"{ctx.card.card_id} attempt {attempt}: model call {n}"
+                + (" (tools off: must answer)" if must_answer else "")
+            )
             body = {
                 "model": self.config.deployment,
                 "input": items,
                 "tools": TOOL_SPECS,
+                "tool_choice": "none" if must_answer else "auto",
                 "text": {"format": CLAIMS_FORMAT},
                 "max_output_tokens": MAX_OUTPUT_TOKENS,
                 "store": False,  # no server-side retention; the full input is resent instead
@@ -449,10 +457,12 @@ class FoundryAgentProposer:
             records.append(_call_record(response, calls, retries))
             if not calls:
                 claims, dropped = parse_claims(extract_output_text(response))
+                self.log(f"  answer: {len(claims)} claim(s)")
                 return Proposal(claims, tuple(records), dropped)
+            if must_answer:
+                raise AgentError("model called a tool after tools were turned off")
+            self.log(f"  tools: {', '.join(c['name'] for c in calls)}")
             tool_calls += len(calls)
-            if tool_calls > MAX_TOOL_CALLS:
-                raise AgentError("tool call limit exceeded")
             for c in calls:
                 # Echo the call without its item id (nothing is stored server-side).
                 items.append({"type": "function_call", **{k: c[k] for k in _CALL_KEYS}})
@@ -464,7 +474,8 @@ class FoundryAgentProposer:
                         "output": json.dumps(result),
                     }
                 )
-        raise AgentError("no final answer within the model call limit")
+
+        raise AgentError("no final answer")  # unreachable: the last call must answer
 
 
 _CALL_KEYS = ("call_id", "name", "arguments")
