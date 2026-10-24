@@ -195,6 +195,7 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .inspector dt { color: var(--muted); }
 .inspector dd { margin: 0; }
 
+#match { max-width: 100%; }
 .footer { padding: 0.6rem 1rem 1rem; color: var(--muted); font-size: 0.8rem; }
 .footer p { margin: 0; max-width: 70rem; }
 [hidden] { display: none !important; }

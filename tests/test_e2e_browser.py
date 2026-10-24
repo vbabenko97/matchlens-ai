@@ -24,7 +24,7 @@ import pytest
 
 from matchlens.agent import DEMO_TRACE, RecordedProposer
 from matchlens.generator import generate_match
-from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, dumps
+from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, demo_extra_bundles, dumps
 from matchlens.server import export_site, make_server
 
 playwright_api = pytest.importorskip("playwright.sync_api")
@@ -33,6 +33,12 @@ pytestmark = pytest.mark.e2e
 PUBLIC_URL = os.environ.get("MATCHLENS_BASE_URL", "").strip()
 ROOT = Path(__file__).resolve().parent.parent
 TARGETS = ["public"] if PUBLIC_URL else ["app-server", "static-subpath"]
+
+
+@functools.cache
+def _extras():
+    """The extra matches of the production build (built once per test session)."""
+    return json.loads(dumps(demo_extra_bundles()))
 
 
 def _start(server):
@@ -52,12 +58,13 @@ def target(request, tmp_path_factory):
     trace = json.loads((ROOT / DEMO_TRACE).read_text(encoding="utf-8"))
     proposer = RecordedProposer(trace, DEMO_TRACE)
     bundle = json.loads(dumps(build_bundle(generate_match(DEFAULT_DEMO_SEED), proposer=proposer)))
+    extras = _extras()
     if request.param == "app-server":
-        srv = _start(make_server(bundle, port=0))
+        srv = _start(make_server(bundle, port=0, extras=extras))
         yield f"http://127.0.0.1:{srv.server_address[1]}/", bundle
     else:
         root = tmp_path_factory.mktemp("static")
-        export_site(bundle, root / "matchlens-ai")
+        export_site(bundle, root / "matchlens-ai", extras)
         handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root))
         handler.log_message = lambda *args: None
         srv = _start(http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler))
@@ -627,3 +634,73 @@ def test_live_check_fallback_keeps_the_recorded_run_and_says_so(page, live_base)
     text = warn.text_content()
     assert "not configured" in text and "not a live call" in text
     assert "Recorded Microsoft Foundry agent run" in card.locator(".review").text_content()
+
+
+# --- Match picker ---
+
+
+@pytest.fixture(scope="module")
+def index(base_url):
+    with urllib.request.urlopen(base_url + "data/matches.json", timeout=30) as resp:
+        return json.load(resp)
+
+
+def _match_bundle(base_url, entry):
+    with urllib.request.urlopen(base_url + entry["file"], timeout=30) as resp:
+        return json.load(resp)
+
+
+def test_match_picker_lists_every_match_without_spoilers(page, index):
+    _open(page)
+    options = page.locator("#match option")
+    assert options.count() == len(index["matches"]) >= 2
+    texts = options.all_text_contents()
+    assert texts[0].startswith(f"Seed {index['matches'][0]['seed']}") and "demo" in texts[0]
+    assert page.eval_on_selector("#match", "s => s.value") == str(index["matches"][0]["seed"])
+    for text, entry in zip(texts, index["matches"], strict=True):
+        h, a = entry["final_score"]
+        assert f"{h}-{a}" not in text and f"{h}–{a}" not in text  # no result in the picker
+
+
+def test_picking_a_match_loads_its_own_bundle_and_overlays(page, index, base_url):
+    entry = index["matches"][1]
+    other = _match_bundle(base_url, entry)
+    _open(page, "?mode=analyst")
+    with page.expect_navigation():
+        page.select_option("#match", str(entry["seed"]))
+    page.wait_for_selector("body[data-ready=true]")
+    assert f"seed={entry['seed']}" in page.url and "mode=analyst" in page.url
+    assert page.get_attribute(".mode-toggle button[data-mode=analyst]", "aria-checked") == "true"
+    assert page.get_attribute("#download", "href") == entry["overlays"]
+    assert "not picked or tuned" in page.text_content("#disclosure")
+    page.evaluate(f"window.matchlens.seek({other['duration_s']})")
+    shown = page.locator("#cards [data-card-id]").evaluate_all(
+        "els => els.map(e => e.dataset.cardId)"
+    )
+    assert sorted(shown) == sorted(c["card_id"] for c in other["cards"]["analyst"])
+    h, a = other["final_score"]
+    assert (page.text_content("#home-score"), page.text_content("#away-score")) == (str(h), str(a))
+    assert page.locator(".live-check").count() == 0  # live checks cover the demo match only
+    assert f"seed={entry['seed']}" in page.get_attribute("#broadcast", "href")
+    ai = other["highlights"].get("ai_check")
+    if ai:
+        assert "AI" not in page.text_content("#jump-ai")
+
+
+def test_an_unknown_seed_falls_back_to_the_demo_match(page, bundle):
+    _open(page, "?seed=999999")
+    assert page.eval_on_selector("#match", "s => s.value") == str(bundle["meta"]["seed"])
+    page.evaluate(f"window.matchlens.seek({bundle['duration_s']})")
+    h, a = bundle["final_score"]
+    assert (page.text_content("#home-score"), page.text_content("#away-score")) == (str(h), str(a))
+
+
+def test_broadcast_plays_the_picked_match(page, index, base_url):
+    entry = index["matches"][1]
+    with urllib.request.urlopen(base_url + entry["overlays"], timeout=30) as resp:
+        cue = json.load(resp)["cues"][0]
+    _open_broadcast(page, f"?seed={entry['seed']}&mode={cue['mode']}&cue={cue['cue_id']}")
+    assert page.get_attribute("#lower-third", "data-cue") == cue["cue_id"]
+    page.expected_errors.append("status of 404")  # none expected, but a bad index would 404
+    _open_broadcast(page, "?seed=999999")
+    assert "no match with seed 999999" in page.text_content("#status-line")

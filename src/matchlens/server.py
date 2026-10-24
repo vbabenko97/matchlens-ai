@@ -5,11 +5,12 @@ from __future__ import annotations
 import hashlib
 import http.server
 import json
+from collections.abc import Sequence
 from importlib import resources
 from pathlib import Path
 
 from .live import LIVE_PATH, MAX_BODY_BYTES, LiveChecker, handle
-from .replay import BUNDLE_SCHEMA, dumps
+from .replay import BUNDLE_SCHEMA, dumps, match_entry
 
 WEB_FILES = ("index.html", "app.js", "style.css", "broadcast.html", "broadcast.js", "broadcast.css")
 _TYPES = {
@@ -49,13 +50,30 @@ def _versioned_page(files: dict[str, bytes], page: str) -> bytes:
     return html
 
 
-def site_files(bundle: dict) -> dict[str, bytes]:
-    """Every file of the static site, keyed by URL path (without the leading slash)."""
+MATCHES_SCHEMA = "matchlens.matches/v1"
+
+
+def site_files(bundle: dict, extras: Sequence[dict] = ()) -> dict[str, bytes]:
+    """Every file of the static site, keyed by URL path (without the leading slash).
+
+    ``bundle`` is the default match (``data/bundle.json``); ``extras`` are more matches for the
+    picker, each as ``data/matches/<match_id>.json`` plus its overlay cues. ``data/matches.json``
+    lists them all, the default first.
+    """
     files = {name: (_web_dir() / name).read_bytes() for name in WEB_FILES}
     for page in VERSIONED_REFS:
         files[page] = _versioned_page(files, page)
     files["data/bundle.json"] = dumps(bundle).encode()
     files["data/overlays.json"] = dumps(bundle["overlays"]).encode()
+    entries = [match_entry(bundle, "data/bundle.json", "data/overlays.json")]
+    for extra in extras:
+        base = f"data/matches/{extra['meta']['match_id']}"
+        if f"{base}.json" in files or extra["meta"]["match_id"] == bundle["meta"]["match_id"]:
+            raise ValueError(f"duplicate match {extra['meta']['match_id']}")
+        files[f"{base}.json"] = dumps(extra).encode()
+        files[f"{base}-overlays.json"] = dumps(extra["overlays"]).encode()
+        entries.append(match_entry(extra, f"{base}.json", f"{base}-overlays.json"))
+    files["data/matches.json"] = dumps({"schema": MATCHES_SCHEMA, "matches": entries}).encode()
     return files
 
 
@@ -67,7 +85,7 @@ def _is_previous_export(out: Path) -> bool:
     return isinstance(doc, dict) and doc.get("schema") == BUNDLE_SCHEMA
 
 
-def export_site(bundle: dict, out: Path) -> list[Path]:
+def export_site(bundle: dict, out: Path, extras: Sequence[dict] = ()) -> list[Path]:
     """Write the static site into ``out``. Never deletes anything.
 
     ``out`` must be missing, empty, or a previous MatchLens export (files are overwritten
@@ -76,7 +94,7 @@ def export_site(bundle: dict, out: Path) -> list[Path]:
     if out.exists() and (not out.is_dir() or (any(out.iterdir()) and not _is_previous_export(out))):
         raise FileExistsError(f"{out} exists and is not an empty directory or a MatchLens export")
     written = []
-    for rel, data in site_files(bundle).items():
+    for rel, data in site_files(bundle, extras).items():
         path = out / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
@@ -85,10 +103,10 @@ def export_site(bundle: dict, out: Path) -> list[Path]:
 
 
 def make_handler(
-    bundle: dict, checker: LiveChecker | None = None
+    bundle: dict, checker: LiveChecker | None = None, extras: Sequence[dict] = ()
 ) -> type[http.server.BaseHTTPRequestHandler]:
     """Static files, plus ``POST /api/live-check`` when a live checker is given."""
-    files = site_files(bundle)
+    files = site_files(bundle, extras)
     match_id = bundle["meta"]["match_id"]
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -110,10 +128,11 @@ def make_handler(
                 "Content-Security-Policy",
                 "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:",
             )
-            if path == "data/overlays.json":
+            if path.startswith("data/") and path.endswith("overlays.json"):
+                name = Path(path).name.removesuffix("overlays.json").rstrip("-") or match_id
                 self.send_header(
                     "Content-Disposition",
-                    f'attachment; filename="matchlens-overlays-{match_id}.json"',
+                    f'attachment; filename="matchlens-overlays-{name}.json"',
                 )
             self.end_headers()
             self.wfile.write(data)
@@ -143,6 +162,10 @@ def make_handler(
 
 
 def make_server(
-    bundle: dict, host: str = "127.0.0.1", port: int = 8000, checker: LiveChecker | None = None
+    bundle: dict,
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    checker: LiveChecker | None = None,
+    extras: Sequence[dict] = (),
 ):
-    return http.server.ThreadingHTTPServer((host, port), make_handler(bundle, checker))
+    return http.server.ThreadingHTTPServer((host, port), make_handler(bundle, checker, extras))

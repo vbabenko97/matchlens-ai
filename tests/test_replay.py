@@ -245,3 +245,94 @@ def test_cli_export_site_and_overlays(tmp_path, monkeypatch):
     assert main(["export-site", "--file", str(match_file), "--out", str(tmp_path / "s2")]) == 0
     same = json.loads((tmp_path / "s2" / "data" / "bundle.json").read_text())
     assert same == json.loads((tmp_path / "site" / "data" / "bundle.json").read_text())
+
+
+# --- More matches for the picker ---------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def extras():
+    from matchlens.replay import demo_extra_bundles
+
+    return json.loads(dumps(demo_extra_bundles()))
+
+
+def test_extra_matches_are_offline_and_never_replay_the_recorded_run(extras):
+    from matchlens.agent import OFFLINE, RECORDED
+    from matchlens.replay import DEMO_EXTRA_SEEDS
+
+    assert [b["meta"]["seed"] for b in extras] == list(DEMO_EXTRA_SEEDS)
+    for b in extras:
+        assert b["provider"] == "offline_template" and "live_check" not in b
+        proposers = {r["proposer"] for r in b["reviews"].values()}
+        assert proposers == {OFFLINE} and RECORDED not in proposers
+        ai = b["highlights"].get("ai_check")
+        if ai:  # only the injected test claim is rejected: the shortcut must not say "AI"
+            assert ai["label"].startswith("See the validator reject a wrong claim")
+
+
+def test_site_lists_every_match_and_serves_each_one(tmp_path, bundle, extras):
+    from matchlens.server import MATCHES_SCHEMA
+
+    files = site_files(bundle, extras)
+    index = json.loads(files["data/matches.json"])
+    assert index["schema"] == MATCHES_SCHEMA
+    entries = index["matches"]
+    assert [e["seed"] for e in entries] == [1] + [b["meta"]["seed"] for b in extras]
+    assert (
+        entries[0]["file"] == "data/bundle.json" and entries[0]["overlays"] == "data/overlays.json"
+    )
+    for entry, b in zip(entries[1:], extras, strict=True):
+        assert json.loads(files[entry["file"]]) == b
+        assert json.loads(files[entry["overlays"]]) == b["overlays"]
+        assert entry["file"] == f"data/matches/{b['meta']['match_id']}.json"
+        assert entry["final_score"] == b["final_score"] and not entry["recorded_foundry_run"]
+    out = tmp_path / "site"
+    export_site(bundle, out, extras)
+    assert json.loads((out / "data" / "matches" / "ml121.json").read_text())["meta"]["seed"] == 121
+    # A single-match site still has an index, so the page never requests a missing file.
+    assert len(json.loads(site_files(bundle)["data/matches.json"])["matches"]) == 1
+
+
+def test_duplicate_matches_are_refused(bundle, extras):
+    with pytest.raises(ValueError, match="duplicate"):
+        site_files(bundle, [extras[0], extras[0]])
+    with pytest.raises(ValueError, match="duplicate"):
+        site_files(bundle, [bundle])
+
+
+def test_export_site_includes_extra_matches_only_for_the_demo_seed(tmp_path):
+    from matchlens.replay import DEMO_EXTRA_SEEDS
+
+    def seeds(out):
+        return [
+            m["seed"] for m in json.loads((out / "data" / "matches.json").read_text())["matches"]
+        ]
+
+    assert main(["export-site", "--offline", "--out", str(tmp_path / "a")]) == 0
+    assert seeds(tmp_path / "a") == [1, *DEMO_EXTRA_SEEDS]
+    assert main(["export-site", "--offline", "--single-match", "--out", str(tmp_path / "b")]) == 0
+    assert seeds(tmp_path / "b") == [1]
+    assert main(["export-site", "--offline", "--seed", "7", "--out", str(tmp_path / "c")]) == 0
+    assert seeds(tmp_path / "c") == [7]
+
+
+def test_overlay_downloads_are_named_after_their_match(bundle, extras):
+    srv = make_server(bundle, port=0, extras=extras)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}/"
+        for path, name in (
+            ("data/overlays.json", "ml1"),
+            ("data/matches/ml121-overlays.json", "ml121"),
+        ):
+            with urllib.request.urlopen(base + path) as resp:
+                assert (
+                    f'filename="matchlens-overlays-{name}.json"'
+                    in resp.headers["Content-Disposition"]
+                )
+        with urllib.request.urlopen(base + "data/matches/ml121.json") as resp:
+            assert "Content-Disposition" not in resp.headers
+    finally:
+        srv.shutdown()
+        srv.server_close()

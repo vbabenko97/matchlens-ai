@@ -40,6 +40,7 @@ const state = {
   openChains: new Set(), spotlight: null, // UI state kept across card re-renders
   announced: { cards: -1, mode: "", fullTime: false }, announceTimer: null,
   live: {}, // card_id -> { pending } | { ok, message, review? }: live Foundry checks this visit
+  index: null, entry: null, // data/matches.json and the match shown (null on older exports)
 };
 
 // One polite status region for screen readers; only the latest message is spoken.
@@ -602,7 +603,7 @@ function setMode(mode) {
     b.tabIndex = on ? 0 : -1; // roving tabindex: one tab stop for the radio group
   }
   document.body.dataset.mode = mode;
-  $("broadcast").href = `broadcast.html?mode=${mode}&rundown=1&bg=dark`;
+  $("broadcast").href = `broadcast.html?mode=${mode}&rundown=1&bg=dark${seedQuery()}`;
   $("inspector").hidden = mode !== "analyst";
   state.selected = [];
   state.spotlight = null;
@@ -700,8 +701,34 @@ function bindControls() {
   });
 }
 
-function init(bundle) {
+// Match picker from data/matches.json. Labels name the seed only: no score, no spoilers.
+function bindMatchPicker(index, entry) {
+  if (!index || index.matches.length < 2) return;
+  const select = $("match");
+  index.matches.forEach((m, i) => {
+    const label = `Seed ${m.seed}` + (i === 0 ? " (demo)" : " (untuned)");
+    const opt = el("option", { value: String(m.seed) }, label);
+    if (m === entry) opt.selected = true;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => {
+    const url = new URL(location.href);
+    url.search = "";
+    if (select.value !== String(index.matches[0].seed)) url.searchParams.set("seed", select.value);
+    if (state.mode === "analyst") url.searchParams.set("mode", "analyst");
+    location.assign(url.toString()); // a fresh page per match: no state carries over
+  });
+  $("match-pick").hidden = false;
+}
+
+function seedQuery() {
+  return state.entry && state.index && state.entry !== state.index.matches[0] ? `&seed=${state.entry.seed}` : "";
+}
+
+function init(bundle, index, entry) {
   state.bundle = bundle;
+  state.index = index;
+  state.entry = entry;
   for (const e of bundle.events) state.eventsById.set(e.event_id, e);
   const { home, away, match_id: matchId } = bundle.meta;
   for (const [id, text] of [["home-name", home.name], ["away-name", away.name], ["legend-home", home.name], ["legend-away", away.name]]) {
@@ -709,6 +736,8 @@ function init(bundle) {
   }
   $("seek").max = String(bundle.duration_s);
   $("download").setAttribute("download", `matchlens-overlays-${matchId}.json`);
+  if (entry) $("download").setAttribute("href", entry.overlays);
+  const extra = index && entry && entry !== index.matches[0];
   const offline = bundle.provider === "offline_template";
   $("disclosure").textContent =
     `Synthetic match ${matchId} (seed ${bundle.meta.seed}) between fictional teams. ` +
@@ -721,11 +750,15 @@ function init(bundle) {
       ? " Analyst claim checks replay a recorded Microsoft Foundry agent run (not a live call); " +
         "every claim was re-checked by the deterministic validator when this page was built."
       : "") +
+    (extra
+      ? " This match was not picked or tuned for the demo; its claim checks use the offline proposer (no AI)."
+      : "") +
     (bundle.live_check
       ? " Analyst claim checks can also be run live: the button calls Microsoft Foundry through a " +
         "server-side function (the key never reaches the browser), within per-visitor and daily limits."
       : "");
   drawMarkings();
+  bindMatchPicker(index, entry);
   bindControls();
   bindShortcuts(bundle.highlights || {});
   const params = new URLSearchParams(location.search);
@@ -739,7 +772,23 @@ function init(bundle) {
 
 window.matchlens = { state, seek, setMode, setPlaying };
 
-fetch("data/bundle.json", { cache: "no-cache" }) // revalidate: the bundle changes per deploy
-  .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-  .then(init)
-  .catch((err) => { $("disclosure").textContent = `Could not load match data: ${err.message}`; });
+// The match index is optional (older exports have none); without it, the default bundle.
+async function load() {
+  const getJson = async (path) => {
+    const r = await fetch(path, { cache: "no-cache" }); // revalidate: data changes per deploy
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  };
+  let index = null;
+  try {
+    index = await getJson("data/matches.json");
+    if (!index || !Array.isArray(index.matches) || !index.matches.length) index = null;
+  } catch (err) {
+    index = null;
+  }
+  const want = new URLSearchParams(location.search).get("seed");
+  const entry = index ? index.matches.find((m) => String(m.seed) === want) || index.matches[0] : null;
+  init(await getJson(entry ? entry.file : "data/bundle.json"), index, entry);
+}
+
+load().catch((err) => { $("disclosure").textContent = `Could not load match data: ${err.message}`; });

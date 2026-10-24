@@ -18,7 +18,8 @@ The deployed site is the offline static export of `main` @ `0aa672c`. It does no
 The public demo is the **static export** of the replay UI: `python -m matchlens export-site --offline --out site`. It has:
 - `index.html`, `app.js`, `style.css`;
 - `data/bundle.json` (precomputed seed-1 match, cards and metrics);
-- `data/overlays.json`.
+- `data/overlays.json`;
+- `data/matches.json` (the match picker's index) and `data/matches/<match_id>.json` plus `-overlays.json` for the extra matches (seeds 121, 106, 103, 123, 124; offline, untuned; `--single-match` leaves them out).
 
 It runs entirely in the browser, needs no server code or account, and contains **no credentials**. Its wording comes from the deterministic offline template, labelled as such. It therefore stays fully functional without Azure, and hosting costs nothing beyond the free tier.
 

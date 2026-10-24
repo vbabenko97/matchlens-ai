@@ -22,6 +22,10 @@ Deployment (static export on GitHub Pages) and the public-URL Playwright smoke t
 
 It runs fully offline without Azure credentials (deterministic, labelled template wording). Other options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`. `python -m matchlens export-site --out site/` writes the same UI as a static folder (no server code needed to host it).
 
+### More matches
+
+The **Match** picker switches between the demo match (seed 1, the only one with the recorded Foundry run and the live check) and five untuned seeds from the checked range 100–129: 121, 106, 103, 123 and 124. They were chosen for different stories: a 3–4 comeback, a 3–3 draw, a 4–1 comeback, a 0–5 rout and a 0–1 with little to say. Labels show the seed only, so the picker never spoils a result. Every extra match is built offline (template wording, offline claim proposer), and its page says so. A link can name a match: `?seed=121`; the on-air graphic takes the same parameter.
+
 ### Live Foundry check (Azure Static Web Apps build)
 
 On the Azure Static Web Apps deployment, each analyst card has **Check this card live with Microsoft Foundry**. The server-side function (`api/`, `src/matchlens/live.py`) takes only the card ID, runs the bounded claim agent and the validator against Foundry, and shows the live result with its response IDs. A shared daily cap (Azure Table Storage, reserved before every model call) bounds spend; without it no live call is made. When no live call is made, the page keeps the recorded run and says so. Setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Locally: `python -m matchlens serve --live-api`.
