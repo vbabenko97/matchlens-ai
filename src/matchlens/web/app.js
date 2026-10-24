@@ -72,11 +72,16 @@ function localized(card) {
 }
 
 function personalizedNote(loc) {
+  const p = state.bundle.personalized;
+  const critic = (p.critics || []).length > 0;
   const team = loc.focus === "neutral" ? "" : `, for ${state.bundle.meta[loc.focus].name} fans`;
-  const kept = loc.kept ? ` ${loc.kept} line(s) kept in English: the checker or the editorial review rejected the rewrite.` : "";
+  const who = critic ? "the checker, the critic or the editorial review" : "the checker or the editorial review";
+  const kept = loc.kept ? ` ${loc.kept} line(s) kept in English: ${who} rejected the rewrite.` : "";
+  const checks = critic
+    ? "numbers and names checked against the English facts; meaning reviewed by a critic agent (also AI); tone not checked."
+    : "numbers and names checked against the English facts; meaning and tone not checked.";
   return `${LANG_NAME[loc.lang]}${team}: AI wording by the Microsoft Foundry personalizer ` +
-    `(${state.bundle.personalized.proposers.includes("recorded_foundry_personalizer") ? "recorded run" : "live"}); ` +
-    `numbers and names checked against the English facts; meaning and tone not checked.${kept}`;
+    `(${p.proposers.includes("recorded_foundry_personalizer") ? "recorded run" : "live"}); ${checks}${kept}`;
 }
 
 // One polite status region for screen readers; only the latest message is spoken.
@@ -376,7 +381,9 @@ function renderCard(card, isActive) {
   nar.appendChild(el("span", { class: "verified-note" }, "✓ checked against match events"));
   if (loc) {
     nar.appendChild(el("span", { class: "status template", title: state.bundle.personalized.label },
-      "AI wording (Foundry personalizer) · numbers & names checked"));
+      (state.bundle.personalized.critics || []).length
+        ? "AI wording (Foundry personalizer) · numbers & names checked · critic-reviewed"
+        : "AI wording (Foundry personalizer) · numbers & names checked"));
   } else {
     nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}`, title: n.label },
       unverified ? "AI wording · NOT VERIFIED" : "Offline template · not an Azure response"));

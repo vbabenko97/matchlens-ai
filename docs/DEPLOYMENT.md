@@ -78,6 +78,26 @@ Verified locally against independent static hosts: the app server, a plain stati
    - The command prints every line with ✓ or "kept (reason)" and exits 1 without writing a file if the trace is not acceptable evidence.
 2. Check the output (no key in the file: `grep -c "$AZURE_OPENAI_API_KEY" <file>` prints 0), commit it, then add `--personalize-trace docs/evidence/personalize-trace-2026-10-25.json` to the `export-site` lines of `deploy-pages.yml` and `deploy-swa.yml` (one PR), merge and redeploy.
 
+## Critic agent runs (meaning review) — operator step
+**Status (2026-10-24): code ready, no live run yet.** Two runs, with the same `AZURE_OPENAI_*` variables as for `personalize-review`. Both print what they find, and neither writes a file unless the run is acceptable evidence.
+
+1. **Measure the critic against the editorial review** (about 56 calls, one per card variant, roughly 30K tokens):
+   ```bash
+   python -m matchlens critic-eval --out docs/evidence/critic-eval-2026-10-25.json
+   ```
+   - It replays the recorded personalizer run, sends the 220 lines that passed `check_line` to the critic, and compares the verdicts with the 12 human rejections.
+   - It prints lines, caught, missed, false alarms, recall and precision, and each miss and false alarm.
+   - `--from <file>` re-scores a recorded evaluation without a call.
+2. **Record a new personalizer run with the critic in the loop:**
+   ```bash
+   python -m matchlens personalize-review --out docs/evidence/personalize-trace-2026-10-25.json
+   ```
+   - The critic is now on by default; `--no-critic` records the old v1 format.
+   - Expect 56 personalizer calls, about 56 critic calls and one retry pair per card with a rejected line: roughly 130–170 calls and 60–80K tokens.
+   - The trace is `matchlens.personalize-trace/v2` and holds the critic's verdicts and response IDs per attempt.
+
+After the runs: the new trace gets its own editorial review, then the deploy workflows switch to it in one PR.
+
 ## Live Foundry check on the public demo (Azure Static Web Apps managed API)
 **Status: deployed and verified with one live call.**
 - **Live call.** An independent review of `main` @ `ff20751`, after the deploy, reported one live call on the Azure host: 7.2 s, 3 model calls, 8,058 tokens, 4 claims verified by the validator.
