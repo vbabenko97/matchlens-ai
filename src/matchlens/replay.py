@@ -26,6 +26,7 @@ from .moments import detect_goals
 from .narrative import ANALYST, CASUAL, MODES, NarrativeProvider, OfflineTemplateProvider
 from .overlays import build_overlay_document
 from .personalize import Personalizer, personalize_cards, personalized_record
+from .players import player_records
 from .schema import AWAY, HOME, Match, minute_of
 from .story import full_time_story
 from .validate import assert_valid
@@ -153,6 +154,7 @@ def build_bundle(
         "stat_steps": stat_steps(match),
         "overlays": build_overlay_document(match, card_sets),
         "highlights": highlights(match, reviews),
+        "players": player_records(match, {cs.mode: cs.cards for cs in card_sets}),
     }
     if personalized is not None:
         doc["personalized"] = personalized

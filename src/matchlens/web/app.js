@@ -42,6 +42,7 @@ const state = {
   live: {}, // card_id -> { pending } | { ok, message, review? }: live Foundry checks this visit
   index: null, entry: null, // data/matches.json and the match shown (null on older exports)
   variant: "en|neutral", // personalizer variant "lang|focus" (casual cards); en|neutral = source
+  player: null, playerKey: "", // focused player (bundle.players record) and its rendered state
 };
 
 const LANG_NAME = { en: "English", de: "Deutsch", uk: "Українська" };
@@ -175,23 +176,24 @@ function drawEvent(g, e, opacity, highlight) {
     return;
   }
   const style = { opacity: String(opacity) };
+  const mine = state.player && e.player_id === state.player.player_id ? " mine" : "";
   if (e.type === "pass" || e.type === "clearance") {
-    const line = svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: `ev pass ${team}` });
+    const line = svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: `ev pass ${team}${mine}` });
     Object.assign(line.style, style);
     g.appendChild(line);
   } else if (e.type === "shot") {
-    const line = svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: `ev shot ${team}` });
+    const line = svg("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), class: `ev shot ${team}${mine}` });
     Object.assign(line.style, style);
     g.appendChild(line);
     if (e.outcome === "goal") {
       g.appendChild(svg("circle", { cx: sx(x2), cy: sy(y2), r: 1.3, class: "goal-mark" }));
     }
   } else if (e.type === "pressure") {
-    const ring = svg("circle", { cx: sx(x1), cy: sy(y1), r: 1.6, class: `ev ${team}` });
+    const ring = svg("circle", { cx: sx(x1), cy: sy(y1), r: 1.6, class: `ev ${team}${mine}` });
     Object.assign(ring.style, style);
     g.appendChild(ring);
   } else {
-    const dot = svg("circle", { cx: sx(x1), cy: sy(y1), r: 0.9, class: `dot ${team}` });
+    const dot = svg("circle", { cx: sx(x1), cy: sy(y1), r: 0.9, class: `dot ${team}${mine}` });
     Object.assign(dot.style, style);
     g.appendChild(dot);
   }
@@ -211,6 +213,16 @@ function renderPitch(idx) {
   if (lastBall) {
     const [bx, by] = lastBall.end || lastBall.start;
     trail.appendChild(svg("circle", { cx: sx(bx), cy: sy(by), r: 0.8, class: "ball" }));
+  }
+  if (state.player) { // where the focused player last acted, up to now
+    for (let i = idx; i >= 0; i--) {
+      const e = ev[i];
+      if (e.player_id === state.player.player_id && e.start) {
+        const [px, py] = e.start;
+        trail.appendChild(svg("circle", { cx: sx(px), cy: sy(py), r: 2.2, class: "player-pos" }));
+        break;
+      }
+    }
   }
   const hl = $("highlight");
   hl.replaceChildren();
@@ -336,6 +348,7 @@ function renderCard(card, isActive) {
   const head = el("header");
   head.appendChild(el("span", { class: "kind" }, KIND_LABEL[card.kind] || card.kind));
   head.appendChild(el("span", { class: "minute" }, whenOf(card)));
+  if (featured(card)) head.appendChild(el("span", { class: "features" }, `Features ${state.player.name}`));
   head.appendChild(el("h3", loc ? { lang: loc.titleLang } : {}, loc ? loc.title : card.title));
   art.appendChild(head);
 
@@ -566,7 +579,8 @@ function renderCards() {
   // A card appears only once its last evidence event has happened (publish_clock_s).
   const visible = cardsForMode().filter((c) => c.publish_clock_s <= state.t);
   announceCards(visible);
-  const key = [state.mode, state.variant, visible.length, active ? active.card_id : "", state.selected.join(",")].join("|");
+  const key = [state.mode, state.variant, state.player ? state.player.player_id : "", visible.length,
+    active ? active.card_id : "", state.selected.join(",")].join("|");
   if (key !== state.cardsKey) {
     state.cardsKey = key;
     const box = $("cards");
@@ -592,6 +606,157 @@ function renderCards() {
   } else {
     lt.hidden = true;
   }
+}
+
+// --- Player focus: precomputed running stats (matchlens.players), shown as they stood now ---
+
+// Index of the last step with seq <= seq, or -1 before the first one.
+function stepIndex(steps, seq) {
+  let lo = 0;
+  let hi = steps.length - 1;
+  let ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (steps[mid][0] <= seq) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  return ans;
+}
+
+function featured(card) {
+  const p = state.player;
+  return !!p && (p.featured_cards[state.mode] || []).includes(card.card_id);
+}
+
+function playerStats(seq) {
+  const out = {};
+  for (const s of state.player.stats) {
+    const i = stepIndex(s.steps, seq);
+    out[s.name] = {
+      stat: s,
+      value: i >= 0 ? s.steps[i][1] : s.unit === "ratio" ? null : 0,
+      ids: s.steps.slice(0, i + 1).flatMap((step) => step[2]),
+    };
+  }
+  return out;
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+function playerSummary(v, cards) {
+  const items = [];
+  if (v.goals.value) items.push([plural(v.goals.value, "goal", "goals")]);
+  if (v.shots.value) items.push([`${plural(v.shots.value, "shot", "shots")}, ${v.shots_on_target.value} on target`]);
+  if (v.passes.value) {
+    items.push([`${v.passes_completed.value} of ${plural(v.passes.value, "pass", "passes")} completed ` +
+      `(${Math.round(100 * v.pass_completion.value)}%)`]);
+  }
+  if (v.ball_wins.value) items.push([plural(v.ball_wins.value, "ball win", "ball wins")]);
+  if (v.pressures.value) items.push([plural(v.pressures.value, "pressure", "pressures")]);
+  if (v.goal_involvements.value) items.push([`involved in ${plural(v.goal_involvements.value, "goal move", "goal moves")}`]);
+  if (v.shots.value) items.push([`synthetic xG ${v.xg_heuristic.value.toFixed(2)} (heuristic, not calibrated)`, "heuristic"]);
+  if (cards) items.push([`in ${plural(cards, "key-moment card", "key-moment cards")}`]);
+  return items;
+}
+
+function statValue(entry) {
+  const { stat, value } = entry;
+  if (value === null) return "undefined";
+  if (stat.unit === "ratio") return `${(100 * value).toFixed(1)}%`;
+  if (stat.unit === "xg") return value.toFixed(2);
+  return String(value);
+}
+
+function playerTable(v) {
+  const table = el("table", { class: "player-table" });
+  const head = el("tr");
+  for (const h of ["Stat", "Value", "Kind", "Evidence"]) head.appendChild(el("th", { scope: "col" }, h));
+  table.appendChild(el("thead")).appendChild(head);
+  const body = table.appendChild(el("tbody"));
+  for (const entry of Object.values(v)) {
+    const { stat, ids } = entry;
+    const tr = el("tr");
+    tr.appendChild(el("th", { scope: "row", title: stat.definition }, stat.label));
+    tr.appendChild(el("td", {}, statValue(entry)));
+    const heuristic = stat.kind === "heuristic";
+    tr.appendChild(el("td", { class: `kind-${stat.kind}` }, heuristic ? "heuristic, not calibrated" : "fact"));
+    const td = el("td");
+    if (ids.length) {
+      const b = el("button", { type: "button", class: "chip", "data-stat-id": stat.stat_id, title: stat.stat_id,
+        "aria-label": `Show ${plural(ids.length, "event", "events")} for ${stat.label} on the pitch` },
+      plural(ids.length, "event", "events"));
+      b.addEventListener("click", () => selectEvidence(ids));
+      td.appendChild(b);
+    } else {
+      td.textContent = "—";
+    }
+    tr.appendChild(td);
+    body.appendChild(tr);
+  }
+  return table;
+}
+
+function renderPlayer(idx) {
+  const panel = $("player-panel");
+  const p = state.player;
+  $("legend-player").hidden = !p;
+  if (!p) { panel.hidden = true; state.playerKey = ""; return; }
+  const seq = idx >= 0 ? state.bundle.events[idx].seq : -1;
+  const v = playerStats(seq);
+  const cards = cardsForMode().filter((c) => c.publish_clock_s <= state.t && featured(c)).length;
+  const key = [p.player_id, state.mode, cards, ...Object.values(v).map((e) => e.ids.length)].join("|");
+  if (key === state.playerKey) return;
+  state.playerKey = key;
+  const a = document.activeElement;
+  const refocus = a && panel.contains(a) && a.dataset.statId;
+  panel.hidden = false;
+  panel.className = `player-panel ${p.team}`;
+  const team = state.bundle.meta[p.team].name;
+  const h = $("player-heading");
+  h.replaceChildren(document.createTextNode(`#${p.number} ${p.name} `), el("span", { class: "team-line" }, `${team} · ${p.position}`));
+  $("player-scope").textContent = "Counted from this player's events up to the current replay time; no AI involved.";
+  const body = $("player-body");
+  body.replaceChildren();
+  if (state.mode === "analyst") {
+    body.appendChild(el("div", { class: "table-wrap" })).appendChild(playerTable(v));
+  } else {
+    const items = playerSummary(v, cards);
+    if (!items.length) {
+      body.appendChild(el("p", { class: "hint" }, "No touches yet."));
+    } else {
+      const ul = el("ul", { class: "player-facts", "aria-label": "Player statistics so far" });
+      for (const [text, cls] of items) ul.appendChild(el("li", cls ? { class: cls } : {}, text));
+      body.appendChild(ul);
+    }
+  }
+  if (refocus) {
+    const target = panel.querySelector(`[data-stat-id="${CSS.escape(refocus)}"]`);
+    if (target) target.focus();
+  }
+}
+
+// Player picker: both squads, grouped by team. ?player=<id> preselects one.
+function bindPlayerPicker(params) {
+  const data = state.bundle.players;
+  if (!data || !data.players.length) return;
+  const select = $("player");
+  for (const side of ["home", "away"]) {
+    const group = el("optgroup", { label: state.bundle.meta[side].name });
+    for (const p of data.players.filter((q) => q.team === side)) {
+      group.appendChild(el("option", { value: p.player_id }, `#${p.number} ${p.name} (${p.position})`));
+    }
+    select.appendChild(group);
+  }
+  const pick = (id) => {
+    state.player = data.players.find((p) => p.player_id === id) || null;
+    select.value = state.player ? state.player.player_id : "";
+    $("legend-player-name").textContent = state.player ? state.player.name : "";
+    state.selected = [];
+    state.cardsKey = "";
+    state.playerKey = "";
+  };
+  pick(params.get("player"));
+  select.addEventListener("change", () => { pick(select.value); render(); });
+  $("player-pick").hidden = false;
 }
 
 function renderMarkers() {
@@ -635,6 +800,7 @@ function render() {
   const idx = indexAt(state.t);
   renderScoreboard(idx);
   renderPitch(idx);
+  renderPlayer(idx);
   renderCards();
   $("seek").value = String(Math.floor(state.t));
   $("seek").setAttribute("aria-valuetext", `${fmtClock(state.t)}, ${$("period").textContent}`);
@@ -667,6 +833,7 @@ function setMode(mode) {
   state.selected = [];
   state.spotlight = null;
   state.cardsKey = "";
+  state.playerKey = "";
   renderMarkers();
   render();
 }
@@ -846,6 +1013,7 @@ function init(bundle, index, entry) {
   bindShortcuts(bundle.highlights || {});
   const params = new URLSearchParams(location.search);
   bindPersonalize(params);
+  bindPlayerPicker(params);
   const speed = Number(params.get("speed"));
   if ([15, 30, 60, 120, 240].includes(speed)) { state.speed = speed; $("speed").value = String(speed); }
   setMode(params.get("mode") === "analyst" ? "analyst" : "casual");

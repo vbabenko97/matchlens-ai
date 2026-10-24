@@ -128,7 +128,13 @@ python -m matchlens overlays match.jsonl --out overlays.json # timed overlay cue
 The replay UI has a scoreboard, a pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen.
 - **Controls.** Play, pause, seek, previous/next moment and speed (15×–240×). Keyboard: Space plays or pauses; ← / → seek 30 s.
 - **Analyst mode.** Every event and metric ID on a card opens in the evidence inspector and highlights on the pitch.
-- **Outputs.** **⬇ Overlay JSON** downloads the cues of the current match. URL parameters: `seed`, `mode`, `t`, `speed`, `lang`, `follow`.
+- **Player focus.** The **Player** picker lists both squads. The chosen player's panel shows their numbers up to the current replay time:
+  - goals, shots, passes and completion, ball wins, pressures, and the goal moves they were part of;
+  - synthetic xG, labelled as a heuristic.
+  - Each card citing one of their events is badged, and the pitch rings their last touch.
+  - In Analyst mode every stat is a row with its kind (fact or heuristic) and a button that shows its events on the pitch.
+  - The numbers are precomputed in `src/matchlens/players.py` with one step per event, so nothing later in the match is counted. A team's players add up to the team metrics (tested). No AI is involved.
+- **Outputs.** **⬇ Overlay JSON** downloads the cues of the current match. URL parameters: `seed`, `mode`, `t`, `speed`, `lang`, `follow`, `player`.
 
 **Language and club.** The personalizer makes one Foundry call per card with structured JSON output. `check_line` (`src/matchlens/personalize.py`) compares every rewritten line with its English fact:
 - the same numbers as digits, and score pairs in home-first order;

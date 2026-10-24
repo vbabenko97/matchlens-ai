@@ -832,3 +832,64 @@ def test_the_recorded_personalizer_run_is_live_on_the_page(page, bundle):
     _open(page, f"?t={bundle['duration_s']}&lang=uk&follow=home")
     text = page.text_content("#cards")
     assert "Впевненість" not in text and "відійшли назад" not in text  # editorial review
+
+
+# --- Player focus ------------------------------------------------------------------------------
+
+
+def _scorer(bundle):
+    goal = next(e for e in bundle["events"] if e["type"] == "shot" and e["outcome"] == "goal")
+    player = next(p for p in bundle["players"]["players"] if p["player_id"] == goal["player_id"])
+    return goal, player
+
+
+def test_player_focus_counts_only_what_has_happened(page, bundle):
+    goal, player = _scorer(bundle)
+    _open(page, f"?player={player['player_id']}&t={goal['clock_s'] - 1}")
+    assert page.input_value("#player") == player["player_id"]
+    assert player["name"] in page.text_content("#player-heading")
+    assert "1 goal" not in page.text_content("#player-body")  # the goal has not happened yet
+    page.evaluate(f"window.matchlens.seek({goal['clock_s']})")
+    body = page.text_content("#player-body")
+    assert "1 goal" in body and "heuristic, not calibrated" in body
+    badge = page.locator(".card .features")
+    assert badge.count() >= 1 and player["name"] in badge.first.text_content()
+
+
+def test_player_focus_in_analyst_mode_shows_evidence(page, bundle):
+    goal, player = _scorer(bundle)
+    _open(page, f"?player={player['player_id']}&mode=analyst&t={goal['clock_s']}")
+    rows = page.locator("#player-body tbody tr")
+    assert rows.count() == len(player["stats"])
+    xg = page.locator("#player-body tr", has_text="Synthetic xG")
+    assert "heuristic" in xg.text_content()
+    goals = page.locator("#player-body tr", has_text="Goals").first
+    goals.locator("button").click()
+    assert page.evaluate("window.matchlens.state.selected") == [goal["event_id"]]
+    assert page.locator("#highlight circle").count() >= 1
+
+
+def test_player_picker_lists_both_squads_and_can_be_cleared(page, bundle):
+    _open(page)
+    assert page.locator("#player-panel").is_hidden()
+    opts = page.locator("#player option")
+    assert opts.count() == 1 + len(bundle["players"]["players"])
+    assert page.locator("#player optgroup").count() == 2
+    first = bundle["players"]["players"][0]
+    page.select_option("#player", first["player_id"])
+    assert page.locator("#player-panel").is_visible()
+    assert page.locator("#legend-player").is_visible()
+    page.select_option("#player", "")
+    assert page.locator("#player-panel").is_hidden()
+    assert page.locator(".card .features").count() == 0
+
+
+@pytest.mark.parametrize("mode", ["casual", "analyst"])
+def test_player_panel_reflows_at_320px(browser, base_url, bundle, mode):
+    _, player = _scorer(bundle)
+    pg = browser.new_page(viewport={"width": 320, "height": 800})
+    pg.goto(base_url + f"?t=5400&player={player['player_id']}&mode={mode}")
+    pg.wait_for_selector("body[data-ready=true]")
+    assert pg.locator("#player-panel").is_visible()
+    assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pg.close()

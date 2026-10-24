@@ -46,6 +46,7 @@
         <div class="legend" aria-hidden="true">
           <span class="key home-key"></span><span id="legend-home">Home</span>
           <span class="key away-key"></span><span id="legend-away">Away</span>
+          <span class="player-key" id="legend-player" hidden>◯ <span id="legend-player-name"></span>: last touch</span>
           <span class="dir">→ home attacks right</span>
         </div>
       </div>
@@ -73,6 +74,9 @@
         <label class="speed" id="match-pick" hidden>Match
           <select id="match"></select>
         </label>
+        <label class="speed" id="player-pick" hidden>Player
+          <select id="player"><option value="">All players</option></select>
+        </label>
         <a id="download" class="button" href="data/overlays.json" download><span aria-hidden="true">⬇</span> Overlay JSON</a>
         <a id="broadcast" class="button" href="broadcast.html?mode=casual&amp;rundown=1&amp;bg=dark" target="_blank" rel="noopener"><span aria-hidden="true">▣</span> On-air graphic<span class="sr-only"> (opens in a new tab)</span></a>
         <p class="hint keys" id="keys-hint">Keys: Space play/pause · ← / → seek 30 s</p>
@@ -83,6 +87,12 @@
         <input type="range" id="seek" min="0" max="5400" step="1" value="0" aria-label="Seek match time" aria-valuetext="00:00">
         <div class="ticks" aria-hidden="true"><span>0'</span><span>45'</span><span>90'</span></div>
       </div>
+
+      <section class="player-panel" id="player-panel" aria-labelledby="player-heading" hidden>
+        <h2 id="player-heading"></h2>
+        <p class="hint" id="player-scope"></p>
+        <div id="player-body"></div>
+      </section>
     </section>
 
     <aside class="side" aria-labelledby="cards-heading" tabindex="0">
