@@ -24,7 +24,7 @@ It runs fully offline without Azure credentials (deterministic, labelled templat
 
 ### Live Foundry check (Azure Static Web Apps build)
 
-On the Azure Static Web Apps deployment, each analyst card has **Check this card live with Microsoft Foundry**. The server-side function (`api/`, `src/matchlens/live.py`) takes only the card ID, runs the bounded claim agent and the validator against Foundry, and shows the live result with its response IDs. Per-visitor, daily and Azure-side limits apply. When no live call is made, the page keeps the recorded run and says so. Setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Locally: `python -m matchlens serve --live-api`.
+On the Azure Static Web Apps deployment, each analyst card has **Check this card live with Microsoft Foundry**. The server-side function (`api/`, `src/matchlens/live.py`) takes only the card ID, runs the bounded claim agent and the validator against Foundry, and shows the live result with its response IDs. A shared daily cap (Azure Table Storage, reserved before every model call) bounds spend; without it no live call is made. When no live call is made, the page keeps the recorded run and says so. Setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Locally: `python -m matchlens serve --live-api`.
 
 ### On-air graphic (broadcast lower-third)
 

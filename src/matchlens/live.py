@@ -10,11 +10,14 @@ Fuses, in the order they apply:
 1. Only analyst card IDs of the demo match are accepted (404 otherwise).
 2. One live run at a time per instance; a second request gets "busy" instead of queuing,
    and costs no quota.
-3. A per-client limit (``PER_CLIENT_LIMIT`` checks per ``PER_CLIENT_WINDOW_S``) and a daily
-   limit (``MATCHLENS_LIVE_DAILY_LIMIT``, default ``DAILY_LIMIT``, UTC day). Both are held in
-   process memory, so they are per instance and reset on a cold start: the hard ceiling is
-   the Azure side (the deployment's tokens-per-minute limit and the subscription budget).
-4. A deadline (``DEADLINE_S``) over all model calls, rate-limit waits included.
+3. A per-client limit (``PER_CLIENT_LIMIT`` checks per ``PER_CLIENT_WINDOW_S``), in process
+   memory. It is a courtesy limit only: the client address comes from headers a script can
+   forge, and each instance counts on its own.
+4. The daily limit (``MATCHLENS_LIVE_DAILY_LIMIT``, default ``DAILY_LIMIT``, UTC day) is the
+   spend cap. It is a shared, durable count (``quota.TableCounter``), reserved before any
+   model call; a reservation is never returned, even when the call fails. If the count
+   cannot be read or updated, no live call is made.
+5. A deadline (``DEADLINE_S``) over all model calls, rate-limit waits included.
 
 Whenever the live call is not made or does not finish, the reply says why and tells the
 page to keep showing the recorded run, which it labels as recorded. A fallback is never
@@ -43,6 +46,7 @@ from .narrative import (
     Transport,
     _urllib_transport,
 )
+from .quota import COUNTER_URL_ENV, CounterError, DailyCounter, MemoryCounter, TableCounter
 from .replay import DEFAULT_DEMO_SEED as DEMO_SEED  # the match the public demo replays
 from .schema import Match
 
@@ -62,6 +66,7 @@ CLIENT_HEADERS = ("x-forwarded-for", "x-azure-clientip", "x-client-ip")
 NOT_CONFIGURED = "not_configured"
 CLIENT_LIMIT = "client_limit"
 DAILY_LIMIT_REACHED = "daily_limit"
+COUNTER_UNAVAILABLE = "counter_unavailable"
 BUSY = "busy"
 DEADLINE = "deadline"
 UNAVAILABLE = "foundry_unavailable"
@@ -73,37 +78,45 @@ class DeadlineExceeded(RuntimeError):
 
 @dataclass
 class Budget:
-    """Per-client and daily counters (in memory, per instance). A check counts when it starts."""
+    """The per-client courtesy limit (memory) and the shared daily cap (``counter``).
+
+    ``counter=None`` means no shared quota store is configured: live checks are refused.
+    """
 
     per_client: int = PER_CLIENT_LIMIT
     window_s: float = PER_CLIENT_WINDOW_S
     daily: int = DAILY_LIMIT
+    counter: DailyCounter | None = field(default_factory=MemoryCounter)
     now: Callable[[], float] = time.time
     _clients: dict[str, list[float]] = field(default_factory=dict)
-    _day: str = ""
-    _used: int = 0
+    _remaining: int | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def take(self, client: str) -> str | None:
-        """Record one check for ``client``; return a fallback reason instead when over a limit."""
+        """Reserve one check for ``client``; return a fallback reason instead of reserving."""
         with self._lock:
+            if self.counter is None:
+                return NOT_CONFIGURED
             t = self.now()
-            day = datetime.fromtimestamp(t, UTC).date().isoformat()
-            if day != self._day:
-                self._day, self._used = day, 0
             recent = [s for s in self._clients.get(client, []) if t - s < self.window_s]
-            if self._used >= self.daily:
-                return DAILY_LIMIT_REACHED
+            self._clients[client] = recent
             if len(recent) >= self.per_client:
-                self._clients[client] = recent
                 return CLIENT_LIMIT
-            self._clients[client] = [*recent, t]
-            self._used += 1
+            day = datetime.fromtimestamp(t, UTC).date().isoformat()
+            try:
+                used = self.counter.reserve(day, self.daily)
+            except CounterError:
+                return COUNTER_UNAVAILABLE
+            if used is None:
+                self._remaining = 0
+                return DAILY_LIMIT_REACHED
+            self._remaining = self.daily - used
+            recent.append(t)
             return None
 
-    def remaining_today(self) -> int:
-        with self._lock:
-            return max(0, self.daily - self._used)
+    def remaining_today(self) -> int | None:
+        """As of this instance's last reservation (other instances may have used more)."""
+        return self._remaining
 
 
 def daily_limit_from_env(env: Mapping[str, str] | None = None) -> int:
@@ -264,6 +277,19 @@ def handle(
     return checker.check(doc["card_id"], client_key(forwarded, peer))
 
 
-def checker_from_env(env: Mapping[str, str] | None = None) -> LiveChecker:
-    """Azure settings from the environment (app settings on Azure); none -> fallback only."""
-    return LiveChecker(AzureOpenAIConfig.from_env(env), Budget(daily=daily_limit_from_env(env)))
+def checker_from_env(
+    env: Mapping[str, str] | None = None, memory_quota: bool = False
+) -> LiveChecker:
+    """Settings from the environment (app settings on Azure).
+
+    Live calls need the Azure OpenAI settings and the shared quota store
+    (``MATCHLENS_LIVE_COUNTER_URL``); without either, every check falls back. Only a local
+    server run by the key's owner may use ``memory_quota`` instead of the store.
+    """
+    env = os.environ if env is None else env
+    url = env.get(COUNTER_URL_ENV, "").strip()
+    counter: DailyCounter | None = TableCounter(url) if url else None
+    if counter is None and memory_quota:
+        counter = MemoryCounter()
+    budget = Budget(daily=daily_limit_from_env(env), counter=counter)
+    return LiveChecker(AzureOpenAIConfig.from_env(env), budget)

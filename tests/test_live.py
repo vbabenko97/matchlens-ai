@@ -16,6 +16,7 @@ from matchlens.agent import FOUNDRY
 from matchlens.live import (
     BUSY,
     CLIENT_LIMIT,
+    COUNTER_UNAVAILABLE,
     DAILY_LIMIT_REACHED,
     DEADLINE,
     NOT_CONFIGURED,
@@ -26,6 +27,7 @@ from matchlens.live import (
     daily_limit_from_env,
     handle,
 )
+from matchlens.quota import CounterError, MemoryCounter, TableCounter
 
 from .test_agent import GOAL, KEY, SHOTS, FakeResponses, _claim, _config, _final, _goal_script
 from .test_agent import _response as response
@@ -304,3 +306,57 @@ def test_only_the_azure_deploy_ships_the_live_api():
     assert "--live-api" in swa and "api_location: api" in swa
     assert "cp -r src/matchlens api/matchlens" in swa
     assert "--live-api" not in pages  # GitHub Pages has no server side: no button
+
+
+# --- Shared daily quota ---------------------------------------------------------------------
+
+
+def test_the_daily_reservation_is_taken_before_the_model_call_and_kept_on_failure(match):
+    counter = MemoryCounter()
+
+    def failing(url, headers, body, timeout):
+        assert counter.reserve("probe", 1) == 1  # transport runs: is the day already reserved?
+        assert counter._counts  # the real day's reservation exists before any model call
+        raise _http_error(500)
+
+    checker = _checker(match, failing, budget=Budget(daily=1, counter=counter))
+    assert checker.check(GOAL, "a")[1]["reason"] == UNAVAILABLE
+    status, reply = checker.check(GOAL, "b")  # the failed call still used the day's only check
+    assert status == 429 and reply["reason"] == DAILY_LIMIT_REACHED
+
+
+def test_a_restarted_instance_continues_the_shared_count(match):
+    counter = MemoryCounter()  # stands in for the durable store shared by all instances
+    first = _checker(match, Always(), budget=Budget(daily=2, counter=counter))
+    assert first.check(GOAL, "a")[0] == 200
+    second = _checker(match, Always(), budget=Budget(daily=2, counter=counter))
+    status, reply = second.check(GOAL, "b")
+    assert status == 200 and reply["remaining_today"] == 0
+    assert second.check(GOAL, "c")[1]["reason"] == DAILY_LIMIT_REACHED
+
+
+def test_no_live_call_when_the_quota_store_fails_or_is_missing(match):
+    class Broken:
+        def reserve(self, day, limit):
+            raise CounterError("quota store read failed (HTTP 500)")
+
+    fake = Always()
+    status, reply = _checker(match, fake, budget=Budget(counter=Broken())).check(GOAL, "a")
+    assert status == 429 and reply["reason"] == COUNTER_UNAVAILABLE and fake.calls == 0
+    status, reply = _checker(match, fake, budget=Budget(counter=None)).check(GOAL, "a")
+    assert reply["reason"] == NOT_CONFIGURED and fake.calls == 0
+
+
+def test_from_env_needs_the_shared_store_for_live_calls():
+    azure = {
+        "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com",
+        "AZURE_OPENAI_API_KEY": KEY,
+        "AZURE_OPENAI_DEPLOYMENT": "gpt-4.1-mini",
+    }
+    assert live.checker_from_env(azure).budget.counter is None  # refuses: no shared quota
+    assert isinstance(live.checker_from_env(azure, memory_quota=True).budget.counter, MemoryCounter)
+    sas = "https://acct.table.core.windows.net/livechecks?sv=1&sig=abc"
+    counter = live.checker_from_env({**azure, live.COUNTER_URL_ENV: sas}).budget.counter
+    assert isinstance(counter, TableCounter)
+    with pytest.raises(ValueError):
+        live.checker_from_env({**azure, live.COUNTER_URL_ENV: "http://bad"})

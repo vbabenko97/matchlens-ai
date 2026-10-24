@@ -24,6 +24,7 @@ const LIVE_REASON = {
   busy: "Another live check is running; try again in a moment.",
   deadline: "Microsoft Foundry did not finish within 30 seconds.",
   foundry_unavailable: "Microsoft Foundry is unavailable right now.",
+  counter_unavailable: "The live-check quota store is unavailable, so no live call was made.",
 };
 const LIVE_KEEP = " The recorded run below stays on the card — not a live call.";
 const MARKER_GAP_PX = 26; // 24px targets must not overlap (WCAG 2.5.8)

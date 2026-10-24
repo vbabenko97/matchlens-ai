@@ -10,7 +10,25 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): live Foundry check endpoint (plan item 1, code only)
+## Latest checkpoint (2026-10-24): shared daily cap for live checks (review fix)
+- **Review finding (GPT, accepted):** the daily limit and lock were per process, so restarts and parallel instances each got a fresh limit. The docs also called the budget a hard ceiling, but Azure budgets only alert, with delayed data, and TPM caps the rate, not the total.
+- **Fix (`matchlens.quota`):**
+  - `TableCounter` keeps one Azure Table Storage entity per UTC day, reached by a table SAS URL (`MATCHLENS_LIVE_COUNTER_URL`), stdlib HTTP only.
+  - The reservation is a read plus an ETag-conditional `PUT` (412 -> retry) or an insert (409 -> retry). It is taken **before** the model call and kept if the call fails.
+  - Any storage error, or a missing URL on the deployed API, means no live call (`counter_unavailable` / `not_configured`). Only `serve --live-api` may use an in-memory count.
+  - The per-client limit is now documented as a courtesy limit (forgeable headers), not a cost control.
+- **Python 3.11:** the GPT review cites Microsoft Learn listing `python:3.11` for SWA managed functions, so the 3.10 fallback note was removed. That page could not be opened from this sandbox (DNS).
+- **Verified:**
+  - `python -m pytest -q` -> 464 passed (incl. e2e on local Chromium); `ruff check .` and `ruff format --check .` clean;
+  - new: fake Table service with ETag/If-Match semantics, 12 concurrent instances never exceed the cap, lost races retried, endless conflicts give up, storage 403/500/network/malformed fail closed without the SAS token in messages, reservation before the model call and kept on failure, restart continues the count.
+  - Fake transports only: **not** evidence of real Table Storage or Foundry behaviour.
+- **Next:**
+  1. Operator: steps 1–7 in docs/DEPLOYMENT.md "Live Foundry check" (Storage table + SAS is new).
+  2. A real Foundry reply with IDs, tokens and latency, and a forced `daily_limit` fallback.
+  3. Raise TPM only after that.
+  4. Then the match selector.
+
+## Checkpoint (2026-10-24): live Foundry check endpoint (plan item 1, code only)
 - **New `matchlens.live`:** `POST /api/live-check` with `{"card_id"}` only.
   - The server builds the Foundry request for that demo card and runs the existing bounded agent (`FoundryAgentProposer`, strict) and the validator.
   - The reply carries the review, its metrics, response IDs, usage and latency. The proposer label says it is a live call, with a UTC timestamp.

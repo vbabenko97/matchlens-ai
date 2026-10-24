@@ -193,7 +193,9 @@ def _main(argv: list[str] | None = None) -> int:
             bundle["live_check"] = {"path": LIVE_PATH}
             if args.command == "serve":
                 try:
-                    checker = LiveChecker(None) if args.offline else checker_from_env()
+                    checker = (
+                        LiveChecker(None) if args.offline else checker_from_env(memory_quota=True)
+                    )
                 except ValueError as exc:
                     print(f"invalid live-check settings: {exc}", file=sys.stderr)
                     return 2
