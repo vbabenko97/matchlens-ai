@@ -7,15 +7,27 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [x] M2 (Oct 21-22): Metrics and 2-4 robust key-moment detectors; unit tests with hand-checked fixtures.
 - [x] M3 (Oct 23-24; live Foundry Responses API v1 call verified by `azure-check` on 2026-10-24, evidence in `docs/evidence/azure-check-2026-10-24.json`): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
 - [x] M4 (Oct 20, local; public hosting is M5): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
-- [ ] M5 (Oct 26; deployment prepared, waiting on operator Azure/Pages steps): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
+- [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility, rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): live MatchLens `azure-check` verified
+## Latest checkpoint (2026-10-24): public demo status recorded
+- **Hosting done (GitHub Pages; no Azure Static Web App will be created):**
+  - Deployed by the `Deploy demo (GitHub Pages, fallback)` workflow (run 39476401211, success, 2026-10-20, `main` @ `e7dc926`).
+  - URL: https://vbabenko97.github.io/matchlens-ai/. `PUBLIC_DEMO_URL` is set.
+- **Public smoke test, verified via the GitHub Actions API:** `Public demo smoke test` runs 1 (manual, 2026-10-20) to 4 (scheduled, 2026-10-23) all concluded `success`, and the `pytest -q -m e2e` step ran in each. The URL could not be fetched from the Claude Code sandbox (egress blocked), so the URL check rests on these CI runs.
+- **Manual public replay test:** passed (operator-reported).
+- **M5 remaining, in priority order:**
+  1. Accessibility pass: keyboard-only use, focus order and visibility, contrast, screen-reader names for controls and cards, `prefers-reduced-motion`.
+  2. Demo rehearsal on the public URL, plus a local `azure-check`/`demo` segment for the Microsoft integration.
+  3. A public demo video under 2 minutes.
+- **M6:** final originality/security/requirements audit, then the Innovation Studio submission (operator approval required) before 2026-10-27 23:59 PT.
+- **Next command:** `MATCHLENS_BASE_URL=https://vbabenko97.github.io/matchlens-ai/ python -m pytest -q -m e2e` (after any redeploy).
+
+## Checkpoint (2026-10-24): live MatchLens `azure-check` verified
 - The operator ran `python -m matchlens azure-check` locally from the PR #4 branch (`4e5a291`), entering the key with `read -s`. Result: `ok: true`, HTTP 200, `api: responses-v1`, `response_status: completed`, response ID `resp_04cb…084b`, model `gpt-4.1-mini`, 137 input / 41 output tokens, `store: false`, latency 1079 ms, at 2026-10-24T08:51:37Z.
 - `grep -cF "$AZURE_OPENAI_API_KEY"` on the output printed `0`. The redacted report is committed as `docs/evidence/azure-check-2026-10-24.json`.
 - The completion stays `unverified_ai_wording`. It restates the three facts and adds an unsupported flourish ("the momentum just swung"). This is why AI wording is never shown as verified.
 - Still open (optional): a Foundry portal metrics screenshot for the request at that timestamp.
-- **Next:** M5 deployment (operator steps in `docs/DEPLOYMENT.md`).
 
 ## Checkpoint (2026-10-24): Responses API v1 migration
 - **Operator-reported:** a live Microsoft Foundry Responses API call succeeded (`gpt-4.1-mini` deployment, `status: completed`, response ID, 17 input / 27 output tokens). It was made outside MatchLens and no live request ran in Claude Code.

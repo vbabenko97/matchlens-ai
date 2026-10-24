@@ -2,7 +2,9 @@
 
 Evidence-grounded synthetic football match intelligence for Microsoft × Premier League Inside the Game: Developer Hackathon.
 
-**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 (insight cards, Casual/Analyst modes, Microsoft Foundry provider with offline fallback) done. A live Foundry Responses API v1 call (`gpt-4.1-mini`) was verified with `azure-check` on 2026-10-24 ([evidence](docs/evidence/azure-check-2026-10-24.json)). M4 browser replay UI done; M5 deployment prepared (Azure Static Web Apps Free / GitHub Pages workflows) but not yet deployed. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
+**Status:** M0 (skeleton, tests, CI), M1 (synthetic generator + validator) and M2 (metrics, claim checks, key-moment detection) and M3 (insight cards, Casual/Analyst modes, Microsoft Foundry provider with offline fallback) done. A live Foundry Responses API v1 call (`gpt-4.1-mini`) was verified with `azure-check` on 2026-10-24 ([evidence](docs/evidence/azure-check-2026-10-24.json)). M4 browser replay UI done. M5 is partially complete: the public demo is live on GitHub Pages and the scheduled public smoke test passes. The accessibility pass, demo rehearsal and video are still to do.
+
+**Live demo (free, no sign-in or API key):** <https://vbabenko97.github.io/matchlens-ai/>. It uses the labelled offline template wording; the public site never calls Azure. See [MVP specification](docs/SPEC.md) and [milestones](docs/TASKS.md).
 
 Project page: https://innovationstudio.microsoft.com/hackathons/insidethegamedeveloperhackathon/project/126828
 
@@ -16,7 +18,7 @@ python -m matchlens serve            # seed 1 (2-3), http://127.0.0.1:8000/
 
 The replay UI shows a scoreboard, pitch view of the latest ball events, a timeline with key-moment markers, and insight cards that appear as moments happen. You can play, pause, seek, jump to the previous/next moment and change speed (15×–240×), and switch between **Casual Fan** and **Analyst** modes. In Analyst mode, every event and metric ID on a card can be clicked to inspect it and highlight it on the pitch. **⬇ Overlay JSON** downloads the timed overlay cues (`matchlens.overlays/v1`). Keyboard: Space plays or pauses, ← / → seek 30 s.
 
-Deployment (static export, Azure Static Web Apps Free or GitHub Pages) and the public-URL Playwright smoke test are described in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Deployment (static export on GitHub Pages) and the public-URL Playwright smoke test are described in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 It runs fully offline without Azure credentials (deterministic, labelled template wording). Other options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`. `python -m matchlens export-site --out site/` writes the same UI as a static folder (no server code needed to host it).
 
