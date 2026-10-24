@@ -10,7 +10,23 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): accessibility build deployed; cache-busting
+## Latest checkpoint (2026-10-24): cache-busting deployed; zoom check done
+- **Pages redeployed** from `main` @ `0aa672c` (PR #6 merge), [run 40082219742](https://github.com/vbabenko97/matchlens-ai/actions/runs/40082219742): build, deploy (09:30 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.
+- **After the redeploy**, the operator's screenshots (normal window and incognito) showed the current styles: screen-reader text hidden, styled `h1`, 24px markers, and the keyboard hint on its own line. The stale-CSS issue is resolved.
+- **Operator zoom check, 200%/400%:** reflow works, there is no horizontal scroll, and all regions are reachable. Two defects were found and fixed in this checkpoint:
+  1. "Last event" was truncated with an ellipsis; it now wraps.
+  2. A redundant goal dot overlapped a stacked "G" marker; it is no longer drawn.
+  - New regression tests at 320, 390 and 500px fail on the old CSS and JS.
+- **Verified:**
+  - `python -m pytest -q` -> 258 passed (incl. e2e on local Chromium);
+  - `ruff check .` and `ruff format --check .` clean.
+- **Remaining for accessibility:** the operator screen-reader pass (VoiceOver script in `docs/ACCESSIBILITY.md`).
+- **Next:**
+  1. After merge, redeploy Pages and confirm the smoke job.
+  2. Screen-reader pass.
+  3. Demo rehearsal and video script.
+
+## Checkpoint (2026-10-24): accessibility build deployed; cache-busting
 - **Pages redeployed** from `main` @ `2731814` (PR #5 merge) by `Deploy demo (GitHub Pages, fallback)` [run 40081567480](https://github.com/vbabenko97/matchlens-ai/actions/runs/40081567480), verified via the GitHub Actions API:
   - jobs `build`, `deploy` (09:21 UTC) and `smoke / smoke` all succeeded;
   - the smoke job ran `pytest -q -m e2e` against https://vbabenko97.github.io/matchlens-ai/, including the new accessibility tests (one `h1`, ≥ 24px targets, …), so the served site is the accessibility build.

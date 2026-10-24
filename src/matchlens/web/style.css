@@ -106,7 +106,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.5rem; margin: 0.7rem 0; }
 .stats > div { background: var(--panel-2); border-radius: 8px; padding: 0.45rem 0.6rem; display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
 .stat-label { color: var(--muted); font-size: 0.75rem; }
-#stat-last { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#stat-last { font-size: 0.85rem; overflow-wrap: anywhere; } /* wrap, never truncate (WCAG 1.4.10) */
 
 .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .controls .speed { display: inline-flex; gap: 0.35rem; align-items: center; color: var(--muted); font-size: 0.85rem; }
