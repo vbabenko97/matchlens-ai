@@ -10,7 +10,60 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): match story, every goal, causal selection, visible Foundry check
+## Latest checkpoint (2026-10-24): shared daily cap for live checks (review fix)
+- **Review finding (GPT, accepted):** the daily limit and lock were per process, so restarts and parallel instances each got a fresh limit. The docs also called the budget a hard ceiling, but Azure budgets only alert, with delayed data, and TPM caps the rate, not the total.
+- **Fix (`matchlens.quota`):**
+  - `TableCounter` keeps one Azure Table Storage entity per UTC day, reached by a table SAS URL (`MATCHLENS_LIVE_COUNTER_URL`), stdlib HTTP only.
+  - The reservation is a read plus an ETag-conditional `PUT` (412 -> retry) or an insert (409 -> retry). It is taken **before** the model call and kept if the call fails.
+  - Any storage error, or a missing URL on the deployed API, means no live call (`counter_unavailable` / `not_configured`). Only `serve --live-api` may use an in-memory count.
+  - The per-client limit is now documented as a courtesy limit (forgeable headers), not a cost control.
+- **Python 3.11:** the GPT review cites Microsoft Learn listing `python:3.11` for SWA managed functions, so the 3.10 fallback note was removed. That page could not be opened from this sandbox (DNS).
+- **Verified:**
+  - `python -m pytest -q` -> 464 passed (incl. e2e on local Chromium); `ruff check .` and `ruff format --check .` clean;
+  - new: fake Table service with ETag/If-Match semantics, 12 concurrent instances never exceed the cap, lost races retried, endless conflicts give up, storage 403/500/network/malformed fail closed without the SAS token in messages, reservation before the model call and kept on failure, restart continues the count.
+  - Fake transports only: **not** evidence of real Table Storage or Foundry behaviour.
+- **Next:**
+  1. Operator: steps 1–7 in docs/DEPLOYMENT.md "Live Foundry check" (Storage table + SAS is new).
+  2. A real Foundry reply with IDs, tokens and latency, and a forced `daily_limit` fallback.
+  3. Raise TPM only after that.
+  4. Then the match selector.
+
+## Checkpoint (2026-10-24): live Foundry check endpoint (plan item 1, code only)
+- **New `matchlens.live`:** `POST /api/live-check` with `{"card_id"}` only.
+  - The server builds the Foundry request for that demo card and runs the existing bounded agent (`FoundryAgentProposer`, strict) and the validator.
+  - The reply carries the review, its metrics, response IDs, usage and latency. The proposer label says it is a live call, with a UTC timestamp.
+- **Fuses:**
+  - analyst card IDs of the demo match only (404), JSON POST only (415, no CORS preflight granted), body ≤ 1 KB, no other fields (400);
+  - 3 checks per client per 10 min (client = first of `X-Forwarded-For`, `X-Azure-ClientIP`, `X-Client-IP`, hashed; which one SWA sends is unverified until deploy); `MATCHLENS_LIVE_DAILY_LIMIT` (default 100) per UTC day, in memory per instance;
+  - one run at a time ("busy", costs no quota);
+  - 30 s deadline over calls and 429 waits.
+  - Fallback reasons are machine-readable, and the page keeps the recorded run, saying "not a live call".
+- **Hosts:**
+  - `api/live_check/` is the Azure Functions adapter (v1 `function.json` model), configured with `apiRuntime: python:3.11`;
+  - the SWA workflow builds with `--live-api` and ships `api/` (the package is copied in at deploy time);
+  - `matchlens serve --live-api` serves the same route locally;
+  - Pages builds have no button.
+- **UI:** "Check this card live with Microsoft Foundry" on analyst claim checks. A live reply replaces the recorded check and focus moves to the result line; a fallback says why. The disclosure adds a line when the API exists.
+- **Python 3.10 check** (in case SWA rejects 3.11): only `datetime.UTC` blocks it; the package runs on 3.10.20 with that shim (not applied).
+- **Verified:**
+  - `python -m pytest -q` -> 444 passed (incl. e2e on local Chromium; 25 new endpoint/adapter tests, 8 live-button e2e runs);
+  - `ruff check .` and `ruff format --check .` clean.
+  - All Azure traffic in tests is faked and is **not** evidence of a live call.
+- **Blocked on operator** (docs/DEPLOYMENT.md, "Live Foundry check"): create the SWA Free app and token, set the app settings, raise the deployment's TPM limit, set a budget alert, run the SWA workflow, then one `curl` to verify.
+- **Next:** match selector in the UI (plan item 4, no credentials needed).
+
+## Checkpoint (2026-10-24): on-air graphic page (plan item 5)
+- **New:** `broadcast.html` + `broadcast.js` + `broadcast.css`, exported with the site (hash-versioned like `index.html`).
+  - Reads `data/overlays.json` (`matchlens.overlays/v1`) and draws the active cue as a lower-third on a transparent page, for an OBS/vMix browser source.
+  - Shows the verified "why" fact only (narrative wording never goes on air); analyst cues add up to 3 source event IDs; a heuristic fact is labelled "Synthetic xG heuristic". A permanent "Synthetic match" bug stays in the corner.
+  - Modes: `cue=<id>` (hold one cue), `rundown=1&hold=<s>` (loop every cue), default follows the match clock (`from`, `speed`); a cue never shows before its `start_s`. Unknown cue or bad file -> visible error line, nothing drawn.
+  - Score hyphens are non-breaking on the graphic ("2-3" no longer wraps as "2-" / "3", found in the 1280×720 screenshot).
+  - Replay UI: **▣ On-air graphic** link opens the rundown preview in the current mode.
+- **Verified:** `python -m pytest -q` -> 414 passed (incl. 66 e2e on local Chromium; 12 new broadcast e2e across app-server and static sub-path); `ruff check .` and `ruff format --check .` clean. Screenshots checked at 1920×1080 (casual, analyst) and 1280×720 (green).
+- **Not done:** axe-core run on `broadcast.html`; no real OBS test yet (operator: add the URL above as a browser source, 1920×1080).
+- **Next:** plan item 1 code (card-ID-only live Foundry endpoint with recorded fallback, fake-transport tests); match selector in the UI.
+
+## Checkpoint (2026-10-24): match story, every goal, causal selection, visible Foundry check
 - **Merged and deployed:**
   - PR #11 squash-merged as `c5b585e`; CI was green on the PR head `707d9f5` (3.11, 3.13, e2e).
   - Pages redeployed from `main` @ `c5b585e` by [run 40103756908](https://github.com/vbabenko97/matchlens-ai/actions/runs/40103756908): `build`, `deploy` (14:43 UTC) and `smoke / smoke` all succeeded. Verified via the GitHub Actions API.

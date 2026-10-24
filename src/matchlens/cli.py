@@ -25,6 +25,8 @@ from .azure_check import run_check
 from .cards import build_cards, format_card
 from .generator import FULL_PERIOD_S, generate_match
 from .io import MatchFormatError, dumps_match, read_match
+from .live import DEMO_SEED as LIVE_DEMO_SEED
+from .live import LIVE_PATH, LiveChecker, checker_from_env
 from .metrics import DEFAULT_WINDOW_S, compute_metrics
 from .moments import describe_moment, detect_moments, select_key_moments
 from .narrative import (
@@ -137,6 +139,12 @@ def _main(argv: list[str] | None = None) -> int:
         p.add_argument("--file", type=Path, help="replay a JSONL match instead of a seed")
         p.add_argument("--offline", action="store_true", help="ignore Azure settings")
         p.add_argument("--agent-trace", type=Path, help="replay a recorded agent-review trace")
+        p.add_argument(
+            "--live-api",
+            action="store_true",
+            help=f"show 'Check live' buttons that POST to {LIVE_PATH} (demo seed only)"
+            + ("; served here from the Azure settings" if name == "serve" else ""),
+        )
         if name == "serve":
             p.add_argument("--host", default="127.0.0.1")
             p.add_argument("--port", type=int, default=8000)
@@ -177,6 +185,20 @@ def _main(argv: list[str] | None = None) -> int:
             match = assert_valid(generate_match(args.seed))
         provider = _provider(args.offline)
         bundle = build_bundle(match, provider, proposer=_proposer(args.offline, args.agent_trace))
+        checker = None
+        if args.live_api:
+            if args.file or args.seed != LIVE_DEMO_SEED:
+                print(f"--live-api works only with the demo seed {LIVE_DEMO_SEED}", file=sys.stderr)
+                return 2
+            bundle["live_check"] = {"path": LIVE_PATH}
+            if args.command == "serve":
+                try:
+                    checker = (
+                        LiveChecker(None) if args.offline else checker_from_env(memory_quota=True)
+                    )
+                except ValueError as exc:
+                    print(f"invalid live-check settings: {exc}", file=sys.stderr)
+                    return 2
         if args.command == "export-site":
             try:
                 export_site(bundle, args.out)
@@ -185,7 +207,7 @@ def _main(argv: list[str] | None = None) -> int:
                 return 1
             print(f"wrote static site to {args.out} (provider: {provider.name})", file=sys.stderr)
             return 0
-        server = make_server(bundle, args.host, args.port)
+        server = make_server(bundle, args.host, args.port, checker)
         host, port = server.server_address[:2]
         print(
             f"MatchLens replay: http://{host}:{port}/ (provider: {provider.name}; Ctrl+C to stop)"

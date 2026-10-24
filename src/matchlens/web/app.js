@@ -16,6 +16,17 @@ const SOURCE_LABEL = {
   offline_proposer: "Offline proposer",
   injected_test_claim: "Injected test claim (deliberately wrong)",
 };
+// Why a live check did not run or finish (matchlens.live fallback reasons).
+const LIVE_REASON = {
+  not_configured: "Live checks are not configured on this deployment.",
+  client_limit: "You have used your live checks for now (3 per 10 minutes).",
+  daily_limit: "Today's live-check budget is used up.",
+  busy: "Another live check is running; try again in a moment.",
+  deadline: "Microsoft Foundry did not finish within 30 seconds.",
+  foundry_unavailable: "Microsoft Foundry is unavailable right now.",
+  counter_unavailable: "The live-check quota store is unavailable, so no live call was made.",
+};
+const LIVE_KEEP = " The recorded run below stays on the card — not a live call.";
 const MARKER_GAP_PX = 26; // 24px targets must not overlap (WCAG 2.5.8)
 const MARKER_LANE_REM = 1.75;
 const ANNOUNCE_DELAY_MS = 600; // coalesce announcements while scrubbing or at high speed
@@ -28,6 +39,7 @@ const state = {
   selected: [], lastFrame: null, cardsKey: "", eventsById: new Map(),
   openChains: new Set(), spotlight: null, // UI state kept across card re-renders
   announced: { cards: -1, mode: "", fullTime: false }, announceTimer: null,
+  live: {}, // card_id -> { pending } | { ok, message, review? }: live Foundry checks this visit
 };
 
 // One polite status region for screen readers; only the latest message is spoken.
@@ -298,8 +310,13 @@ function renderCard(card, isActive) {
     art.appendChild(det);
   }
 
-  const review = analyst && state.bundle.reviews ? state.bundle.reviews[card.card_id] : null;
-  if (review) art.appendChild(renderReview(review, state.spotlight === card.card_id));
+  const live = state.live[card.card_id];
+  const recorded = analyst && state.bundle.reviews ? state.bundle.reviews[card.card_id] : null;
+  const review = recorded && live && live.review ? live.review : recorded;
+  if (review) {
+    if (state.bundle.live_check) art.appendChild(liveControls(card.card_id));
+    art.appendChild(renderReview(review, state.spotlight === card.card_id));
+  }
 
   if (analyst) {
     const all = el("button", { type: "button", class: "chip", "data-evidence": card.card_id },
@@ -421,6 +438,51 @@ function renderReview(r, spotlight) {
   return sec;
 }
 
+// "Check live": the server builds the Foundry request from the card ID and runs the same
+// bounded agent and validator; the page only shows the reply, or keeps the recorded run.
+function liveControls(cardId) {
+  const s = state.live[cardId] || {};
+  const box = el("div", { class: "live" });
+  const btn = el("button", { type: "button", class: "live-check", "data-live-button": cardId },
+    s.pending ? "Checking live with Microsoft Foundry…" : "Check this card live with Microsoft Foundry");
+  if (s.pending) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+  btn.addEventListener("click", () => runLiveCheck(cardId));
+  box.appendChild(btn);
+  if (s.message) box.appendChild(el("p", { class: s.ok ? "live-ok" : "warn", "data-live-status": cardId, tabindex: "-1" }, s.message));
+  return box;
+}
+
+async function runLiveCheck(cardId) {
+  if (state.live[cardId] && state.live[cardId].pending) return;
+  state.live[cardId] = { pending: true };
+  state.cardsKey = "";
+  render();
+  let result;
+  try {
+    const resp = await fetch(state.bundle.live_check.path, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ card_id: cardId }), cache: "no-store",
+    });
+    const reply = await resp.json();
+    if (reply.status === "live" && reply.review && reply.review.card_id === cardId) {
+      Object.assign(state.bundle.metrics, reply.metrics || {});
+      const tokens = reply.usage.input_tokens + reply.usage.output_tokens;
+      result = { ok: true, review: reply.review,
+        message: `Live result from Microsoft Foundry: ${reply.model_calls} model call(s), ${tokens} tokens, ` +
+          `${(reply.latency_ms / 1000).toFixed(1)} s, at ${reply.checked_at_utc}.` };
+    } else {
+      result = { ok: false, message: (LIVE_REASON[reply.reason] || "The live check is unavailable.") + LIVE_KEEP };
+    }
+  } catch (err) {
+    result = { ok: false, message: "Could not reach the live-check service." + LIVE_KEEP };
+  }
+  state.live[cardId] = result;
+  state.cardsKey = "";
+  render();
+  const status = document.querySelector(`[data-live-status="${CSS.escape(cardId)}"]`);
+  if (status) status.focus(); // the button was replaced: move focus to the result
+}
+
 // Identify the focused control inside the cards so a re-render can restore focus to it.
 function focusKey(box) {
   const a = document.activeElement;
@@ -540,6 +602,7 @@ function setMode(mode) {
     b.tabIndex = on ? 0 : -1; // roving tabindex: one tab stop for the radio group
   }
   document.body.dataset.mode = mode;
+  $("broadcast").href = `broadcast.html?mode=${mode}&rundown=1&bg=dark`;
   $("inspector").hidden = mode !== "analyst";
   state.selected = [];
   state.spotlight = null;
@@ -657,6 +720,10 @@ function init(bundle) {
     (Object.values(bundle.reviews || {}).some((r) => r.proposer === "recorded_foundry_agent")
       ? " Analyst claim checks replay a recorded Microsoft Foundry agent run (not a live call); " +
         "every claim was re-checked by the deterministic validator when this page was built."
+      : "") +
+    (bundle.live_check
+      ? " Analyst claim checks can also be run live: the button calls Microsoft Foundry through a " +
+        "server-side function (the key never reaches the browser), within per-visitor and daily limits."
       : "");
   drawMarkings();
   bindControls();

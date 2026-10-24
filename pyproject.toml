@@ -15,6 +15,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
 e2e = ["playwright>=1.45"]
+api = ["azure-functions>=1.18"]  # only to test the Azure Functions adapter in api/
 
 [project.scripts]
 matchlens = "matchlens.cli:main"

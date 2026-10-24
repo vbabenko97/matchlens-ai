@@ -15,6 +15,7 @@ import functools
 import http.server
 import json
 import os
+import re
 import threading
 import urllib.request
 from pathlib import Path
@@ -96,8 +97,9 @@ def page(browser, base_url):
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     pg.base = base_url
+    pg.expected_errors = []  # substrings of console errors a test provokes on purpose
     yield pg
-    assert errors == []
+    assert [e for e in errors if not any(x in e for x in pg.expected_errors)] == []
     pg.close()
 
 
@@ -464,3 +466,164 @@ def test_event_chain_stays_open_while_inspecting(page):
     again = page.locator(f'#cards .card[data-card-id="{card_id}"] details.chain')
     assert again.evaluate("(d) => d.open")
     assert page.evaluate("document.activeElement.dataset.eventId") == event_id
+
+
+# --- Broadcast lower-third (broadcast.html): a browser source fed by data/overlays.json ---
+
+
+def _open_broadcast(page, query):
+    page.goto(page.base + "broadcast.html" + query)
+    page.wait_for_selector("body[data-ready=true]")
+
+
+def _cues(bundle, mode):
+    return [c for c in bundle["overlays"]["cues"] if c["mode"] == mode]
+
+
+def _on_air(text):
+    """The graphic's text with evidence brackets dropped and the score's hyphen unbreakable."""
+    return re.sub(r"(\d)-(\d)", "\\1\u2011\\2", text.split(" [evidence")[0])
+
+
+def _why(cue):
+    return next((f for f in cue["facts"] if f["role"] == "why"), cue["facts"][0])
+
+
+def test_broadcast_cue_shows_the_verified_why_line_on_a_transparent_page(page, bundle):
+    cue = next(c for c in _cues(bundle, "casual") if c["kind"] == "goal")
+    _open_broadcast(page, f"?cue={cue['cue_id']}")
+    lt = page.locator("#lower-third")
+    assert lt.is_visible() and lt.get_attribute("data-cue") == cue["cue_id"]
+    assert page.text_content("#lt-title") == _on_air(cue["title"])
+    assert page.text_content("#lt-fact") == _on_air(_why(cue)["text"])
+    assert page.text_content("#lt-team") == bundle["overlays"]["teams"][cue["team"]]
+    assert "Checked against match events" in page.text_content("#lt-note")
+    assert cue["narrative"]["text"] not in page.text_content("body")  # wording never goes on air
+    bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert bg == "rgba(0, 0, 0, 0)"  # composited over video
+    assert "Synthetic match" in page.text_content("#bug")
+
+
+def test_broadcast_analyst_cue_cites_events_without_evidence_brackets(page, bundle):
+    cue = next(c for c in _cues(bundle, "analyst") if c["kind"] == "goal")
+    _open_broadcast(page, f"?mode=analyst&cue={cue['cue_id']}&bg=green")
+    fact = page.text_content("#lt-fact")
+    assert "[evidence" not in fact and fact == _on_air(_why(cue)["text"])
+    note = page.text_content("#lt-note")
+    assert f"Events {_why(cue)['event_ids'][0]}" in note
+    bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert bg == "rgb(0, 177, 64)"
+
+
+def test_broadcast_follows_the_match_clock_and_never_shows_a_cue_early(page, bundle):
+    cue = next(c for c in _cues(bundle, "casual") if c["kind"] == "goal")
+    _open_broadcast(page, f"?from={cue['start_s'] - 1.5}&speed=1")
+    assert page.locator("#lower-third").is_hidden()  # not before its publication time
+    page.wait_for_selector(f"#lower-third[data-cue='{cue['cue_id']}']", timeout=5000)
+    assert float(page.get_attribute("body", "data-clock")) >= cue["start_s"]
+
+
+def test_broadcast_rundown_plays_each_cue_in_order(page, bundle):
+    cues = sorted(_cues(bundle, "analyst"), key=lambda c: c["start_s"])
+    _open_broadcast(page, "?mode=analyst&rundown=1&hold=2")
+    page.wait_for_selector(f"#lower-third[data-cue='{cues[0]['cue_id']}']", timeout=2000)
+    page.wait_for_selector(f"#lower-third[data-cue='{cues[1]['cue_id']}']", timeout=5000)
+
+
+def test_broadcast_unknown_cue_reports_instead_of_guessing(page):
+    _open_broadcast(page, "?cue=casual:goal:nope")
+    assert page.locator("#lower-third").is_hidden()
+    assert 'No cue "casual:goal:nope"' in page.text_content("#status-line")
+
+
+def test_replay_links_to_the_broadcast_graphic_in_the_current_mode(page):
+    _open(page)
+    link = page.locator("#broadcast")
+    assert link.get_attribute("href") == "broadcast.html?mode=casual&rundown=1&bg=dark"
+    page.click("[data-mode=analyst]")
+    assert link.get_attribute("href") == "broadcast.html?mode=analyst&rundown=1&bg=dark"
+
+
+# --- Live Foundry check button (fake Responses API behind the local app server) ---
+
+LIVE_CARD = "analyst:goal:ml1-01112"  # the 71' card scripted in tests/test_agent.py
+
+
+class _ScriptedFoundry:
+    """Fake Responses API: every live check replays the scripted 71' agent run."""
+
+    def __init__(self):
+        from tests.test_agent import _goal_script
+
+        self._script, self.replies = _goal_script, []
+
+    def __call__(self, url, headers, body, timeout):
+        if not self.replies:
+            self.replies = self._script()
+        return json.dumps(self.replies.pop(0)).encode()
+
+
+@pytest.fixture(scope="module")
+def live_base(request, bundle):
+    """App server with the live route: configured (fake Foundry) or not configured."""
+    if PUBLIC_URL:
+        pytest.skip("live-check tests use a fake Foundry; never spend real calls on smoke runs")
+    from matchlens.live import LIVE_PATH, LiveChecker
+    from tests.test_agent import _config
+
+    servers = {}
+    for name, checker in (
+        ("fake", LiveChecker(_config(), transport=_ScriptedFoundry())),
+        ("off", LiveChecker(None)),
+    ):
+        srv = _start(
+            make_server({**bundle, "live_check": {"path": LIVE_PATH}}, port=0, checker=checker)
+        )
+        servers[name] = srv
+    yield {n: f"http://127.0.0.1:{s.server_address[1]}/" for n, s in servers.items()}
+    for srv in servers.values():
+        srv.shutdown()
+        srv.server_close()
+
+
+def _card(page, card_id):
+    return page.locator(f"#cards [data-card-id='{card_id}']")
+
+
+def test_no_live_button_without_a_live_api(page, bundle):
+    if "live_check" in bundle:
+        pytest.skip("this deployment has a live-check API")
+    _open(page, "?mode=analyst&t=5400")
+    assert page.locator(".live-check").count() == 0
+
+
+def test_live_check_replaces_the_recorded_run_with_the_live_reply(page, live_base):
+    page.base = live_base["fake"]
+    _open(page, "?mode=analyst&t=5400")
+    card = _card(page, LIVE_CARD)
+    assert "Recorded Microsoft Foundry agent run" in card.locator(".review").text_content()
+    card.locator(".live-check").click()
+    status = card.locator(".live-ok")
+    status.wait_for(timeout=10000)
+    assert (
+        "Live result from Microsoft Foundry: 4 model call(s), 600 tokens" in status.text_content()
+    )
+    assert page.evaluate("document.activeElement.dataset.liveStatus") == LIVE_CARD
+    review = card.locator(".review").text_content()
+    assert "Live Microsoft Foundry agent call" in review and "Recorded" not in review
+    assert "resp_1, resp_2, resp_3, resp_4" in review
+    assert "Attempt 1: 3 of 4" not in review  # the recorded run's verdicts are gone
+    assert "server-side function" in page.text_content("#disclosure")
+
+
+def test_live_check_fallback_keeps_the_recorded_run_and_says_so(page, live_base):
+    page.base = live_base["off"]
+    page.expected_errors.append("status of 503")  # the fallback reply is an HTTP 503
+    _open(page, "?mode=analyst&t=5400")
+    card = _card(page, LIVE_CARD)
+    card.locator(".live-check").click()
+    warn = card.locator(".live .warn")
+    warn.wait_for(timeout=10000)
+    text = warn.text_content()
+    assert "not configured" in text and "not a live call" in text
+    assert "Recorded Microsoft Foundry agent run" in card.locator(".review").text_content()

@@ -178,6 +178,12 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .status.unverified { background: #3b0d0d; color: var(--warn); border: 1px solid var(--warn); }
 .narrative .text { margin: 0.2rem 0 0; font-style: italic; }
 .narrative summary { cursor: pointer; color: var(--muted); font-size: 0.8rem; }
+.live { margin: 0 0 0.5rem; }
+.live .live-check { border-color: var(--accent); }
+.live .live-check[disabled] { opacity: 0.7; cursor: progress; }
+.live p { margin: 0.35rem 0 0; font-size: 0.82rem; }
+.live .live-ok { color: var(--ok); }
+.live .warn { color: var(--warn); }
 .narrative .warn { color: var(--warn); margin: 0.2rem 0 0; font-size: 0.78rem; }
 
 .inspector { border-top: 1px solid var(--line); padding-top: 0.6rem; }

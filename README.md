@@ -22,6 +22,24 @@ Deployment (static export on GitHub Pages) and the public-URL Playwright smoke t
 
 It runs fully offline without Azure credentials (deterministic, labelled template wording). Other options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`. `python -m matchlens export-site --out site/` writes the same UI as a static folder (no server code needed to host it).
 
+### Live Foundry check (Azure Static Web Apps build)
+
+On the Azure Static Web Apps deployment, each analyst card has **Check this card live with Microsoft Foundry**. The server-side function (`api/`, `src/matchlens/live.py`) takes only the card ID, runs the bounded claim agent and the validator against Foundry, and shows the live result with its response IDs. A shared daily cap (Azure Table Storage, reserved before every model call) bounds spend; without it no live call is made. When no live call is made, the page keeps the recorded run and says so. Setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Locally: `python -m matchlens serve --live-api`.
+
+### On-air graphic (broadcast lower-third)
+
+`broadcast.html` reads the same `data/overlays.json` and draws the active cue as a lower-third on a transparent page, so it can be added as a **browser source** in OBS or vMix (1920×1080 or 1280×720) and composited over video. Only the verified "why" fact goes on air, never the narrative wording; analyst cues also show the source event IDs. **▣ On-air graphic** in the replay UI opens a preview in the current mode.
+
+| URL parameter | Effect |
+|---|---|
+| `mode=casual` / `mode=analyst` | audience mode (default casual) |
+| `bg=transparent` / `green` / `dark` | background: transparent for compositing (default), chroma green, or dark for preview |
+| `cue=<cue_id>` | show one cue and hold it (stills, manual cueing) |
+| `rundown=1&hold=8` | play every cue of the mode in turn, `hold` real seconds each, looping |
+| `from=<s>&speed=<x>` | otherwise follow the match clock from `from` match seconds at `speed`× |
+
+Example browser source: `https://vbabenko97.github.io/matchlens-ai/broadcast.html?mode=casual&from=4590&speed=1`. A cue never appears before its `start_s` (the card's publication time).
+
 ## Quick start
 
 Requires Python 3.11+. No runtime dependencies; `pytest` and `ruff` for development.

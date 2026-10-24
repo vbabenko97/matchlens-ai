@@ -8,9 +8,10 @@ import json
 from importlib import resources
 from pathlib import Path
 
+from .live import LIVE_PATH, MAX_BODY_BYTES, LiveChecker, handle
 from .replay import BUNDLE_SCHEMA, dumps
 
-WEB_FILES = ("index.html", "app.js", "style.css")
+WEB_FILES = ("index.html", "app.js", "style.css", "broadcast.html", "broadcast.js", "broadcast.css")
 _TYPES = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -25,18 +26,24 @@ def _web_dir() -> Path:
 
 # Static hosts (GitHub Pages: max-age=600) cache assets; a stale style.css or app.js next to
 # a new index.html breaks the page. Each reference carries a hash of the file it loads.
-VERSIONED_REFS = {"style.css": b'href="style.css"', "app.js": b'src="app.js"'}
+VERSIONED_REFS = {
+    "index.html": {"style.css": b'href="style.css"', "app.js": b'src="app.js"'},
+    "broadcast.html": {
+        "broadcast.css": b'href="broadcast.css"',
+        "broadcast.js": b'src="broadcast.js"',
+    },
+}
 
 
 def asset_version(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()[:12]
 
 
-def _versioned_index(files: dict[str, bytes]) -> bytes:
-    html = files["index.html"]
-    for name, ref in VERSIONED_REFS.items():
+def _versioned_page(files: dict[str, bytes], page: str) -> bytes:
+    html = files[page]
+    for name, ref in VERSIONED_REFS[page].items():
         if html.count(ref) != 1:
-            raise ValueError(f"index.html must reference {name} exactly once as {ref.decode()}")
+            raise ValueError(f"{page} must reference {name} exactly once as {ref.decode()}")
         tagged = ref[:-1] + b"?v=" + asset_version(files[name]).encode() + b'"'
         html = html.replace(ref, tagged)
     return html
@@ -45,7 +52,8 @@ def _versioned_index(files: dict[str, bytes]) -> bytes:
 def site_files(bundle: dict) -> dict[str, bytes]:
     """Every file of the static site, keyed by URL path (without the leading slash)."""
     files = {name: (_web_dir() / name).read_bytes() for name in WEB_FILES}
-    files["index.html"] = _versioned_index(files)
+    for page in VERSIONED_REFS:
+        files[page] = _versioned_page(files, page)
     files["data/bundle.json"] = dumps(bundle).encode()
     files["data/overlays.json"] = dumps(bundle["overlays"]).encode()
     return files
@@ -76,7 +84,10 @@ def export_site(bundle: dict, out: Path) -> list[Path]:
     return written
 
 
-def make_handler(bundle: dict) -> type[http.server.BaseHTTPRequestHandler]:
+def make_handler(
+    bundle: dict, checker: LiveChecker | None = None
+) -> type[http.server.BaseHTTPRequestHandler]:
+    """Static files, plus ``POST /api/live-check`` when a live checker is given."""
     files = site_files(bundle)
     match_id = bundle["meta"]["match_id"]
 
@@ -107,11 +118,31 @@ def make_handler(bundle: dict) -> type[http.server.BaseHTTPRequestHandler]:
             self.end_headers()
             self.wfile.write(data)
 
+        def do_POST(self) -> None:  # noqa: N802 - stdlib naming
+            if checker is None or self.path.split("?", 1)[0].lstrip("/") != LIVE_PATH:
+                self.send_error(404)
+                return
+            length = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(min(length, MAX_BODY_BYTES + 1))
+            status, reply = handle(
+                checker, "POST", dict(self.headers), body, self.client_address[0]
+            )
+            data = dumps(reply).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", _TYPES[".json"])
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(data)
+
         def log_message(self, format: str, *args) -> None:  # noqa: A002
             pass
 
     return Handler
 
 
-def make_server(bundle: dict, host: str = "127.0.0.1", port: int = 8000):
-    return http.server.ThreadingHTTPServer((host, port), make_handler(bundle))
+def make_server(
+    bundle: dict, host: str = "127.0.0.1", port: int = 8000, checker: LiveChecker | None = None
+):
+    return http.server.ThreadingHTTPServer((host, port), make_handler(bundle, checker))
