@@ -10,7 +10,33 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): submission version tagged; video script and submission texts
+## Latest checkpoint (2026-10-24): critic agent (improvement 1 of 3; code, no live run yet)
+- **Why:**
+  - `check_line` cannot see meaning; the editorial review found 12 such lines by hand.
+  - The multi-agent story lacked a handoff between agents (independent review).
+- **New `matchlens.critic`**, a third Foundry agent with a distinct role.
+  - Per card and attempt, one Responses API call with strict JSON output: for each line (English fact -> rewrite, no IDs) it returns faithful or not, an issue (`added_detail`, `changed_meaning`, `overstatement`, `language`, `other`) and a reason.
+  - Conservative parsing: "faithful" with an issue, a missing verdict or a failed call all reject the line.
+- **Handoff in `personalize_card`:**
+  - personalizer -> `check_line` -> critic on the lines that passed -> rejections (checker or critic) go back to the personalizer with reasons -> second attempt -> both checks again -> still rejected keeps English.
+  - Strict recording runs raise on a critic failure.
+- **Evidence:**
+  - trace v2 (`matchlens.personalize-trace/v2`) stores the critic's verdicts and call metadata per attempt;
+  - `RecordedPersonalizer` replays v2 with a `RecordedCritic` and still replays v1;
+  - `trace_problems` checks the critic calls too.
+- **Evaluation:** `critic-eval` runs the critic over the 220 lines of the recorded v1 run that passed the checker, scores it against the editorial review (12 positives) and records the run (`matchlens.critic-eval/v1`). `--from` re-scores without a call.
+- **UI:** with a v2 run, the card note says "meaning reviewed by a critic agent (also AI); tone not checked", and the chip adds "critic-reviewed". With v1 the old labels stay.
+- **Verified:**
+  - `python -m pytest -q` -> 535 passed, 2 skipped (incl. e2e);
+  - new tests: conservative verdict parsing; critic rejection -> personalizer retry with the critic's reason; rejected twice -> English; only checker-passed lines reach the critic, without IDs; missing verdict or critic failure -> rejected (strict raises); v2 trace record/replay equality; v2 trace problems; v1 still replays; eval metrics against the committed review; `critic-eval --from`; CLI recording v2 vs `--no-critic`.
+  - `ruff check .` and `ruff format --check .` clean.
+  - Fake transports only: **not** evidence of the critic's quality; that is what `critic-eval` measures.
+- **Process note:** recreating the branch from `main` dropped the unmerged docs commit (video script, submission texts) from the branch. It was restored from the reflog by cherry-pick, and nothing was lost.
+- **Next:**
+  - operator: `critic-eval` and a v2 `personalize-review` (docs/DEPLOYMENT.md, "Critic agent runs");
+  - meanwhile: player focus mode (improvement 2).
+
+## Checkpoint (2026-10-24): submission version tagged; video script and submission texts
 - **Merged and deployed:** PR #18 squash-merged as `2b9da2a`. SWA [run 40121694703](https://github.com/vbabenko97/matchlens-ai/actions/runs/40121694703) and Pages [run 40121697289](https://github.com/vbabenko97/matchlens-ai/actions/runs/40121697289) succeeded, including their smoke jobs.
 - **Tag `v1.0-submission` -> `2b9da2a`** (annotated). The operator pushed it, because this session can push only its own branch. `git ls-remote` confirms it on GitHub.
 - **Independent re-check of the tag (reported):**
