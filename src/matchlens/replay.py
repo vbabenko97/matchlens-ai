@@ -28,6 +28,7 @@ from .overlays import build_overlay_document
 from .passing import passing_record
 from .personalize import Personalizer, personalize_cards, personalized_record
 from .players import player_records
+from .recap import build_recap
 from .schema import AWAY, HOME, Match, minute_of
 from .story import full_time_story
 from .validate import assert_valid
@@ -133,12 +134,12 @@ def build_bundle(
     card_sets = [build_cards(match, mode, provider, limit) for mode in MODES]
     metrics = {m.metric_id: m for cs in card_sets for m in cs.metrics}
     analyst = next(cs for cs in card_sets if cs.mode == ANALYST)
+    casual = next(cs for cs in card_sets if cs.mode == CASUAL)
     reviews = review_cards(match, analyst, proposer or OfflineProposer())
     metrics.update((m.metric_id, m) for r in reviews for m in r.metrics)
     meta = match.meta
     personalized = None
     if personalizer is not None:
-        casual = next(cs for cs in card_sets if cs.mode == CASUAL)
         results = personalize_cards(match, casual, personalizer)
         personalized = personalized_record(results, personalizer.label)
     doc = {
@@ -160,6 +161,9 @@ def build_bundle(
     }
     if personalized is not None:
         doc["personalized"] = personalized
+    recap = build_recap(match, casual.cards)
+    if recap is not None:
+        doc["recap"] = recap
     return doc
 
 

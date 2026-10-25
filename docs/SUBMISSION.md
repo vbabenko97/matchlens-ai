@@ -23,12 +23,13 @@ Three Microsoft Foundry agents do the language work. A claim agent explores the 
 No account, sign-in or API key is needed. Everything runs in the browser. The data is synthetic and the teams and players are fictional.
 
 1. Open <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/> and press **▶ Watch the comeback (77'–81')**. Insight cards appear as the moments happen; each leads with why it matters.
-2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. The claim check shows a recorded Foundry agent run: one claim rejected by the validator, then a verified retry, with response IDs in the disclosure. Click any event or metric ID on a card to inspect it and highlight it on the pitch.
+2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. The claim check opens with a plain summary of a recorded Foundry agent run: the checker rejected one claim because its evidence did not fit the statistic, and the agent's retry was verified. The claim-by-claim list and the response IDs are below it. Click any event or metric ID on a card to inspect it and highlight it on the pitch.
 3. On an analyst card, press **Check this card live with Microsoft Foundry** to run the agent live. It takes about 10 s. A shared daily cap protects the demo: if it is used up, the page says so and keeps the recorded run.
 4. Switch back to **Casual Fan**, set **Language** to Deutsch or Українська and **Follow** to a club. Lines that failed the checker, the critic agent or an editorial review show the English fact, and each card says so.
 5. In **Analyst**, the **Passing** table compares the teams' pass quality so far: facts (accuracy, length, progressive and pressed passes, tempo) next to a clearly labelled synthetic xPass heuristic. Click a value to see those passes on the pitch.
 6. Pick a **Player** to follow one player: their running numbers (facts, with synthetic xG labelled as a heuristic), their last touch on the pitch, and a badge on every card that cites their events.
-7. Press **▣ On-air graphic** for the broadcast lower-third, or **⬇ Overlay JSON** for the timed cues. The **Match** picker offers five more matches the demo was not tuned for.
+7. Press **▤ Match recap (full time)**: the full-time story and the scorers, built only from checked card lines. **Copy recap** copies plain text; **Recap JSON** keeps every line with its event and metric IDs. With a language and club set, the recap follows them.
+8. Press **▣ On-air graphic** for the broadcast lower-third, or **⬇ Overlay JSON** for the timed cues. The **Match** picker offers five more matches the demo was not tuned for.
 
 To run locally (Python 3.11+, no runtime dependencies): `pip install -e . && python -m matchlens serve`, then open <http://127.0.0.1:8000/>.
 

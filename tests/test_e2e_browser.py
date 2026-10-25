@@ -29,6 +29,7 @@ from matchlens.personalize import (
     PUBLISHED_PERSONALIZE_TRACE,
     RecordedPersonalizer,
 )
+from matchlens.recap import format_recap
 from matchlens.replay import DEFAULT_DEMO_SEED, build_bundle, demo_extra_bundles, dumps
 from matchlens.server import export_site, make_server
 
@@ -246,6 +247,10 @@ def test_claim_check_shows_rejection_correction_and_sources(page, bundle):
     injected = next(v for v in review["verdicts"] if v["source"] == "injected_test_claim")
     _open(page, "?mode=analyst&t=5400")
     card = page.locator(f'#cards .card[data-card-id="{review["card_id"]}"]')
+    assert card.locator(".review .explain").text_content() == " ".join(review["explanation"])
+    claims = card.locator(".review details.claims")
+    assert not claims.evaluate("d => d.open")  # the claim list is folded under the summary
+    claims.locator("summary").first.click()
     row = card.locator('.verdicts li[data-source="injected_test_claim"]')
     assert "rejected" in row.get_attribute("class")
     reasons = row.locator(".reason").all_text_contents()
@@ -256,6 +261,7 @@ def test_claim_check_shows_rejection_correction_and_sources(page, bundle):
     row.locator(f'.chip[data-metric-id="{metric_id}"]').click()
     assert f"Metric {metric_id}" in page.text_content("#inspector-body")
     assert "Unknown metric" not in page.text_content("#inspector-body")
+    assert claims.evaluate("d => d.open")  # stays open when the cards re-render
     assert page.locator("#cards .verdicts li.ok").count() >= 1
     retried = [r for r in bundle["reviews"].values() if len(r["attempts"]) > 1]
     for r in retried:  # a claim fixed by the agent's retry is not shown as a published correction
@@ -466,10 +472,121 @@ def test_ai_check_shortcut_opens_the_claim_check(page, bundle):
     assert sec.count() == 1 and sec.is_visible()
     assert page.evaluate("document.activeElement.dataset.review") == target["card_id"]
     assert review["proposer_label"] == sec.locator(".hint").first.text_content()
+    # The plain summary leads; the claim list is open for the spotlighted card.
+    explain = sec.locator(".explain")
+    assert explain.is_visible() and explain.text_content() == " ".join(review["explanation"])
+    assert sec.locator("details.claims").evaluate("d => d.open")
     if target["self_correction"]:  # the recorded Foundry run: rejected, sent back, fixed
         assert "rejected and sent back" in sec.locator(".summary").text_content()
         assert sec.locator("h5").first.text_content().startswith("Attempt 1")
-        assert sec.locator(".verdicts li.rejected").count() >= 1
+        assert sec.locator(".verdicts li.rejected").first.is_visible()
+        assert "The checker rejected" in explain.text_content()
+        assert "on its second try" in explain.text_content()
+
+
+def _recap_lines(page):
+    """The text of each recap line, without the ✓ and the screen-reader prefix."""
+    return page.locator("#recap-body .facts li > div > span:not(.sr-only)").all_text_contents()
+
+
+def test_recap_shortcut_opens_the_recap_at_full_time(page, bundle):
+    recap = bundle["recap"]
+    _open(page, "?t=600")
+    assert page.locator("#recap").is_hidden()
+    page.click("#jump-recap")
+    assert page.evaluate("window.matchlens.state.t") == recap["publish_clock_s"]
+    assert not page.evaluate("window.matchlens.state.playing")
+    assert page.locator("#recap").is_visible()
+    assert page.evaluate("document.activeElement.id") == "recap"
+    assert page.text_content("#recap-body h3") == recap["headline"]["text"]
+    lines = [ln["text"] for ln in [*recap["summary"], *recap["goals"]]]
+    assert _recap_lines(page) == lines
+    assert page.evaluate("window.matchlens.recapText()") == format_recap(recap)
+    assert page.locator("#recap-body .chip").count() == 0  # casual: no ID chips
+    page.click("#recap-close")
+    assert page.locator("#recap").is_hidden()
+    assert page.evaluate("document.activeElement.id") == "jump-recap"
+
+
+def test_recap_is_never_shown_before_full_time(page, bundle):
+    _open(page)
+    page.click("#jump-recap")
+    page.evaluate("window.matchlens.seek(60)")
+    assert page.locator("#recap").is_hidden()
+    page.evaluate(f"window.matchlens.seek({bundle['duration_s']})")
+    assert page.locator("#recap").is_hidden()  # it was closed, not deferred
+
+
+def test_full_time_card_opens_the_recap_in_both_modes(page):
+    for mode in ("casual", "analyst"):
+        _open(page, f"?mode={mode}&t=5400")
+        page.click("#cards .card.full_time [data-recap-open]")
+        assert page.locator("#recap").is_visible()
+
+
+def test_copy_recap_puts_plain_text_on_the_clipboard(page, bundle):
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    _open(page, "?t=5400")
+    page.click("#jump-recap")
+    page.click("#recap-copy")
+    page.wait_for_selector("#recap-status:not(:empty)")
+    assert page.text_content("#recap-status") == "Recap copied as plain text."
+    assert page.evaluate("navigator.clipboard.readText()") == format_recap(bundle["recap"])
+
+
+def test_recap_json_keeps_every_line_with_its_sources(page, bundle):
+    recap = bundle["recap"]
+    _open(page, "?mode=analyst&t=5400")
+    page.click("#jump-recap")
+    assert page.locator("#recap-body .chip").count() > 0  # analyst: every line shows its IDs
+    with page.expect_download() as info:
+        page.click("#recap-download")
+    download = info.value
+    assert download.suggested_filename == f"matchlens-recap-{recap['match_id']}-en-neutral.json"
+    with open(download.path(), encoding="utf-8") as fh:
+        doc = json.load(fh)
+    assert doc["schema"] == "matchlens.recap-export/v1" and doc["synthetic"] is True
+    assert doc["text"] == format_recap(recap)
+    for got, want in zip(
+        [doc["headline"], *doc["summary"], *doc["goals"]],
+        [recap["headline"], *recap["summary"], *recap["goals"]],
+        strict=True,
+    ):
+        assert (got["text"], got["status"], got["lang"]) == (want["text"], "verified_fact", "en")
+        assert (got["event_ids"], got["metric_ids"]) == (want["event_ids"], want["metric_ids"])
+
+
+def test_recap_follows_the_language_and_club(page, bundle):
+    if "personalized" not in bundle:
+        pytest.skip("this build has no personalized variants")
+    variant = bundle["personalized"]["variants"]["uk|away"]
+    recap = bundle["recap"]
+    _open(page, "?t=5400&lang=uk&follow=away")
+    page.click("#jump-recap")
+    items = page.locator("#recap-body .facts li")
+    for i, ln in enumerate([*recap["summary"], *recap["goals"]]):
+        (shown,) = [
+            x for x in variant["cards"][ln["card_id"]]["lines"] if x["index"] == ln["index"]
+        ]
+        assert shown["text"] in items.nth(i).text_content()
+        assert items.nth(i).get_attribute("lang") == (
+            "uk" if shown["status"] == "verified" else "en"
+        )
+    assert page.get_attribute("#recap-body h4", "lang") == "uk"
+    note = page.text_content("#recap-body .personalized-note")
+    assert "AI rewrites by the Microsoft Foundry personalizer (recorded run)" in note
+    text = page.evaluate("window.matchlens.recapText()")
+    assert "\nГоли\n" in text and note in text and text.endswith("not calibrated.\n")
+
+
+def test_recap_reflows_at_320px(browser, base_url):
+    pg = browser.new_page(viewport={"width": 320, "height": 800})
+    pg.goto(base_url + "?mode=analyst&t=5400")
+    pg.wait_for_selector("body[data-ready=true]")
+    pg.click("#jump-recap")
+    assert pg.locator("#recap").is_visible()
+    assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pg.close()
 
 
 def test_event_chain_stays_open_while_inspecting(page):

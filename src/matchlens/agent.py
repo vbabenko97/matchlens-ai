@@ -30,7 +30,15 @@ from typing import Any, Protocol
 from urllib.parse import urlparse
 
 from .cards import CardSet, Fact, InsightCard
-from .claims import VERIFIED, Claim, ClaimCheck, player_name, verify_claim
+from .claims import (
+    VALUE_TOLERANCE,
+    VERIFIED,
+    Claim,
+    ClaimCheck,
+    format_value,
+    player_name,
+    verify_claim,
+)
 from .metrics import DEFAULT_WINDOW_S, FACT, Metric, as_of_id, compute_metrics
 from .narrative import (
     AzureOpenAIConfig,
@@ -576,6 +584,157 @@ class ClaimReview:
     fallback_reason: str | None = None
     notes: tuple[str, ...] = field(default=())
     metrics: tuple[Metric, ...] = ()  # cited by verdict facts and corrections, by metric_id
+    explanation: tuple[str, ...] = ()  # plain sentences on what the check did (explain_review)
+
+
+# --- Plain-language summary of a review ---------------------------------------------------
+
+
+def _plural(n: int, noun: str) -> str:
+    if n == 1:
+        return f"an {noun}" if noun[0] in "aeiou" else f"a {noun}"
+    if noun.endswith("y"):
+        return f"{n} {noun[:-1]}ies"
+    return f"{n} {noun}es" if noun.endswith("s") else f"{n} {noun}s"
+
+
+def describe_events(events: Sequence[Event]) -> str:
+    """Events by kind, in order of first appearance: 'a tackle, 2 passes and a goal'."""
+    counts: dict[str, int] = {}
+    for e in events:
+        noun = "goal" if e.type == "shot" and e.outcome == "goal" else e.type.replace("_", " ")
+        counts[noun] = counts.get(noun, 0) + 1
+    parts = [_plural(n, noun) for noun, n in counts.items()]
+    return parts[0] if len(parts) == 1 else f"{', '.join(parts[:-1])} and {parts[-1]}"
+
+
+def _quoted(ctx: ReviewContext, claim: Claim) -> str:
+    metric = ctx.metrics.get(claim.metric_id) if claim.metric_id is not None else None
+    if metric is None:
+        return f"“{claim.metric_id}”" if claim.metric_id is not None else "a claim about events"
+    shown = "no value" if claim.value is None else format_value(replace(metric, value=claim.value))
+    return f"“{metric.label}: {shown}”"
+
+
+def _problems(ctx: ReviewContext, claim: Claim) -> list[str]:
+    """What is wrong with a rejected claim, in plain words. Derived from the claim and the
+    state the validator checked it against, not by parsing the validator's reasons."""
+    metric = ctx.metrics.get(claim.metric_id) if claim.metric_id is not None else None
+    by_id = {e.event_id: e for e in ctx.match.events}
+    out = []
+    if claim.metric_id is not None and metric is None:
+        out.append("no statistic of that name exists")
+    elif metric is not None:
+        if metric.value is None:
+            out.append("that statistic is undefined in this match")
+        elif claim.value is None:
+            out.append("it gave no number")
+        elif abs(float(claim.value) - float(metric.value)) > VALUE_TOLERANCE:
+            out.append(f"the match events give {format_value(metric)}")
+        sources = set(metric.source_event_ids)
+        outside = [by_id[i] for i in claim.cited_event_ids if i in by_id and i not in sources]
+        if outside:
+            out.append(
+                f"the events it cited as evidence ({describe_events(outside)}) "
+                "are not counted by that statistic"
+            )
+    elif claim.value is not None:
+        out.append("it gave a number without naming a statistic")
+    if any(i in ctx.later_event_ids for i in claim.cited_event_ids):
+        out.append("it cited events that had not happened yet")
+    if any(i not in by_id and i not in ctx.later_event_ids for i in claim.cited_event_ids):
+        out.append("it cited events that are not in the match")
+    if claim.metric_id is None and not claim.cited_event_ids:
+        out.append("it cited nothing")
+    return out
+
+
+def _fix(ctx: ReviewContext, before: ClaimVerdict, after: Sequence[ClaimVerdict]) -> str | None:
+    """How the retry fixed a rejected metric claim, if it did."""
+    metric = ctx.metrics.get(before.claim.metric_id) if before.claim.metric_id else None
+    fixed = next(
+        (v for v in after if v.verified and v.claim.metric_id == before.claim.metric_id), None
+    )
+    if metric is None or fixed is None:
+        return None
+    if before.claim.value is None or (
+        abs(float(before.claim.value) - float(fixed.claim.value)) > VALUE_TOLERANCE
+    ):
+        return f"it corrected “{metric.label}” to {format_value(metric)}"
+    if fixed.claim.cited_event_ids != before.claim.cited_event_ids:
+        by_id = {e.event_id: e for e in ctx.match.events}
+        cited = [by_id[i] for i in fixed.claim.cited_event_ids]
+        if not cited:
+            return f"it dropped the wrong evidence for “{metric.label}”"
+        return f"it cited {describe_events(cited)} for “{metric.label}”"
+    return None
+
+
+def explain_review(
+    ctx: ReviewContext,
+    proposer: str,
+    verdicts: Sequence[ClaimVerdict],
+    retried: bool,
+    fallback: str | None,
+) -> tuple[str, ...]:
+    """A few plain sentences on what the check did, for a reader who skips the claim list.
+
+    Built deterministically from the verdicts and the state they were checked against; no
+    model writes them.
+    """
+    first = [v for v in verdicts if v.attempt == 1 and v.source != INJECTED]
+    second = [v for v in verdicts if v.attempt == 2 and v.source != INJECTED]
+    tests = [v for v in verdicts if v.source == INJECTED]
+    claims = f"{len(first)} claim{'' if len(first) == 1 else 's'}"
+    if proposer in (FOUNDRY, RECORDED):
+        who = "In a recorded run, the" if proposer == RECORDED else "The"
+        out = [f"{who} Microsoft Foundry agent proposed {claims} about this moment."]
+    elif fallback:
+        out = [f"The AI agent was unavailable, so an offline proposer (no AI) drafted {claims}."]
+    else:
+        out = [f"No AI on this card: an offline proposer drafted {claims} from its statistics."]
+    bad = [v for v in first if not v.verified]
+    if first and not bad:
+        which = {1: "it", 2: "both"}.get(len(first), f"all {len(first)}")
+        out.append(f"The checker confirmed {which} against the match events.")
+    for v in bad:
+        problems = "; ".join(_problems(ctx, v.claim))
+        out.append(f"The checker rejected {_quoted(ctx, v.claim)}: {problems}.")
+    if bad and retried:
+        ok = sum(v.verified for v in second)
+        if not second:
+            result = "it proposed no claims"
+        elif ok < len(second):
+            result = f"{ok} of {len(second)} claims checked out"
+        else:
+            result = {1: "the claim checked out", 2: "both claims checked out"}.get(
+                ok, f"all {ok} claims checked out"
+            )
+        fixes = [f for f in (_fix(ctx, v, second) for v in bad) if f]
+        how = f" {', '.join(fixes)}, and" if fixes else ","
+        reason = "reason" if len(bad) == 1 else "reasons"
+        out.append(f"The {reason} went back to the agent; on its second try{how} {result}.")
+    still = [v for v in (second if retried else first) if not v.verified]
+    corrected = sum(v.correction is not None for v in still)
+    if corrected:
+        out.append(
+            f"For {corrected} claim{'' if corrected == 1 else 's'} still rejected, the value "
+            "computed from the events is published instead."
+        )
+    if len(still) > corrected:
+        out.append(f"{len(still) - corrected} rejected claim(s) are not published.")
+    for t in tests:
+        if t.verified:
+            out.append("A test claim that is wrong on purpose was accepted: the checker missed it.")
+        else:
+            fix = ", so the computed value is published instead" if t.correction else ""
+            out.append(
+                f"A test claim that is wrong on purpose, {_quoted(ctx, t.claim)}, was rejected: "
+                f"{'; '.join(_problems(ctx, t.claim))}{fix}."
+            )
+    if first:
+        out.append("Only claims that pass the checker are published.")
+    return tuple(out)
 
 
 def injected_score_claim(ctx: ReviewContext) -> Claim | None:
@@ -650,6 +809,7 @@ def review_card(
         fallback_reason=fallback,
         notes=tuple(notes),
         metrics=tuple(ctx.metrics[m] for m in sorted(cited)),
+        explanation=explain_review(ctx, proposer.name, verdicts, len(attempts) > 1, fallback),
     )
 
 
@@ -802,6 +962,8 @@ def format_review(review: ClaimReview) -> str:
     lines.append(f"  Proposer: {review.proposer_label}")
     if review.fallback_reason:
         lines.append(f"  Note: {review.fallback_reason}")
+    if review.explanation:
+        lines.append(f"  In short: {' '.join(review.explanation)}")
     for a, attempt in enumerate(review.attempts, 1):
         for call in attempt.calls:
             tools = ", ".join(t["name"] for t in call["tool_calls"]) or "final answer"

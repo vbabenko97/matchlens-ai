@@ -14,10 +14,11 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 ## Try it in 60 seconds
 
 1. Open the [demo](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/) and press **▶ Watch the comeback (77'–81')**. Cards appear as the moments happen: never before the events they cite, and each one leads with why the moment matters.
-2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. You see a recorded Foundry agent run: the validator rejects a claim that cited the wrong events, and the agent's retry is verified. The response IDs are in the disclosure.
+2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. A short summary says what happened in a recorded Foundry agent run: the checker rejected the claim "Pressures applied: 131" because its evidence was a tackle, two passes and a goal, and the agent's retry cited pressures instead. The claim-by-claim list and the response IDs are below it.
 3. On the Azure demo, an analyst card offers **Check this card live with Microsoft Foundry**. It runs the same agent live behind a shared daily cap, or says why it did not.
 4. Back in **Casual Fan**, set **Language: Українська** and **Follow: Eastvale Athletic** ([direct link](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away)). Each line the personalizer agent rewrote is checked against the English fact, then reviewed for meaning by the critic agent; the lines that failed stay in English, marked as such.
-5. Open **▣ On-air graphic**: a broadcast lower-third fed by the same overlay JSON, ready for an OBS or vMix browser source ([rundown](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&bg=dark)). The **Match** picker offers five more matches that were not tuned for the demo.
+5. Press **▤ Match recap (full time)**: the full-time story and the scorers as one text, built only from the checked card lines. **Copy recap** gives plain text; **Recap JSON** keeps each line with its event and metric IDs. It follows the language and club you picked.
+6. Open **▣ On-air graphic**: a broadcast lower-third fed by the same overlay JSON, ready for an OBS or vMix browser source ([rundown](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&bg=dark)). The **Match** picker offers five more matches that were not tuned for the demo.
 
 ## The five-stage pipeline
 
@@ -26,7 +27,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 | **Ingest** | A deterministic generator writes a full 90-minute match: passes, shots, tackles, interceptions, recoveries, clearances, pressure events, possession chains and match metadata. A validator enforces the invariants: unique IDs, nondecreasing clock, score only on goals, possession ownership, ball continuity within 1 m. The same seed gives the same bytes. | `generator.py`, `validate.py`, [DATA_MODEL](docs/DATA_MODEL.md) |
 | **Interpret** | Metrics with stable IDs, full-match and 15-minute windows (passes, completion, shots, on target, goals, pressures, turnovers, possessions, synthetic xG), each listing its source event IDs. Key moments: every goal, every missed big chance, full time. | `metrics.py`, `moments.py` |
 | **Explain** | Match-story lines say why a moment matters (opener, equaliser, comeback, back in front, redemption, what a missed chance would have meant, how the match was won). Each line cites events and is re-rendered from those events alone before it is published. | `story.py`, `cards.py` |
-| **Render** | A card is published at its last evidence event, never earlier. Timed, machine-readable overlay cues (`matchlens.overlays/v1`, both modes); a transparent broadcast lower-third that plays them; a replay UI with pitch view, timeline and scoreboard. | `overlays.py`, `web/` |
+| **Render** | A card is published at its last evidence event, never earlier. Timed, machine-readable overlay cues (`matchlens.overlays/v1`, both modes); a transparent broadcast lower-third that plays them; a match recap at full time (`matchlens.recap/v1`) to copy as text or download with its sources; a replay UI with pitch view, timeline and scoreboard. | `overlays.py`, `recap.py`, `web/` |
 | **Personalize** | Casual and Analyst are different experiences: story-first cards versus event chains, metric chips, an evidence inspector and the claim check. Fans also pick a language (en/de/uk) and a club, rewritten by the personalizer agent, checked line by line and reviewed by the critic agent. | `narrative.py`, `personalize.py`, `web/app.js` |
 
 ## How MatchLens meets the judging criteria
@@ -121,6 +122,7 @@ python -m matchlens metrics match.jsonl                     # event-grounded met
 python -m matchlens moments match.jsonl                     # card moments with evidence IDs
 python -m matchlens cards match.jsonl --mode casual         # verified insight cards (--json, --offline)
 python -m matchlens overlays match.jsonl --out overlays.json # timed overlay cues, both modes
+python -m matchlens recap match.jsonl                       # full-time recap as text (--json: with IDs)
 ```
 
 ## The replay UI
@@ -139,6 +141,8 @@ The replay UI has a scoreboard, a pitch view of the latest ball events, a timeli
   - Each card citing one of their events is badged, and the pitch rings their last touch.
   - In Analyst mode every stat is a row with its kind (fact or heuristic) and a button that shows its events on the pitch.
   - The numbers are precomputed in `src/matchlens/players.py` with one step per event, so nothing later in the match is counted. A team's players add up to the team metrics (tested). No AI is involved.
+- **Claim check.** Each analyst card's check opens with a few plain sentences built in Python from the verdicts (`explain_review` in `src/matchlens/agent.py`; no model writes them): what the agent proposed, what the checker rejected and why, and how the retry ended. The claim-by-claim list with reasons and response IDs is folded below, open on the card the **See the AI get fact-checked** shortcut opens.
+- **Match recap.** At full time, **▤ Match recap** (a shortcut, and a button on the full-time card) shows the full-time card's title and "why" lines and each goal's scorer line (`src/matchlens/recap.py`). It adds no wording: every line is a card line with its IDs, so the recorded language and club variants apply, and lines whose rewrite was rejected stay in English. **Copy recap** copies plain text with a provenance line; **Recap JSON** (`matchlens.recap-export/v1`) lists each line with its language, status (verified fact, checked AI rewrite or English fact kept), event and metric IDs. It is closed again if the replay goes back before full time.
 - **Outputs.** **⬇ Overlay JSON** downloads the cues of the current match. URL parameters: `seed`, `mode`, `t`, `speed`, `lang`, `follow`, `player`.
 
 **Language and club.** The personalizer makes one Foundry call per card with structured JSON output. `check_line` (`src/matchlens/personalize.py`) compares every rewritten line with its English fact:

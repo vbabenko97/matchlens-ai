@@ -159,6 +159,8 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .review h4 { margin: 0 0 0.2rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
 .review h5 { margin: 0.55rem 0 0; font-size: 0.8rem; color: var(--text); }
 .review .summary { margin: 0.25rem 0; font-weight: 600; }
+.review .explain { margin: 0.3rem 0 0.4rem; font-size: 0.9rem; line-height: 1.4; }
+.review details.claims > summary { margin-top: 0.15rem; }
 .review details.calls .hint { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; }
 .review.spotlight { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 .verdicts { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-direction: column; gap: 0.35rem; }
@@ -186,6 +188,18 @@ details.chain summary, .review summary { cursor: pointer; color: var(--muted); f
 .live .live-ok { color: var(--ok); }
 .live .warn { color: var(--warn); }
 .narrative .warn { color: var(--warn); margin: 0.2rem 0 0; font-size: 0.78rem; }
+
+.recap-open { font-size: 0.85rem; margin: 0 0 0.5rem; border-color: var(--accent); }
+.recap {
+  background: var(--panel-2); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 10px; padding: 0.65rem 0.75rem;
+}
+.recap h3 { margin: 0.45rem 0 0; font-size: 1.12rem; line-height: 1.25; }
+.recap h4 { margin: 0.55rem 0 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.recap-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+#recap-copy { background: var(--accent); color: #111; font-weight: 700; border-color: var(--accent); }
+#recap-status { margin-top: 0.4rem; color: var(--ok); }
+#recap-status:empty { display: none; }
 
 .inspector { border-top: 1px solid var(--line); padding-top: 0.6rem; }
 .inspector pre {
