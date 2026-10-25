@@ -57,5 +57,5 @@ Also: the lower-third graphic is `aria-hidden`, because it duplicates the active
   1. Tab through the header, controls and timeline, and check that each control's name makes sense.
   2. Press Play at 240× and check that each new moment is spoken once and the clock is never read on its own.
   3. In Analyst mode, activate a chip and check that focus stays on it and the inspector content is reachable.
-  4. Check that the narrative's "not verified" / "offline template" label is read with each card.
+  4. Check that the narrative's "not verified" / "template wording" label is read with each card.
 - [x] **Zoom check (operator, 2026-10-24, Chrome on macOS, live site):** at 200% and 400% the page reflows to one column with no horizontal scroll, and every region is reachable: scoreboard, mode toggle, pitch, stats, controls, timeline, Key moments and footer. Two defects were found and fixed (#13, #14 above). Regression tests: 320/390/500px with a long "Last event", no clipped stat values, and no overlapping timeline markers or dots.

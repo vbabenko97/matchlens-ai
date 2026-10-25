@@ -406,8 +406,11 @@ function renderCard(card, isActive) {
         ? "AI wording (Foundry personalizer) · numbers & names checked · critic-reviewed"
         : "AI wording (Foundry personalizer) · numbers & names checked"));
   } else {
-    nar.appendChild(el("span", { class: `status ${unverified ? "unverified" : "template"}`, title: n.label },
-      unverified ? "AI wording · NOT VERIFIED" : "Offline template · not an Azure response"));
+    // Template wording is the design here, not a fallback: say what it is, not what it is not.
+    nar.appendChild(el("span", {
+      class: `status ${unverified ? "unverified" : "template"}`,
+      title: unverified ? n.label : "Rendered from match events by deterministic templates; no model wrote this wording.",
+    }, unverified ? "AI wording · NOT VERIFIED" : "Template wording · no AI"));
   }
   const duplicate = n.text === card.facts.map((f) => f.text).join(" ");
   // A rewritten card hides the English narrative: the note above already names its wording.
@@ -1276,7 +1279,7 @@ function init(bundle, index, entry) {
     "✓ facts are rendered from verified, structured event data and cite event/metric IDs. " +
     "xG is a synthetic heuristic, not empirically calibrated. " +
     (offline
-      ? "Narrative provider: offline deterministic template — not an Azure response."
+      ? "English card wording comes from deterministic templates, not from a model (no AI)."
       : "Narrative wording comes from Azure OpenAI and is NOT verified; the ✓ facts are authoritative.") +
     (Object.values(bundle.reviews || {}).some((r) => r.proposer === "recorded_foundry_agent")
       ? " Analyst claim checks replay a recorded Microsoft Foundry agent run (not a live call); " +

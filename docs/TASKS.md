@@ -10,7 +10,23 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-25): live-check telemetry for Application Insights
+## Latest checkpoint (2026-10-25): before the video — template label and a telemetry shot
+- **Goal:** two presentation fixes before recording, no new feature.
+- **Template label.** Every English card ended with "Offline template · not an Azure response". It sat in the video's first frame and in the README's main screenshot, and in an Azure hackathon it reads like a failure. On this page, template wording is the design, not a fallback: facts are rendered from structured data.
+  - The chip now says what the wording is: **"Template wording · no AI"**.
+  - Its tooltip: "Rendered from match events by deterministic templates; no model wrote this wording."
+  - Footer: "English card wording comes from deterministic templates, not from a model (no AI)."
+  - Unverified AI wording keeps "AI wording · NOT VERIFIED" and its full label. The bundle's narrative label (`OFFLINE_LABEL`, also used by the CLI's real fallback path) is unchanged.
+- **Screenshot.** `docs/images/comeback.png` was retaken from the local static build (Pages export, 1440×900, `?t=4862`, the system Chromium). A pixel diff against the old image changes only the two chips (bounding box x 1133–1353, y 504–758). The other screenshots do not show the chip.
+- **Video script** (`docs/VIDEO_SCRIPT.md`):
+  - the 1:26–1:42 shot adds 3 s of Tab G, the live call's row in Application Insights, before 2 s of the Azure diagram;
+  - voice-over: "Each request lands in Application Insights with its tokens and verdicts." The shot has 33 words (124 per minute), the video 217;
+  - Tab G: how to open Logs, the 2–5 min delay (record it separately), and what to keep out of frame (account e-mail, subscription ID, connection string);
+  - the end card names Application Insights.
+- **`docs/telemetry.kql` query 5:** the live checks of the last 30 minutes, one row each, for the video. The existing test checks its fields against real records.
+- **Verified:** `python -m pytest -q` (e2e on local Chromium) gives 699 passed, 2 skipped; `ruff check .` and `ruff format --check .` are clean. The e2e tests now check the chip text, its tooltip and the footer wording.
+
+## Checkpoint (2026-10-25): live-check telemetry for Application Insights
 - **Goal:** close the README gap "no telemetry" for **Best Enterprise Solution** without a new dependency: the live endpoint should show in production what it did, what it cost and why it refused.
 - **What was built:**
   - `log_telemetry` / `telemetry_record` (`live.py`): one log line per `POST /api/live-check`, refused or not: `matchlens.live_check ` + JSON (`matchlens.live-telemetry/v1`). Outcome, reason, error type, known card ID only, handler time; once a run starts, model calls, tokens and HTTP 429 answers; for a live run also latency, claims proposed and rejected per attempt, facts published, response IDs, checks left today.

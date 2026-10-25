@@ -2,7 +2,8 @@
 // Each POST /api/live-check writes one trace: "matchlens.live_check " and then JSON
 // (schema matchlens.live-telemetry/v1, written by matchlens.live.log_telemetry).
 // Server-side failures have severityLevel 2 (Warning), everything else 1 (Information).
-// Run one query at a time: put the cursor in it and press Run.
+// Run one query at a time: put the cursor in it and press Run. In the portal, switch the
+// Agent chat off and choose KQL mode.
 
 // 1. Every request, newest first.
 traces
@@ -53,4 +54,15 @@ requests
     | project operation_Id, status = tostring(e.status), reason = tostring(e.reason)
     ) on operation_Id
 | project timestamp, resultCode, duration, status, reason
+| order by timestamp desc
+
+// 5. For a screen (the demo video): the live checks of the last 30 minutes, one row each.
+traces
+| where timestamp > ago(30m) and message has "matchlens.live_check"
+| extend e = parse_json(substring(message, indexof(message, "{")))
+| where tostring(e.status) == "live"
+| project timestamp, status = tostring(e.status), card_id = tostring(e.card_id),
+    seconds = toint(e.elapsed_ms) / 1000.0, model_calls = toint(e.model_calls),
+    tokens = toint(e.input_tokens) + toint(e.output_tokens),
+    claims_rejected = e.claims_rejected, checks_left_today = toint(e.remaining_today)
 | order by timestamp desc
