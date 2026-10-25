@@ -3,7 +3,7 @@
 The form asks for a pitch, the Microsoft technologies used, a public GitHub link, a public demo video under 2 minutes, and testing instructions. All texts below are in English, ready to paste.
 
 ## Links
-- **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag [`v1.2-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.2-submission), commit `6f8556b` (earlier tags: `v1.1-submission` is `c79b15e`, `v1.0-submission` is `2b9da2a`).
+- **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag [`v1.3-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.3-submission). It is created once, on `main`, right before the form is submitted, after the last code change; the link then resolves to that commit, so no document has to be updated after tagging. Earlier tags mark earlier versions; `v1.2-submission` is the fallback if the final version is not ready.
 - **Demo (primary, Azure):** <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>
 - **Demo (backup, GitHub Pages, static only):** <https://vbabenko97.github.io/matchlens-ai/>
 - **Demo video:** *add the YouTube/Vimeo URL*
@@ -48,7 +48,8 @@ From `docs/images/` (taken from the local static build of this version):
 ## Before pressing submit
 - [ ] Video under 2:00, public on YouTube or Vimeo, link in the form and in `README.md`.
 - [ ] Both demo URLs open in a private window (no sign-in).
-- [ ] The repository is public and the tag `v1.2-submission` is visible. If code changes again before submitting, deploy and tag again.
+- [ ] The code is final and deployed (both deploy runs green, smoke included), and the video was recorded from that version.
+- [ ] Tag the final version once: `git fetch origin main && git tag -a v1.3-submission FETCH_HEAD -m "Submission version" && git push origin v1.3-submission`. The repository is public and the tag is visible. A docs-only commit after the tag needs no new tag.
 - [ ] Category in the form: Best Enterprise Solution.
 - [ ] The project page shows as submitted, not as a draft.
 - [ ] Keep both hosts up through the end of judging, 10 November 2026 23:59 PT (11 November 08:59 Vienna); the daily smoke test covers both, but not the paid live-check button.

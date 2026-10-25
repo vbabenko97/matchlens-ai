@@ -47,7 +47,12 @@ Update this file after verified work. A task is done only when the acceptance ch
   - VIDEO_SCRIPT: an optional terminal shot.
   - The pipeline diagram PNG is re-rendered.
 - **Not done (scope):** a live mode in the web page (it would need a server feed and a UI that grows with the events), and an adapter for a real provider.
-- **Next:** PR -> merge -> both deploys -> new submission tag (`v1.3-submission`, pushed by the operator), and the docs updated to it.
+- **Merged and deployed:** PR #27 squash-merged as `546dee0` after green CI; both deploys were started.
+- **Release rule (from 2026-10-25):**
+  - Tag once: `v1.3-submission` is created on `main` right before the form is submitted, after the last code change and the video.
+  - The docs name that tag without a commit SHA, so no docs PR follows a tag, and a docs-only commit after the tag needs no new tag.
+  - Deploy runs are not recorded in separate PRs; the Actions history keeps them.
+- **Next (operator):** human review of the Ukrainian lines in Tab B; record the video; tag `v1.3-submission` and submit the form (category: Best Enterprise Solution).
 
 ## Checkpoint (2026-10-25): match recap and a plain claim-check summary
 Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or frameworks before the deadline; make the existing value obvious to a judge.
