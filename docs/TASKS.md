@@ -28,7 +28,11 @@ Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or 
   - `docs/SUBMISSION.md`: new pitch, category decision, the images for the form, and an updated checklist (new tag needed; end of judging in Vienna time).
 - **Images** (`docs/images/`, from the local static build): `comeback.png`, `ai-check.png`, `fan-uk.png`, `recap.png`, `on-air.png`, `architecture-pipeline.png`, `architecture-azure.png`. Diagrams rendered with mermaid-cli 11.4.2 from the README's Mermaid source. No tool is added to the project.
 - **Accessibility re-run:** axe-core 4.10.2 on five new states (recap: en, uk/away, analyst, phone; AI check with all `<details>` open): 0 violations ([ACCESSIBILITY](ACCESSIBILITY.md)).
-- **Next:** merge -> both deploys -> smoke; new submission tag. Operator: draft video, human review of the shown Ukrainian lines, Innovation Studio form (category: Best Enterprise Solution).
+- **Merged and deployed:** PR #24 squash-merged as `6f8556b` after green CI (test 3.11, test 3.13, e2e). Both deploys of `6f8556b` succeeded, each including its smoke job (the full e2e suite against the public URL, new recap tests included):
+  - SWA [run 40184910154](https://github.com/vbabenko97/matchlens-ai/actions/runs/40184910154);
+  - Pages [run 40184911903](https://github.com/vbabenko97/matchlens-ai/actions/runs/40184911903).
+- **Tag `v1.2-submission` -> `6f8556b`: not pushed yet.** The annotated tag was created in the session, but GitHub refused the push with HTTP 403: this session may push only its working branch. The operator creates it (`git fetch origin && git tag -a v1.2-submission 6f8556b -m "Submission version: match recap, plain claim-check summary, README for Best Enterprise Solution" && git push origin v1.2-submission`). `docs/SUBMISSION.md` and `docs/VIDEO_SCRIPT.md` on this branch already name it.
+- **Next (operator):** push the tag; draft video; human review of the shown Ukrainian lines; Innovation Studio form (category: Best Enterprise Solution).
 
 ## Checkpoint (2026-10-24): pass quality and tempo (improvement 3 of 3)
 - **Player focus published:** PR #20 squash-merged as `8339d96`. SWA [run 40128356758](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128356758) and Pages [run 40128358841](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128358841) succeeded, including smoke.
