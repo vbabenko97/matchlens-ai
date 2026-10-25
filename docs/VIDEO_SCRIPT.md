@@ -1,6 +1,6 @@
 # Demo video script (target 1:55, hard limit < 2:00)
 
-Version shown: tag `v1.1-submission` (`main` @ `c79b15e`), deployed on the Azure host. Voice-over: English, about 250 words: about 1:49 at 138 words per minute. That leaves only a few seconds for pauses, so keep the trimmed live wait short. On-screen labels below are the exact UI texts.
+Version shown: tag `v1.2-submission` (`main` @ `6f8556b`), deployed on the Azure host. The shots below predate the match recap and the plain claim-check summary; both are on the page now. Voice-over: English, about 250 words: about 1:49 at 138 words per minute. That leaves only a few seconds for pauses, so keep the trimmed live wait short. On-screen labels below are the exact UI texts.
 
 ## Before recording
 - **Host and capture.** Record the Azure host: <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>. Capture a 1920×1080 browser window at 110–125% zoom; hide bookmarks and extensions.
