@@ -29,7 +29,7 @@ Security on static hosts:
 - `index.html` carries a CSP meta tag (`script-src 'self'`, no inline script or eval).
 - Azure Static Web Apps additionally applies the headers in `deploy/azure-static-web-apps/staticwebapp.config.json` (CSP incl. `frame-ancestors 'none'`, `nosniff`, `no-referrer`).
 
-## Option A (alternative, not used): Azure Static Web Apps — Free plan
+## Option A (in use, primary host): Azure Static Web Apps — Free plan
 Workflow: `.github/workflows/deploy-swa.yml` (manual `workflow_dispatch` only). It builds the export, copies `staticwebapp.config.json`, uploads with `Azure/static-web-apps-deploy@v1`, then runs the Playwright smoke suite against the returned URL.
 
 Operator steps:
@@ -42,7 +42,7 @@ Operator steps:
 3. **[operator]** *Actions → Deploy demo (Azure Static Web Apps, Free) → Run workflow* on `main`.
 4. **[operator]** Optional: set the repository **variable** `AZURE_DEMO_URL` (not a secret) if the site URL changes. The daily smoke test checks this host and `PUBLIC_DEMO_URL`, and defaults to `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/`.
 
-## Option B (in use): GitHub Pages
+## Option B (in use, static mirror): GitHub Pages
 Workflow: `.github/workflows/deploy-pages.yml` (manual only). It builds the same export, deploys with `actions/deploy-pages`, then runs the Playwright smoke suite. The repository is public, so Pages is free.
 1. [x] **[operator]** *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
 2. [x] **[operator]** *Actions → Deploy demo (GitHub Pages, fallback) → Run workflow* on `main` (done 2026-10-20).
@@ -136,7 +136,7 @@ What the Azure-side settings do and do not do:
 - **The daily count (4) is what bounds spend.** One check is at most 12 model calls. The recorded run averaged ≈ 10K input / 0.5K output tokens per card. So 100 checks a day is about 1M input tokens, under $1/day at `gpt-4.1-mini` list prices (check current pricing); a runaway worst case is a few dollars a day.
 
 Operator steps:
-1. **[operator]** Create the **Free** Static Web App (Option A steps 1–2 below) and add `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+1. **[operator]** Create the **Free** Static Web App (Option A steps 1–2 above) and add `AZURE_STATIC_WEB_APPS_API_TOKEN`.
 2. **[operator]** Create the shared quota store:
    - Create a Storage account (Standard, LRS; cost is cents a month), then *Storage browser → Tables → + Add table* `livechecks`.
    - Make a SAS for that table only: *Shared access signature* on the table with permissions **Read, Add, Update**, HTTPS only, expiring after the judging period (e.g. 2026-11-30).
@@ -160,8 +160,10 @@ Operator steps:
 
 Local run with your own key: `python -m matchlens serve --live-api` (reads the `AZURE_OPENAI_*` variables; uses the table if `MATCHLENS_LIVE_COUNTER_URL` is set, else an in-memory count, acceptable only on your own machine). `--offline` serves the button with `not_configured` replies. Tests use fake transports only (`tests/test_live.py`, the live-button e2e tests); the public smoke test never presses the button.
 
-## Telemetry of the live check (Application Insights) — operator step
-**Status (2026-10-25): code ready; Application Insights not yet enabled on the Static Web App.** Until it is, the records below are written but not collected.
+## Telemetry of the live check (Application Insights)
+**Status (2026-10-25): connected and verified.** The Azure host runs `main` @ `0413ede` (deploy [run 40205864784](https://github.com/vbabenko97/matchlens-ai/actions/runs/40205864784), smoke included). The operator sent the free `telemetry-probe` request; query 1 showed it at 16:01:29 UTC: HTTP 404, `unknown_card`, severity 1 (Information), `elapsed_ms` 0, and no `card_id` ([screenshot](images/telemetry.png), cropped to leave out the account header). No live call has been recorded in Application Insights yet.
+
+![Query 1 in Application Insights Logs: the probe request, 404 unknown_card](images/telemetry.png)
 
 What is recorded:
 - **One trace per `POST /api/live-check`**, refused or not (`log_telemetry` in `src/matchlens/live.py`). The message is `matchlens.live_check ` followed by JSON, schema `matchlens.live-telemetry/v1`:
@@ -173,7 +175,9 @@ What is recorded:
 - **`api/host.json`:** the default level stays Warning (no runtime chatter). `Host.Results` is at Information, so the `requests` table gets every call with its duration and result code. `Function.live_check.User` is at Information, so the telemetry lines get through ([Microsoft Learn: configure categories](https://learn.microsoft.com/azure/azure-functions/configure-monitoring#configure-categories)). Adaptive sampling stays at its default and engages only above about 20 items per second per host, far above this demo's traffic. The table count, not telemetry, stays the authoritative spend count.
 
 Operator steps:
-1. **[operator]** Azure portal → the Static Web App `matchlens-demo` → **Application Insights** → *Enable Application Insights*: **Yes** → **Save** ([Microsoft Learn: monitor Static Web Apps](https://learn.microsoft.com/azure/static-web-apps/monitor)). It creates an Application Insights resource in the resource group and links it through an app setting; the repository needs no setting. The page lists no plan restriction, only that the app has an API, which this one has.
+1. **[operator]** Connect Application Insights. Done on 2026-10-25 as follows:
+   - The documented way is the Static Web App's **Application Insights** page → *Enable Application Insights*: **Yes** → **Save** ([Microsoft Learn: monitor Static Web Apps](https://learn.microsoft.com/azure/static-web-apps/monitor)). On this Free-plan app it did not stay saved: the page fell back to **No** and no resource was created. The cause was not investigated (the Static Web App's *Activity log* would name it).
+   - What worked: create the Application Insights resource `matchlens-demo` by hand (*Application Insights → Create*, resource group `rg-matchlens-demo`, East US 2, the default Log Analytics workspace). Then add two variables under the Static Web App's *Settings → Environment variables* (production): `APPLICATIONINSIGHTS_CONNECTION_STRING` (the resource's *Connection String*) and `APPINSIGHTS_INSTRUMENTATIONKEY` (its instrumentation key). These are the app settings the toggle would have written. The values stay out of git and screenshots.
    - Cost: Application Insights is billed separately from Static Web Apps, by data ingested. Each request writes one request record and one trace, a few kilobytes at most. Optionally set a daily cap under *Usage and estimated costs* in the new resource.
 2. **[operator]** *Actions → Deploy demo (Azure Static Web Apps, Free) → Run workflow* on `main`, so the new `host.json` and code are live.
 3. **[operator]** Free check (no model call, no quota):
@@ -181,9 +185,9 @@ Operator steps:
    curl -s -X POST https://wonderful-hill-04967dd0f.5.azurestaticapps.net/api/live-check \
      -H 'Content-Type: application/json' -d '{"card_id":"telemetry-probe"}'
    ```
-   Expect `"status":"unknown_card"` (HTTP 404). After a few minutes, query 1 in [telemetry.kql](telemetry.kql) (*Application Insights → Monitoring → Logs*) shows that request with `status` `unknown_card` and an empty `card_id`.
+   Expect `"status":"unknown_card"` (HTTP 404). After a few minutes, query 1 in [telemetry.kql](telemetry.kql) shows that request with `status` `unknown_card` and an empty `card_id`. Open *Application Insights → Monitoring → Logs*. If the page opens an **Agent** chat, switch the *Agent* toggle off and choose **KQL mode**.
 4. **[operator]** The next live call (for example the one in the video) appears with `status` `live`, its tokens, its claims rejected per attempt and its response IDs. Queries 2 and 3 give the daily view and the fallback reasons; query 4 puts the host's request record next to each line.
-5. **[operator]** Evidence for the judges: a screenshot of query 1 or 2 (`docs/images/telemetry.png`) and the date it was taken, recorded in this section. Only then may README and SUBMISSION list Application Insights as in use.
+5. **[operator]** Evidence for the judges: a screenshot of query 1 (`docs/images/telemetry.png`, 2026-10-25, the probe). README and SUBMISSION list Application Insights as in use since then. Optional: retake it after the video's live call, so it shows a `live` row with tokens and claims.
 
 If nothing appears after about 10 minutes: run `traces | where timestamp > ago(1h) | project timestamp, message, customDimensions.Category | take 50`. If the `matchlens.live_check` lines are missing but other traces arrive, the Functions host files them under another category: raise that category to Information in `api/host.json`.
 
@@ -203,8 +207,11 @@ The browser never holds a key. The Azure host's live check calls Foundry server 
 | GitHub Pages source = GitHub Actions | **enabled**; site deployed |
 | Foundry / Azure OpenAI model deployment + key | **created** (`gpt-4.1-mini`), verified by `azure-check` 2026-10-24; key held by the operator only |
 | `PUBLIC_DEMO_URL` repository variable | **set** to `https://vbabenko97.github.io/matchlens-ai/` |
+| Application Insights `matchlens-demo` + its connection string in the Static Web App's environment variables | **created and connected** 2026-10-25; values held in Azure only |
 
 ## Operator decisions (2026-10-20)
 - Azure Static Web Apps Free preferred, GitHub Pages fallback. No paid resources without approval.
 - 2026-10-24: hosting settled on GitHub Pages; no Static Web App will be created.
+- 2026-10-24 (later): the Free Static Web App was created after all and became the primary host, with the live-check API; GitHub Pages stays the static mirror.
+- 2026-10-25: Application Insights connected to the Static Web App for live-check telemetry (billed by data ingested).
 - Configuration stays environment-based. Credentials are never committed, logged or shown.

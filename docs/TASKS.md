@@ -23,8 +23,19 @@ Update this file after verified work. A task is done only when the acceptance ch
   - Mutation check: dropping the `counter_unavailable` Warning or the token count fails the tests.
   - Full suite: `python -m pytest -q` (e2e on local Chromium, `azure-functions` installed) gives 699 passed, 2 skipped; `ruff check .` and `ruff format --check .` are clean.
 - **Docs:** README (a row in "Controls already in place", "Before production" now says what is still missing: alerts, dashboard, tracing per Foundry call, no telemetry from static pages), DEPLOYMENT ("Telemetry of the live check": what is and is not recorded, operator steps, troubleshooting), SUBMISSION checklist.
-- **Not verified:** nothing on Azure yet. Application Insights is not enabled, so no record has been collected. README and SUBMISSION do not list Application Insights as in use until the operator steps below are done.
-- **Next (operator):** after merge, enable Application Insights on the Static Web App, run the Azure deploy, send the free `telemetry-probe` request and check query 1 ([DEPLOYMENT](DEPLOYMENT.md), "Telemetry of the live check"); then a screenshot for `docs/images/telemetry.png`, and a docs update that lists Application Insights.
+- **Merged and deployed:** PR #31 squash-merged as `0413ede` after green CI (test 3.11, test 3.13, e2e). Both deploys of `0413ede` succeeded, each with its smoke job (e2e against the public URL): SWA [run 40205864784](https://github.com/vbabenko97/matchlens-ai/actions/runs/40205864784), Pages [run 40205867095](https://github.com/vbabenko97/matchlens-ai/actions/runs/40205867095).
+- **Verified on Azure (2026-10-25):**
+  - The portal toggle on the Static Web App did not stay saved: it fell back to **No**, and no resource was created; the cause was not investigated.
+  - The operator created the Application Insights resource `matchlens-demo` by hand (`rg-matchlens-demo`, East US 2) and set `APPLICATIONINSIGHTS_CONNECTION_STRING` and `APPINSIGHTS_INSTRUMENTATIONKEY` in the Static Web App's environment variables.
+  - The free `telemetry-probe` request answered `unknown_card`. Query 1 then showed it at 16:01:29 UTC: 404, `unknown_card`, severity 1, `elapsed_ms` 0, no `card_id` (`docs/images/telemetry.png`, cropped to leave out the account header).
+  - So the logger, the `host.json` level for `Function.live_check.User` and the connection all work.
+  - Not yet seen in Application Insights: a `live` row, and a Warning-level row.
+- **Docs after verification:**
+  - README: Application Insights in the Microsoft technology row, the controls table and "Microsoft platform".
+  - The Azure diagram gains Application Insights; `architecture-azure.png` is re-rendered with mermaid-cli 11.4.2 (`-s 2 -b white`, same width as before).
+  - SUBMISSION: listed under Microsoft technologies, image 7, checklist item ticked.
+  - DEPLOYMENT: status, what worked instead of the toggle, the Agent/KQL-mode tip, the credentials inventory, the hosting labels (Static Web Apps is the primary host, Pages the mirror).
+- **Next (operator):** record the video. Its live call should appear as a `live` row; optionally retake `telemetry.png` from it. Then tag `v1.3-submission` and submit the form.
 
 ## Checkpoint (2026-10-25): event-by-event processing (`matchlens stream`)
 - **Goal (plan of 2026-10-25, timeboxed):** close the gap to challenge §4.1(a) "ingest … as they happen" without a new generator, an external provider, cloud infrastructure or a model call per event.
