@@ -32,7 +32,12 @@ Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or 
   - SWA [run 40184910154](https://github.com/vbabenko97/matchlens-ai/actions/runs/40184910154);
   - Pages [run 40184911903](https://github.com/vbabenko97/matchlens-ai/actions/runs/40184911903).
 - **Tag `v1.2-submission` -> `6f8556b`** (annotated, pushed by the operator; this session may push only its working branch, and a tag push was refused with HTTP 403). `git ls-remote` confirms it. `docs/SUBMISSION.md` and `docs/VIDEO_SCRIPT.md` name it.
-- **Next (operator):** draft video; human review of the shown Ukrainian lines; Innovation Studio form (category: Best Enterprise Solution).
+- **Video script rewritten** (`docs/VIDEO_SCRIPT.md`): one producer's story in 1:50.
+  - Shots: the explained moment, the 77' rejection in its plain summary, the pressures metric in the inspector, the fan view in Ukrainian, the recap and the lower-third, the live call and the Azure diagram.
+  - 217 words, at most about 130 per minute in any shot.
+  - Every spoken claim was checked against the page: recorded versus live, template facts only on air, no "proven" AI lines.
+  - Player focus and passing are left to the README.
+- **Next (operator):** human review of the Ukrainian lines in Tab B; record the video per the script; Innovation Studio form (category: Best Enterprise Solution).
 
 ## Checkpoint (2026-10-24): pass quality and tempo (improvement 3 of 3)
 - **Player focus published:** PR #20 squash-merged as `8339d96`. SWA [run 40128356758](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128356758) and Pages [run 40128358841](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128358841) succeeded, including smoke.

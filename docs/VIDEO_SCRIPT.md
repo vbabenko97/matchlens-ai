@@ -1,37 +1,67 @@
-# Demo video script (target 1:55, hard limit < 2:00)
+# Demo video script (target 1:50, hard limit < 2:00)
 
-Version shown: tag `v1.2-submission` (`main` @ `6f8556b`), deployed on the Azure host. The shots below predate the match recap and the plain claim-check summary; both are on the page now. Voice-over: English, about 250 words: about 1:49 at 138 words per minute. That leaves only a few seconds for pauses, so keep the trimmed live wait short. On-screen labels below are the exact UI texts.
+Version shown: tag `v1.2-submission` (`main` @ `6f8556b`), deployed on the Azure host.
+
+One idea carries the video: a producer gets the *why* of a moment, with its evidence. The shots follow that producer, so the video tells one story instead of touring features:
+1. a key moment, explained;
+2. the AI caught by the validator;
+3. the evidence;
+4. a fan's version;
+5. the recap and the on-air graphic;
+6. Azure.
+
+Voice-over: English, about 215 words, so about 1:40 at 130 words per minute plus pauses. No shot is faster than about 130 words per minute. On-screen labels below are the exact UI texts.
+
+Every claim in the voice-over matches what the page does:
+- the 77' rejection was evidence that did not fit a pressing statistic, not a wrong score;
+- the agent runs are recorded except the one live call, and the screen labels say so;
+- the on-air graphic shows template facts only, never AI wording.
+
+Do not say "every AI line is proven": the critic is a model, and the voice-over says only what it does.
 
 ## Before recording
-- **Host and capture.** Record the Azure host: <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>. Capture a 1920×1080 browser window at 110–125% zoom; hide bookmarks and extensions.
+- **Host and capture.**
+  - Record the Azure host: <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>.
+  - Capture a 1920×1080 browser window at 110–125% zoom; hide bookmarks and extensions.
+  - Nothing else on screen should show a third-party trademark or logo.
 - **Tabs.** Open every tab listed below beforehand, so no page load or typing is recorded.
+- **Ukrainian lines.**
+  - Have the lines shown in Tab B read by a Ukrainian speaker first. Scores stay home first by design ("програвали 2-1" is Eastvale's 2-1 deficit as the scoreboard shows it), so check the wording, not the order.
+  - If a line is wrong, it must be added to the editorial review file (it then shows in English), and the version redeployed and tagged again before recording.
+  - Do not say on camera that a person checked the lines unless one did.
 - **One live call.**
-  - The live check has a shared daily cap. After the last review the API reported `remaining_today: 1`, so do **not** press the live button while rehearsing.
-  - If it is used up, the button shows "Today's live-check budget is used up." The count resets at 00:00 UTC (02:00 Vienna). The operator can also raise `MATCHLENS_LIVE_DAILY_LIMIT` in the Static Web App settings for the recording.
+  - The live check has a shared daily cap, so do **not** press the live button while rehearsing.
+  - If the cap is used up, the button shows "Today's live-check budget is used up." The count resets at 00:00 UTC (01:00 Vienna in winter time). The operator can also raise `MATCHLENS_LIVE_DAILY_LIMIT` in the Static Web App settings for the recording.
   - A live call took 7–13 s end to end. Trim the wait in editing and caption it "wait shortened".
+- **Captions.** Burn in English captions with the voice-over text: judges may watch without sound.
+- **Music.** None, or a track you hold a license for.
 - **Speed.** Leave playback at 60× (the default).
 
-| Tab | URL |
-|---|---|
-| A: replay | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/` |
-| B: personalized | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away` |
-| C: on-air graphic | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&hold=5&bg=dark` |
-| D: player and passing | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?mode=analyst&t=5400&player=EVA-11` |
+| Tab | URL | State before recording |
+|---|---|---|
+| A: replay | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=4862` | Paused just after 81': the "Comeback! Eastvale Athletic take the lead" card and the lower-third on the pitch |
+| B: fan view | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away` | Casual, Українська, Follow: Eastvale Athletic, full time |
+| C: on-air graphic | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&hold=5&bg=dark` | Rundown playing |
+| D: live check | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?mode=analyst&t=4606` | Analyst, just after 77'; the 77' card on top |
+| E: recap | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400` | Casual, English, full time |
+| F: diagram | `docs/images/architecture-azure.png` in an image viewer, or the README section "How the demo runs on Azure" | Full screen |
 
 ## Shots
 
 | Time | Screen (what to do) | Voice-over |
 |---|---|---|
-| 0:00–0:10 | Tab A at kick-off: scoreboard, pitch, timeline. | "Football stories don't end with the scoreline. MatchLens turns synthetic match events into explanations you can check, for fans, analysts and broadcasters." |
-| 0:10–0:30 | Press **▶ Watch the comeback (77'–81')**. Let the 77' and 81' cards appear; hover the 81' card's first line. | "Each card appears the moment its evidence exists, never earlier, and leads with why it matters. Eastvale were two–one down in minute seventy-one; goals at seventy-seven and eighty-one turned it around. Every line cites the events it came from." |
-| 0:30–0:52 | Switch to **Analyst**. Press **See the AI get fact-checked (77')**. Show "Attempt 1: 3 of 4 claims verified, 1 rejected and sent back" and the red rejected claim, then attempt 2. | "In Analyst mode, a Microsoft Foundry agent explores the match with read-only tools and proposes structured claims. A deterministic validator decides. Here it rejected a claim that cited the wrong events; the agent's retry was verified. Only verified claims are published." |
-| 0:52–1:08 | On the same card press **Check this card live with Microsoft Foundry** (the one live call). Cut the wait. Show the green line "Live result from Microsoft Foundry: N model call(s), N tokens, N s" and the "Live Microsoft Foundry agent call" label. | "On Azure, the same agent runs live. An Azure Function calls Foundry; a shared daily cap in Azure Table Storage is reserved before every call, so a public demo cannot run up a bill." |
-| 1:08–1:28 | Tab B (Casual, **Українська**, **Follow: Eastvale Athletic**, full time). Pan over the full-time card: three Ukrainian lines, two English lines, and the note under the facts ("meaning reviewed by a critic agent"). | "A second agent rewrites fan cards for a language and a club. A program checks every number, score and name; a third agent, the critic, checks the meaning. Lines that fail stay in English, and the card says why. The critic is a model too; its misses are measured and published." |
-| 1:28–1:38 | Tab C: the lower-third plays the rundown. Then briefly back to Tab A and point at **⬇ Overlay JSON**. | "The same moments export as timed overlay JSON, and this page plays them as a broadcast lower-third, ready for OBS or vMix." |
-| 1:38–1:50 | Tab D (Analyst, full time, **Player: #11 Ugo Vale (FW)**). Scroll from the **Passing (open play, so far)** table to the player panel; point at a "heuristic, not calibrated" row, then click a value so its passes light up on the pitch. | "Analysts can follow one player and compare passing. The counts are facts from the events; the pass model is a synthetic heuristic, and it says so. Click any number to see its passes." |
-| 1:50–1:55 | End card: "MatchLens AI · Microsoft Foundry · Azure Static Web Apps + Functions · six synthetic matches · github.com/vbabenko97/matchlens-ai". | "Synthetic data, open source. MatchLens: match intelligence you can verify." |
+| 0:00–0:10 | Tab A, paused at 81': the comeback card, the lower-third and the 2–3 scoreboard. | "A producer has seconds to explain a moment, and no room for a wrong number. MatchLens gives the why, with its evidence." |
+| 0:10–0:26 | Press **▶ Watch the comeback (77'–81')**. Let the 77' and 81' cards appear; hover the 81' line "Eastvale Athletic were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around." | "Each card appears once its last piece of evidence has happened, never earlier, and leads with why the moment matters: two–one down in minute seventy-one, then two goals turned it around." |
+| 0:26–0:46 | Press **✓ See the AI get fact-checked (77')**. Hold on the plain summary at the top of **Claim check** ("The checker rejected “Pressures applied: 131”: the events it cited as evidence (a tackle, 2 passes and a goal) are not counted by that statistic."). Scroll a little to the red claim under **Attempt 1 — proposed claims**, then to **Attempt 2 — after the validator's feedback**. | "Three Microsoft Foundry agents work around these facts. In this recorded run, the claim agent backed a pressing statistic with a tackle, two passes and a goal. The validator rejected it, the agent retried with actual pressure events, and only checked claims were published." |
+| 0:46–0:54 | On the same 77' card, click the metric chip `home.pressures@4500-5400:asof:ml1-01206` ("Northbridge Rovers — Pressures applied: 3"). The **Evidence inspector** shows the label, value and definition, and the pitch highlights the pressures. | "Every number opens its definition and the events behind it." |
+| 0:54–1:10 | Tab B. Pan over the full-time card: three Ukrainian lines, the title and one line kept in English, and the note under the facts ("meaning reviewed by a critic agent (also AI)"). | "For fans, a personalizer agent rewrote the same facts in their language, from their club's side. A program checks numbers and names, a critic agent reviews meaning, and lines that fail stay in English." |
+| 1:10–1:26 | Tab E. Press **▤ Match recap (full time)**, then **Copy recap** (the status reads "Recap copied as plain text.") and **⬇ Recap JSON**. Cut to Tab C: the lower-third plays. | "At full time the recap is ready, built only from checked lines: copy it as text, or download it with every source. On air, the lower-third shows template facts only." |
+| 1:26–1:42 | Tab D: on the 77' card press **Check this card live with Microsoft Foundry** (the one live call). Cut the wait. Show the green line "Live result from Microsoft Foundry: N model call(s), N tokens, N s" and the plain summary of the live run. Cut to Tab F for 3 s. | "On Azure, a Functions endpoint runs the claim agent live against Microsoft Foundry, behind a daily spend cap reserved before every call. Static Web Apps serves the replay, and every deploy is tested." |
+| 1:42–1:50 | End card: "MatchLens AI · Microsoft Foundry · Azure Static Web Apps + Functions · synthetic data · github.com/vbabenko97/matchlens-ai". | "Synthetic data, open source, every line traceable. MatchLens: match intelligence you can verify." |
+
+Left out on purpose (it is in the README and on the page): player focus, the passing table, the spend-cap mechanics, response IDs, the five extra matches, and test counts.
 
 ## After recording
-- **Upload.** Publish the video on YouTube or Vimeo as public or unlisted; the rules require a public URL there.
-- **Check the result.** Confirm the length is under 2:00 and that captions or the voice-over are in English.
+- **Upload.** Publish the video on YouTube or Vimeo as public. The rules ask for a public URL; an unlisted video opens from its link, but public is the safe reading.
+- **Check the result.** Confirm that the length is under 2:00, that the captions are in English, and that the live-call wait is marked "wait shortened".
 - **Link the video.** Add the link to `README.md` (it replaces "link added at submission") and to the submission form.
