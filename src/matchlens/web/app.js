@@ -1285,6 +1285,11 @@ function init(bundle, index, entry) {
     (extra
       ? " This match was not picked or tuned for the demo; its claim checks use the offline proposer (no AI)."
       : "") +
+    (bundle.stream
+      ? ` Checked when this page was built: fed one event at a time to the stream processor ` +
+        `(matchlens stream), this match gives exactly these ${bundle.stream.cards} cards, each ` +
+        "published as its last evidence event arrives."
+      : "") +
     (bundle.live_check
       ? " Analyst claim checks can also be run live: the button calls Microsoft Foundry through a " +
         "server-side function (the key never reaches the browser), within per-visitor and daily limits."

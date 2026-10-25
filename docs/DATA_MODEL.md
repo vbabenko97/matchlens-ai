@@ -111,6 +111,19 @@ One bounded agent, no framework. For each analyst card, a proposer drafts up to 
 - **Recording.** A live run is recorded as a redacted `matchlens.agent-trace/v1` file: claims, response IDs, model, usage and tool-call names/arguments, never the key. `RecordedProposer` replays its claims for `export-site --agent-trace`, the verdicts are **recomputed**, and the label says "not a live call". A card the recording does not cover (the 2026-10-24 run covers the 38', 71', 77' and 81' cards; the 5' and 56' goal cards and the full-time card were added later) is reviewed by `OfflineProposer` and its notes say it is not part of the recorded run.
 - **Bundle and UI.** The bundle holds `reviews` keyed by analyst card ID. Their cited metrics are added to `metrics`. Each review carries `explanation`: plain sentences built deterministically from the verdicts and the as-of state (`explain_review`), never by a model. Analyst cards show a "Claim check" section with that summary first, then source, verdict, reasons, correction and chips (folded).
 
+## Event-by-event processing (`matchlens.stream`)
+- **Records as they arrive.** `iter_records(lines)` (`matchlens.io`) yields the match record, then each event, as each line is read; the first malformed record raises `MatchFormatError`.
+- **Validation on arrival.** `EventValidator(meta).check(event)` applies the rules of `validate_match` to one event, given the events before it; `finish()` adds the whole-match check (both periods closed). `validate_match` is exactly this, run over a complete match.
+- **The processor.** `StreamProcessor(meta).push(event)` returns an `Update`: the event, the score, running shots and synthetic xG, its validation issues, and the cards published on its arrival (`Publication`: card, the event that published it, and `evidence_seq`, the card's last evidence event).
+  - Moments are detected again only when an event can complete one: a shot, the event after a shot, a `period_end`.
+  - A `big_chance_missed` moment waits one event (its evidence may include the answering event).
+  - `close()` completes waiting moments and records `end_issues` (for example, no final whistle).
+  - After the first per-event issue nothing more is published.
+- **The check.** `stream_check(match, card_sets)` compares a full run with the batch cards: the same cards (wording aside, since it depends on the provider), each with `seq == evidence_seq`, the same suppressions, and no issues. Otherwise it raises `ValueError`. The bundle carries the result as `stream` (`matchlens.stream-check/v1`: events, cards, identical, published at last evidence).
+- **CLI.**
+  - `feed (--seed N | --file F) [--speed X]` writes JSONL line by line, flushed and paced by the match clock.
+  - `stream (PATH | -) [--mode] [--json]` prints each card as it is published and a summary (events, cards, maximum wait after the last evidence event, issues). It exits with 1 on any issue.
+
 ## Match recap (`matchlens.recap`) — schema `matchlens.recap/v1`
 `build_recap(match, casual_cards)` returns `None` without a full-time card. Otherwise: `publish_clock_s` (the full-time card's), `headline` (that card's title), `summary` (its WHY facts) and `goals` (each goal card's scorer fact, in match order; empty unless every goal of the match has one). Each line is `{card_id, index, text, kind, event_ids, metric_ids}` with `index` -1 for a title, so the personalized variants of the casual cards apply by `(card_id, index)`. No line has wording of its own. `format_recap` renders the copy text; the bundle key is `recap`.
 

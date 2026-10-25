@@ -23,6 +23,7 @@ from .schema import (
     SIDES,
     Event,
     Match,
+    MatchMeta,
 )
 
 # Ball out of play -> restart the opponent must take next.
@@ -97,63 +98,71 @@ def _check_event_shape(match: Match, e: Event, where: str, issues: list[str]) ->
         issues.append(f"{where}: off-ball event must not have an end location")
 
 
-def validate_match(match: Match) -> list[str]:
-    issues: list[str] = []
-    _check_meta(match, issues)
-    events = match.events
-    if not events:
-        return [*issues, "match has no events"]
+class EventValidator:
+    """The checks of ``validate_match``, one event at a time, in match order.
 
-    plen = match.meta.period_length_s
-    seen_ids: set[str] = set()
-    period_open: int | None = None
-    periods_closed: list[int] = []
-    prev_clock = -math.inf
-    score = {HOME: 0, AWAY: 0}
-    poss_id: int | None = None  # current possession
-    poss_team: str | None = None
-    max_poss_id = 0
-    prev_ball: Event | None = None  # previous ball event in the open period
-    expect_kick_off_by: str | None = None
+    ``check`` sees only the events passed so far, so a live feed can be validated as each
+    event arrives; ``finish`` adds the checks that need the whole match (both periods
+    closed). ``validate_match`` is exactly this, run over a complete match.
+    """
 
-    for idx, e in enumerate(events):
+    def __init__(self, meta: MatchMeta):
+        self._match = Match(meta, ())  # squads for the shape checks; no events needed
+        self._plen = meta.period_length_s
+        self._seen_ids: set[str] = set()
+        self._period_open: int | None = None
+        self._periods_closed: list[int] = []
+        self._prev_clock = -math.inf
+        self._score = {HOME: 0, AWAY: 0}
+        self._poss_id: int | None = None  # current possession
+        self._poss_team: str | None = None
+        self._max_poss_id = 0
+        self._prev_ball: Event | None = None  # previous ball event in the open period
+        self._expect_kick_off_by: str | None = None
+        self._count = 0
+
+    def check(self, e: Event) -> list[str]:
+        """Issues with ``e``, given every event checked before it (empty means valid)."""
+        issues: list[str] = []
+        idx, self._count = self._count, self._count + 1
         where = f"event {e.event_id} (seq {e.seq})"
         if e.seq != idx + 1:
             issues.append(f"{where}: seq must be {idx + 1}")
-        if e.related_event_id is not None and e.related_event_id not in seen_ids:
+        if e.related_event_id is not None and e.related_event_id not in self._seen_ids:
             issues.append(f"{where}: related_event_id must reference an earlier event")
-        if e.event_id in seen_ids:
+        if e.event_id in self._seen_ids:
             issues.append(f"{where}: duplicate event_id")
-        seen_ids.add(e.event_id)
+        self._seen_ids.add(e.event_id)
 
         # Clock and period structure.
-        if e.clock_s < prev_clock:
-            issues.append(f"{where}: clock went backwards ({e.clock_s} < {prev_clock})")
-        prev_clock = max(prev_clock, e.clock_s)
+        if e.clock_s < self._prev_clock:
+            issues.append(f"{where}: clock went backwards ({e.clock_s} < {self._prev_clock})")
+        self._prev_clock = max(self._prev_clock, e.clock_s)
         if e.period not in (1, 2):
             issues.append(f"{where}: period must be 1 or 2")
         else:
-            lo, hi = (e.period - 1) * plen, e.period * plen
+            lo, hi = (e.period - 1) * self._plen, e.period * self._plen
             if not lo <= e.clock_s <= hi:
                 issues.append(f"{where}: clock {e.clock_s} outside period {e.period} [{lo}, {hi}]")
         if e.type == "period_start":
-            expected = len(periods_closed) + 1
-            if period_open is not None or e.period != expected:
+            expected = len(self._periods_closed) + 1
+            if self._period_open is not None or e.period != expected:
                 issues.append(f"{where}: unexpected period_start for period {e.period}")
-            period_open = e.period
-            prev_ball = None
-            expect_kick_off_by = None
+            self._period_open = e.period
+            self._prev_ball = None
+            self._expect_kick_off_by = None
         elif e.type == "period_end":
-            if period_open != e.period:
+            if self._period_open != e.period:
                 issues.append(f"{where}: period_end without matching period_start")
-            periods_closed.append(e.period)
-            period_open = None
-        elif period_open != e.period:
+            self._periods_closed.append(e.period)
+            self._period_open = None
+        elif self._period_open != e.period:
             issues.append(f"{where}: event outside an open period {e.period}")
 
-        _check_event_shape(match, e, where, issues)
+        _check_event_shape(self._match, e, where, issues)
 
         # Score: changes only on a goal, by exactly one for the scoring team.
+        score = self._score
         if e.type == "shot" and e.outcome == "goal" and e.team in SIDES:
             score[e.team] += 1
         if (e.home_score, e.away_score) != (score[HOME], score[AWAY]):
@@ -163,35 +172,40 @@ def validate_match(match: Match) -> list[str]:
             )
 
         if e.type in PERIOD_EVENTS or e.team not in SIDES:
-            continue
+            return issues
 
         # Possession chains.
         if e.type in OFF_BALL_EVENTS:
-            if e.possession_id != poss_id:
-                issues.append(f"{where}: off-ball event must carry current possession {poss_id}")
-            elif e.team == poss_team:
-                issues.append(f"{where}: pressure must come from the team out of possession")
-            continue
-
-        starts_new = prev_ball is None or e.team != poss_team or _is_restart(e)
-        if starts_new:
-            if e.possession_id != max_poss_id + 1:
+            if e.possession_id != self._poss_id:
                 issues.append(
-                    f"{where}: new possession must have id {max_poss_id + 1}, got {e.possession_id}"
+                    f"{where}: off-ball event must carry current possession {self._poss_id}"
                 )
-        elif e.possession_id != poss_id:
-            issues.append(f"{where}: possession {e.possession_id} != current {poss_id}")
+            elif e.team == self._poss_team:
+                issues.append(f"{where}: pressure must come from the team out of possession")
+            return issues
+
+        prev_ball = self._prev_ball
+        starts_new = prev_ball is None or e.team != self._poss_team or _is_restart(e)
+        if starts_new:
+            if e.possession_id != self._max_poss_id + 1:
+                issues.append(
+                    f"{where}: new possession must have id {self._max_poss_id + 1}, "
+                    f"got {e.possession_id}"
+                )
+        elif e.possession_id != self._poss_id:
+            issues.append(f"{where}: possession {e.possession_id} != current {self._poss_id}")
         if e.possession_id is not None:
-            max_poss_id = max(max_poss_id, e.possession_id)
-        poss_id, poss_team = e.possession_id, e.team
+            self._max_poss_id = max(self._max_poss_id, e.possession_id)
+        self._poss_id, self._poss_team = e.possession_id, e.team
 
         # Restart sequencing and ball continuity.
         if prev_ball is None:
             if not (e.type == "pass" and e.subtype == "kick_off"):
                 issues.append(f"{where}: first ball event of a period must be a kick-off")
-        elif expect_kick_off_by is not None:
-            if not (e.type == "pass" and e.subtype == "kick_off" and e.team == expect_kick_off_by):
-                issues.append(f"{where}: goal must be followed by a {expect_kick_off_by} kick-off")
+        elif self._expect_kick_off_by is not None:
+            by = self._expect_kick_off_by
+            if not (e.type == "pass" and e.subtype == "kick_off" and e.team == by):
+                issues.append(f"{where}: goal must be followed by a {by} kick-off")
         elif prev_ball.outcome in _RESTART_AFTER:
             needed = _RESTART_AFTER[prev_ball.outcome]
             if not (e.type == "pass" and e.subtype == needed and e.team != prev_ball.team):
@@ -206,12 +220,27 @@ def validate_match(match: Match) -> list[str]:
                 issues.append(
                     f"{where}: ball starts {gap:.1f} m from previous end ({prev_ball.event_id})"
                 )
-        expect_kick_off_by = _other(e.team) if e.type == "shot" and e.outcome == "goal" else None
-        prev_ball = e
+        scored = e.type == "shot" and e.outcome == "goal"
+        self._expect_kick_off_by = _other(e.team) if scored else None
+        self._prev_ball = e
+        return issues
 
-    if periods_closed != [1, 2] or period_open is not None:
-        issues.append(f"match must contain closed periods [1, 2], got {periods_closed}")
-    return issues
+    def finish(self) -> list[str]:
+        """Issues that need the whole match: both periods opened and closed."""
+        if self._periods_closed != [1, 2] or self._period_open is not None:
+            return [f"match must contain closed periods [1, 2], got {self._periods_closed}"]
+        return []
+
+
+def validate_match(match: Match) -> list[str]:
+    issues: list[str] = []
+    _check_meta(match, issues)
+    if not match.events:
+        return [*issues, "match has no events"]
+    validator = EventValidator(match.meta)
+    for e in match.events:
+        issues += validator.check(e)
+    return issues + validator.finish()
 
 
 def assert_valid(match: Match) -> Match:

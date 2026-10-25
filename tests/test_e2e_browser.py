@@ -277,6 +277,15 @@ def test_claim_check_shows_rejection_correction_and_sources(page, bundle):
     assert page.locator("#cards .review").count() == 0  # casual mode shows no claim check
 
 
+def test_disclosure_states_the_stream_check(page, bundle):
+    _open(page)
+    text = page.text_content("#disclosure")
+    if "stream" not in bundle:
+        pytest.skip("this build predates the stream check")
+    assert f"this match gives exactly these {bundle['stream']['cards']} cards" in text
+    assert "(matchlens stream)" in text
+
+
 def test_narrative_is_labelled_not_verified_as_fact(page):
     _open(page, "?t=5400")
     statuses = page.locator("#cards .narrative .status").all_text_contents()

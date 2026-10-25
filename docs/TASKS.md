@@ -10,7 +10,46 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-25): match recap and a plain claim-check summary
+## Latest checkpoint (2026-10-25): event-by-event processing (`matchlens stream`)
+- **Goal (plan of 2026-10-25, timeboxed):** close the gap to challenge §4.1(a) "ingest … as they happen" without a new generator, an external provider, cloud infrastructure or a model call per event.
+- **Readiness criterion:** a new event arrives, changes the state, and produces a result that did not exist before. Met: `feed | stream -` prints each card as the event that completes it arrives, with the running score.
+- **What was built:**
+  - `EventValidator` (`validate.py`): the validator's checks, one event at a time; `validate_match` now runs it over a whole match, with the same messages.
+  - `iter_records` (`io.py`): reads JSONL one line at a time.
+  - `StreamProcessor` (`stream.py`):
+    - validation on arrival; the first invalid event stops publishing;
+    - re-detection only when an event can complete a moment;
+    - a missed big chance waits one event for its answer;
+    - `close()` completes waiting moments.
+  - `stream_check`: equality with the batch build, stored in the bundle as `stream`; a difference fails the build.
+  - CLI: `feed` (paced JSONL, flushed per line) and `stream` (text or `--json`, exit 1 on issues).
+  - The page footer states the check.
+- **Finding:** on seeds 1 and 100–129, both modes, every batch card equals the card built from the events up to its last evidence event. Every missed big chance is followed by its answering event, so no card waits longer than its last evidence event (wait 0). The batch build was already causal; the stream processor now proves it event by event.
+- **Verified:**
+  - New tests in `tests/test_stream.py` (43):
+    - stream equals batch on 31 seeds;
+    - publication on arrival, without later change;
+    - the big chance waits for its answer;
+    - end of stream with a waiting moment;
+    - a corrupted clock halts publishing;
+    - running state;
+    - `stream_check` fails on a missing or changed card;
+    - bundle record;
+    - prefix validation;
+    - `iter_records`;
+    - CLI (`feed`, `stream -` from stdin, `--json`, a broken feed).
+  - e2e: the footer states the check.
+  - Full suite: `python -m pytest -q` (e2e on local Chromium) gives 691 passed, 3 skipped; `ruff check .` and `ruff format --check .` are clean.
+- **Docs:**
+  - README: Ingest row, step 7 of the tour, "Event by event", controls table (broken feed), and honest limits (the web page still replays; no adapter for a real feed).
+  - DATA_MODEL: a stream section.
+  - SUBMISSION: a local command.
+  - VIDEO_SCRIPT: an optional terminal shot.
+  - The pipeline diagram PNG is re-rendered.
+- **Not done (scope):** a live mode in the web page (it would need a server feed and a UI that grows with the events), and an adapter for a real provider.
+- **Next:** PR -> merge -> both deploys -> new submission tag (`v1.3-submission`, pushed by the operator), and the docs updated to it.
+
+## Checkpoint (2026-10-25): match recap and a plain claim-check summary
 Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or frameworks before the deadline; make the existing value obvious to a judge.
 - **Claim-check summary (`explain_review`, `src/matchlens/agent.py`):** each review gets `explanation`, a few sentences built from the verdicts and the as-of state, never by a model and never by parsing reason strings. For the 77' card: the checker rejected "Pressures applied: 131" because its evidence was a tackle, 2 passes and a goal; the retry cited 5 pressures and all 4 claims checked out. Offline, fallback, failed-retry and injected-claim cases have their own wording. The live endpoint returns it too (it uses `review_card`).
 - **UI:** the summary leads the claim check; the claim list is folded (`details.claims`), open on the spotlighted card and kept open across re-renders.
