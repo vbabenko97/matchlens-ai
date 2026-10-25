@@ -1184,7 +1184,7 @@ function renderLineup(idx) {
   const seq = idx >= 0 ? state.bundle.events[idx].seq : -1;
   const goals = goalsAt(seq);
   const followed = state.player ? state.player.player_id : "";
-  const key = [followed, ...goals.entries()].join("|");
+  const key = ["lineup", followed, ...goals.entries()].join("|"); // never "": that means not drawn
   if (key === state.lineupKey) return;
   state.lineupKey = key;
   const box = $("lineup-players");
