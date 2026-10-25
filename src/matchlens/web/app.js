@@ -31,7 +31,7 @@ const MARKER_GAP_PX = 26; // 24px targets must not overlap (WCAG 2.5.8)
 const MARKER_LANE_REM = 1.75;
 const ANNOUNCE_DELAY_MS = 600; // coalesce announcements while scrubbing or at high speed
 // Focus inside these keeps its native keys (incl. scrolling the card panel); shortcuts apply elsewhere.
-const NATIVE_KEYS = "input, select, textarea, button, a[href], summary, [role=radio], .side";
+const NATIVE_KEYS = "input, select, textarea, button, a[href], summary, [role=radio], [role=button], .side";
 
 const $ = (id) => document.getElementById(id);
 const state = {
@@ -45,6 +45,9 @@ const state = {
   player: null, playerKey: "", // focused player (bundle.players record) and its rendered state
   passingKey: "",
   recapOpen: false, recapKey: "", recapReturn: null, // match recap panel and where focus goes on close
+  view: "live", lineupKey: "", // pitch view: "live" (ball events) or "lineups" (both squads)
+  barsKey: "", teamTotals: null, // casual comparison bars; team totals summed from the player stats
+  openMore: new Set(), // casual cards whose "More" is open
 };
 
 const LANG_NAME = { en: "English", de: "Deutsch", uk: "Українська" };
@@ -146,8 +149,7 @@ function stepAt(seq) {
   return ans;
 }
 
-function drawMarkings() {
-  const g = $("markings");
+function drawMarkings(g = $("markings")) {
   const add = (tag, attrs) => g.appendChild(svg(tag, attrs));
   add("rect", { x: 0, y: 0, width: PITCH_W, height: PITCH_H });
   add("line", { x1: PITCH_W / 2, y1: 0, x2: PITCH_W / 2, y2: PITCH_H });
@@ -354,10 +356,29 @@ function renderCard(card, isActive) {
   head.appendChild(el("h3", loc ? { lang: loc.titleLang } : {}, loc ? loc.title : card.title));
   art.appendChild(head);
 
+  // Casual: the title and why the moment matters; the other checked lines wait under "More".
+  const lines = (loc ? loc.facts : card.facts).filter((f) => f.role !== "chain");
+  const lead = analyst ? null : lines.find((f) => f.role === "why") || lines[0];
   const facts = el("ul", { class: "facts", "aria-label": "Verified facts" });
-  (loc ? loc.facts : card.facts).filter((f) => f.role !== "chain").forEach((f) => facts.appendChild(factItem(f, analyst)));
+  (lead ? [lead] : lines).forEach((f) => facts.appendChild(factItem(f, analyst)));
   art.appendChild(facts);
-  if (loc) art.appendChild(el("p", { class: "hint personalized-note" }, personalizedNote(loc)));
+  const rest = lead ? lines.filter((f) => f !== lead) : [];
+  const note = loc ? el("p", { class: "hint personalized-note" }, personalizedNote(loc)) : null;
+  if (rest.length || note) {
+    const det = el("details", { class: "more" });
+    det.open = state.openMore.has(card.card_id);
+    det.addEventListener("toggle", () => {
+      if (det.open) state.openMore.add(card.card_id); else state.openMore.delete(card.card_id);
+    });
+    det.appendChild(el("summary", {}, rest.length ? `More (${rest.length})` : "About this wording"));
+    if (rest.length) {
+      const more = el("ul", { class: "facts", "aria-label": "More verified facts" });
+      rest.forEach((f) => more.appendChild(factItem(f, analyst)));
+      det.appendChild(more);
+    }
+    if (note) det.appendChild(note);
+    art.appendChild(det);
+  }
   if (card.kind === "full_time" && state.bundle.recap) {
     const open = el("button", { type: "button", class: "recap-open", "data-recap-open": card.card_id });
     open.append(el("span", { "aria-hidden": "true" }, "▤ "), "Match recap: copy or download");
@@ -416,7 +437,7 @@ function renderCard(card, isActive) {
   // A rewritten card hides the English narrative: the note above already names its wording.
   if (!loc && unverified) {
     nar.appendChild(el("p", { class: "text" }, n.text));
-  } else if (!loc && !duplicate) {
+  } else if (!loc && !duplicate && analyst) {
     const det = el("details");
     det.appendChild(el("summary", {}, "Wording"));
     det.appendChild(el("p", { class: "text" }, n.text));
@@ -615,7 +636,7 @@ function renderCards() {
     }
   }
   const lt = $("lower-third");
-  if (active) {
+  if (active && state.view === "live") {
     lt.hidden = false;
     $("lt-kind").textContent = KIND_LABEL[active.kind] || active.kind;
     const loc = localized(active);
@@ -1022,6 +1043,209 @@ function renderPassing(idx) {
   }
 }
 
+// --- Casual comparison bars: one bar per stat, as it stood at the replay time ---
+
+// Team totals summed from the players' running stats (matchlens.players): [seq, total] after
+// each contributing event, so a bar never runs ahead of the replay.
+function teamTotals(name) {
+  const out = {};
+  for (const side of ["home", "away"]) {
+    const deltas = [];
+    for (const p of state.bundle.players.players.filter((q) => q.team === side)) {
+      const stat = p.stats.find((x) => x.name === name);
+      let prev = 0;
+      for (const [seq, value] of stat ? stat.steps : []) { deltas.push([seq, value - prev]); prev = value; }
+    }
+    deltas.sort((a, b) => a[0] - b[0]);
+    const steps = [];
+    let total = 0;
+    for (const [seq, d] of deltas) {
+      total += d;
+      if (steps.length && steps[steps.length - 1][0] === seq) steps[steps.length - 1][1] = total;
+      else steps.push([seq, total]);
+    }
+    out[side] = steps;
+  }
+  return out;
+}
+
+function totalAt(steps, seq) {
+  const i = stepIndex(steps, seq);
+  return i >= 0 ? steps[i][1] : 0;
+}
+
+const BARS = [
+  ["shots", "Shots"], ["on_target", "On target"], ["xg", "Synthetic xG"],
+  ["pass_acc", "Pass accuracy"], ["pressures", "Pressures"], ["ball_wins", "Ball wins"],
+];
+
+function barValues(seq) {
+  const s = stepAt(seq) || {};
+  const t = state.teamTotals;
+  const out = {};
+  for (const side of ["home", "away"]) {
+    const pass = state.bundle.passing ? passTotals(side, seq) : null;
+    out[side] = {
+      shots: s[`${side}.shots`] || 0,
+      on_target: totalAt(t.shots_on_target[side], seq),
+      xg: s[`${side}.xg_heuristic`] || 0,
+      pass_acc: pass ? pass.completion : null,
+      pressures: totalAt(t.pressures[side], seq),
+      ball_wins: totalAt(t.ball_wins[side], seq),
+    };
+  }
+  return out;
+}
+
+function fmtBar(key, x) {
+  if (x === null) return "–";
+  if (key === "xg") return x.toFixed(2);
+  if (key === "pass_acc") return `${Math.round(100 * x)}%`;
+  return String(x);
+}
+
+function renderBars(idx) {
+  const box = $("bars");
+  if (box.hidden) return;
+  const seq = idx >= 0 ? state.bundle.events[idx].seq : -1;
+  const v = barValues(seq);
+  const key = BARS.map(([k]) => `${v.home[k]}:${v.away[k]}`).join("|");
+  if (key === state.barsKey) return;
+  state.barsKey = key;
+  const { home, away } = state.bundle.meta;
+  const head = el("div", { class: "bars-head", "aria-hidden": "true" });
+  head.append(el("span", { class: "home" }, home.name), el("span", { class: "away" }, away.name));
+  const rows = BARS.map(([k, label]) => {
+    const [h, a] = [v.home[k], v.away[k]];
+    const heuristic = k === "xg";
+    const row = el("div", { class: `bar-row${heuristic ? " heuristic" : ""}`, "data-bar": k });
+    const lab = el("span", { class: "bar-label", "aria-hidden": "true" }, label);
+    if (heuristic) lab.title = "Synthetic heuristic, not empirically calibrated";
+    row.append(el("span", { class: "bar-val home", "aria-hidden": "true" }, fmtBar(k, h)), lab,
+      el("span", { class: "bar-val away", "aria-hidden": "true" }, fmtBar(k, a)));
+    const sum = (h || 0) + (a || 0);
+    const share = sum > 0 ? (h || 0) / sum : 0.5;
+    const bar = el("div", { class: `bar${sum ? "" : " empty"}`, "aria-hidden": "true" });
+    const bh = el("span", { class: "bar-home" });
+    const ba = el("span", { class: "bar-away" });
+    bh.style.width = `${(100 * share).toFixed(1)}%`;
+    ba.style.width = `${(100 * (1 - share)).toFixed(1)}%`;
+    bar.append(bh, ba);
+    const note = heuristic ? " (synthetic heuristic, not calibrated)" : "";
+    row.append(bar, el("span", { class: "sr-only" }, `${label}${note}: ${home.name} ${fmtBar(k, h)}, ${away.name} ${fmtBar(k, a)}`));
+    return row;
+  });
+  box.replaceChildren(head, ...rows);
+}
+
+// --- Lineups: both squads in their formation (match metadata), with goals as of now ---
+
+const POSITION_NAME = { GK: "goalkeeper", DF: "defender", MF: "midfielder", FW: "forward" };
+const LINE_X = { GK: 4.5, DF: 16, MF: 31, FW: 43.5 }; // the home half; the away side is mirrored
+// "E. Dunmore": the generated squads share surnames, so the initial tells two players apart.
+const shortName = (name) => { const parts = name.split(" "); return `${parts[0][0]}. ${parts.slice(1).join(" ")}`; };
+
+function formationOf(side) {
+  const n = (pos) => state.bundle.meta[side].players.filter((p) => p.position === pos).length;
+  return ["DF", "MF", "FW"].map(n).join("-");
+}
+
+function goalsAt(seq) {
+  const out = new Map();
+  for (const p of state.bundle.players.players) {
+    const stat = p.stats.find((x) => x.name === "goals");
+    const i = stat ? stepIndex(stat.steps, seq) : -1;
+    if (i >= 0 && stat.steps[i][1]) out.set(p.player_id, stat.steps[i][1]);
+  }
+  return out;
+}
+
+function lineupPlayer(p, side, x, y, goals, followed) {
+  const label = `#${p.number} ${p.name}, ${POSITION_NAME[p.position] || p.position}` +
+    `${goals ? `, ${plural(goals, "goal", "goals")}` : ""}`;
+  const g = svg("g", { class: `lp ${side}${followed ? " followed" : ""}`, role: "button", tabindex: "0",
+    "aria-pressed": String(followed), "aria-label": `${label}: follow this player`, "data-player-id": p.player_id });
+  g.appendChild(svg("title")).textContent = label;
+  g.appendChild(svg("circle", { cx: x, cy: y, r: 2.8, class: "lp-dot" }));
+  g.appendChild(svg("text", { x, y: y + 0.95, class: "lp-num" })).textContent = String(p.number);
+  const short = shortName(p.name);
+  g.appendChild(svg("text", { x, y: y + 5.6, class: `lp-name${short.length > 13 ? " long" : ""}` })).textContent = short;
+  for (let k = 0; k < goals; k++) g.appendChild(svg("circle", { cx: x + 2.7 + 1.6 * k, cy: y - 2.7, r: 0.95, class: "lp-goal" }));
+  const toggle = () => { pickPlayer(followed ? "" : p.player_id); render(); };
+  g.addEventListener("click", toggle);
+  g.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(); }
+  });
+  return g;
+}
+
+function renderLineup(idx) {
+  if (state.view !== "lineups") return;
+  const seq = idx >= 0 ? state.bundle.events[idx].seq : -1;
+  const goals = goalsAt(seq);
+  const followed = state.player ? state.player.player_id : "";
+  const key = [followed, ...goals.entries()].join("|");
+  if (key === state.lineupKey) return;
+  state.lineupKey = key;
+  const box = $("lineup-players");
+  const a = document.activeElement;
+  const refocus = a && box.contains(a) ? a.dataset.playerId : null;
+  box.replaceChildren();
+  for (const side of ["home", "away"]) {
+    const squad = state.bundle.meta[side].players;
+    for (const pos of ["GK", "DF", "MF", "FW"]) {
+      const line = squad.filter((p) => p.position === pos);
+      line.forEach((p, i) => {
+        let x = LINE_X[pos];
+        let y = (PITCH_H * (i + 1)) / (line.length + 1);
+        if (side === "away") { x = PITCH_W - x; y = PITCH_H - y; }
+        box.appendChild(lineupPlayer(p, side, x, y, goals.get(p.player_id) || 0, p.player_id === followed));
+      });
+    }
+  }
+  if (refocus) {
+    const target = box.querySelector(`[data-player-id="${CSS.escape(refocus)}"]`);
+    if (target) target.focus();
+  }
+}
+
+function setView(view) {
+  state.view = view;
+  for (const [id, v] of [["view-live", "live"], ["view-lineups", "lineups"]]) $(id).setAttribute("aria-pressed", String(view === v));
+  // SVG elements have no .hidden property: toggle the attribute itself.
+  for (const [id, on] of [["pitch", "live"], ["live-legend", "live"], ["lineup", "lineups"], ["lineup-legend", "lineups"]]) {
+    $(id).toggleAttribute("hidden", view !== on);
+  }
+  state.lineupKey = "";
+  if (state.bundle) render();
+}
+
+function bindViewToggle(params) {
+  if (!state.bundle.players) return;
+  drawMarkings(document.querySelector("#lineup .lineup-markings"));
+  const { home, away } = state.bundle.meta;
+  $("lineup-home").textContent = `${home.name} · ${formationOf("home")}`;
+  $("lineup-away").textContent = `${away.name} · ${formationOf("away")}`;
+  $("lineup").setAttribute("aria-label",
+    `Lineups: ${home.name} ${formationOf("home")}, ${away.name} ${formationOf("away")}. Select a player to follow them.`);
+  $("view-live").addEventListener("click", () => setView("live"));
+  $("view-lineups").addEventListener("click", () => setView("lineups"));
+  $("view-toggle").hidden = false;
+  if (params.get("view") === "lineups") setView("lineups");
+}
+
+// The followed player (bundle.players record), or none; the picker and the lineup share it.
+function pickPlayer(id) {
+  const data = state.bundle.players;
+  state.player = (data && data.players.find((p) => p.player_id === id)) || null;
+  $("player").value = state.player ? state.player.player_id : "";
+  $("legend-player-name").textContent = state.player ? state.player.name : "";
+  state.selected = [];
+  state.cardsKey = "";
+  state.playerKey = "";
+  state.lineupKey = "";
+}
+
 // Player picker: both squads, grouped by team. ?player=<id> preselects one.
 function bindPlayerPicker(params) {
   const data = state.bundle.players;
@@ -1034,16 +1258,8 @@ function bindPlayerPicker(params) {
     }
     select.appendChild(group);
   }
-  const pick = (id) => {
-    state.player = data.players.find((p) => p.player_id === id) || null;
-    select.value = state.player ? state.player.player_id : "";
-    $("legend-player-name").textContent = state.player ? state.player.name : "";
-    state.selected = [];
-    state.cardsKey = "";
-    state.playerKey = "";
-  };
-  pick(params.get("player"));
-  select.addEventListener("change", () => { pick(select.value); render(); });
+  pickPlayer(params.get("player"));
+  select.addEventListener("change", () => { pickPlayer(select.value); render(); });
   $("player-pick").hidden = false;
 }
 
@@ -1088,6 +1304,8 @@ function render() {
   const idx = indexAt(state.t);
   renderScoreboard(idx);
   renderPitch(idx);
+  renderLineup(idx);
+  renderBars(idx);
   renderPassing(idx);
   renderPlayer(idx);
   renderCards();
@@ -1120,6 +1338,10 @@ function setMode(mode) {
   $("personalize").hidden = !(state.bundle && state.bundle.personalized && mode === "casual");
   $("broadcast").href = `broadcast.html?mode=${mode}&rundown=1&bg=dark${seedQuery()}`;
   $("inspector").hidden = mode !== "analyst";
+  const bars = !!state.teamTotals; // casual: comparison bars; analyst: the detailed tiles
+  $("bars").hidden = !(bars && mode === "casual");
+  $("stats").hidden = bars && mode === "casual";
+  state.barsKey = "";
   state.selected = [];
   state.spotlight = null;
   state.cardsKey = "";
@@ -1299,6 +1521,9 @@ function init(bundle, index, entry) {
       : "");
   drawMarkings();
   $("stat-pass-tile").hidden = !bundle.passing;
+  if (bundle.players) {
+    state.teamTotals = Object.fromEntries(["shots_on_target", "pressures", "ball_wins"].map((n) => [n, teamTotals(n)]));
+  }
   bindMatchPicker(index, entry);
   bindControls();
   bindShortcuts(bundle.highlights || {}, bundle.recap);
@@ -1306,6 +1531,7 @@ function init(bundle, index, entry) {
   const params = new URLSearchParams(location.search);
   bindPersonalize(params);
   bindPlayerPicker(params);
+  bindViewToggle(params);
   const speed = Number(params.get("speed"));
   if ([15, 30, 60, 120, 240].includes(speed)) { state.speed = speed; $("speed").value = String(speed); }
   setMode(params.get("mode") === "analyst" ? "analyst" : "casual");

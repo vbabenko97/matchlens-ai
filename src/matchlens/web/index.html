@@ -32,24 +32,39 @@
 
   <main class="layout">
     <section class="stage" aria-label="Pitch and replay">
+      <div class="view-toggle" id="view-toggle" role="group" aria-label="Pitch view" hidden>
+        <button type="button" id="view-live" aria-pressed="true">Live play</button>
+        <button type="button" id="view-lineups" aria-pressed="false">Lineups</button>
+      </div>
       <div class="pitch-wrap">
         <svg id="pitch" viewBox="-3 -3 111 74" role="img" aria-label="Pitch showing the latest ball events">
           <g id="markings"></g>
           <g id="trail"></g>
           <g id="highlight"></g>
         </svg>
+        <svg id="lineup" viewBox="-3 -3 111 74" role="group" aria-label="Lineups" hidden>
+          <g class="lineup-markings"></g>
+          <g id="lineup-players"></g>
+        </svg>
         <div class="lower-third" id="lower-third" aria-hidden="true" hidden>
           <span class="lt-kind" id="lt-kind"></span>
           <span class="lt-title" id="lt-title"></span>
           <span class="lt-fact" id="lt-fact"></span>
         </div>
-        <div class="legend" aria-hidden="true">
+        <div class="lineup-legend" id="lineup-legend" hidden>
+          <span class="lineup-team home" id="lineup-home"></span>
+          <span class="hint">Select a player to follow them through the match.</span>
+          <span class="lineup-team away" id="lineup-away"></span>
+        </div>
+        <div class="legend" id="live-legend" aria-hidden="true">
           <span class="key home-key"></span><span id="legend-home">Home</span>
           <span class="key away-key"></span><span id="legend-away">Away</span>
           <span class="player-key" id="legend-player" hidden>◯ <span id="legend-player-name"></span>: last touch</span>
           <span class="dir">→ home attacks right</span>
         </div>
       </div>
+
+      <div class="bars" id="bars" role="group" aria-label="Team statistics so far" hidden></div>
 
       <div class="stats" id="stats" role="group" aria-label="Match statistics so far">
         <div><span class="stat-label">Shots</span><span id="stat-shots">0 – 0</span></div>
