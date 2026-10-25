@@ -160,6 +160,33 @@ Operator steps:
 
 Local run with your own key: `python -m matchlens serve --live-api` (reads the `AZURE_OPENAI_*` variables; uses the table if `MATCHLENS_LIVE_COUNTER_URL` is set, else an in-memory count, acceptable only on your own machine). `--offline` serves the button with `not_configured` replies. Tests use fake transports only (`tests/test_live.py`, the live-button e2e tests); the public smoke test never presses the button.
 
+## Telemetry of the live check (Application Insights) — operator step
+**Status (2026-10-25): code ready; Application Insights not yet enabled on the Static Web App.** Until it is, the records below are written but not collected.
+
+What is recorded:
+- **One trace per `POST /api/live-check`**, refused or not (`log_telemetry` in `src/matchlens/live.py`). The message is `matchlens.live_check ` followed by JSON, schema `matchlens.live-telemetry/v1`:
+  - every request: HTTP status, outcome (`live`, `fallback`, `unknown_card`, `bad_request`, …), fallback reason, error type, card ID (known cards only), time in the handler;
+  - once a run starts, live or not: model calls answered, input and output tokens, HTTP 429 answers. These are counted at the transport, so a run that hits the deadline still reports what it spent;
+  - a live run also adds: agent latency, deployment, claims proposed and rejected per attempt, facts published, response IDs (to find a call in Foundry), checks left today.
+- **Never recorded:** the API key, the endpoint, the client address or its hash, the request body, claim text. A request with an unknown card ID is logged without that ID, so a request cannot write text of its own into the logs. Application Insights itself does not store client IP addresses by default: it uses them for a geolocation lookup and writes `0.0.0.0` ([Microsoft Learn: IP handling](https://learn.microsoft.com/azure/azure-monitor/app/ip-collection)).
+- **Severity:** Warning for server-side failures (HTTP 5xx: `not_configured`, `busy`, `deadline`, `foundry_unavailable`; and `counter_unavailable`, answered 429). Information for everything else, including the `daily_limit` refusal: the cap doing its job is not a fault.
+- **`api/host.json`:** the default level stays Warning (no runtime chatter). `Host.Results` is at Information, so the `requests` table gets every call with its duration and result code. `Function.live_check.User` is at Information, so the telemetry lines get through ([Microsoft Learn: configure categories](https://learn.microsoft.com/azure/azure-functions/configure-monitoring#configure-categories)). Adaptive sampling stays at its default and engages only above about 20 items per second per host, far above this demo's traffic. The table count, not telemetry, stays the authoritative spend count.
+
+Operator steps:
+1. **[operator]** Azure portal → the Static Web App `matchlens-demo` → **Application Insights** → *Enable Application Insights*: **Yes** → **Save** ([Microsoft Learn: monitor Static Web Apps](https://learn.microsoft.com/azure/static-web-apps/monitor)). It creates an Application Insights resource in the resource group and links it through an app setting; the repository needs no setting. The page lists no plan restriction, only that the app has an API, which this one has.
+   - Cost: Application Insights is billed separately from Static Web Apps, by data ingested. Each request writes one request record and one trace, a few kilobytes at most. Optionally set a daily cap under *Usage and estimated costs* in the new resource.
+2. **[operator]** *Actions → Deploy demo (Azure Static Web Apps, Free) → Run workflow* on `main`, so the new `host.json` and code are live.
+3. **[operator]** Free check (no model call, no quota):
+   ```bash
+   curl -s -X POST https://wonderful-hill-04967dd0f.5.azurestaticapps.net/api/live-check \
+     -H 'Content-Type: application/json' -d '{"card_id":"telemetry-probe"}'
+   ```
+   Expect `"status":"unknown_card"` (HTTP 404). After a few minutes, query 1 in [telemetry.kql](telemetry.kql) (*Application Insights → Monitoring → Logs*) shows that request with `status` `unknown_card` and an empty `card_id`.
+4. **[operator]** The next live call (for example the one in the video) appears with `status` `live`, its tokens, its claims rejected per attempt and its response IDs. Queries 2 and 3 give the daily view and the fallback reasons; query 4 puts the host's request record next to each line.
+5. **[operator]** Evidence for the judges: a screenshot of query 1 or 2 (`docs/images/telemetry.png`) and the date it was taken, recorded in this section. Only then may README and SUBMISSION list Application Insights as in use.
+
+If nothing appears after about 10 minutes: run `traces | where timestamp > ago(1h) | project timestamp, message, customDimensions.Category | take 50`. If the `matchlens.live_check` lines are missing but other traces arrive, the Functions host files them under another category: raise that category to Information in `api/host.json`.
+
 ## Microsoft Foundry / Azure OpenAI inference
 - **Code path:** `src/matchlens/narrative.py` (`AzureOpenAIProvider`), Responses API v1 (`/openai/v1/responses`), configured by the three `AZURE_OPENAI_*` variables in `.env.example`. Real values live only in your shell or a secret store.
 - **Strict check:** `python -m matchlens azure-check` (one call, no fallback, redacted evidence).

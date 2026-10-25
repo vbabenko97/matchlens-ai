@@ -85,6 +85,7 @@ MatchLens is entered for **Best Enterprise Solution**. This is the deployment ca
 | Runaway cost from a public page | The live endpoint takes a card ID only. A shared daily cap is reserved in Azure Table Storage before any model call; if the store fails, no call is made. | `live.py`, `quota.py` |
 | Exposed secrets and stored data | The browser never holds a key: live checks run in an Azure Function. Every Foundry call is made with `store: false`. The data is synthetic, with no personal data. | `live.py`, `api/` |
 | Silent breakage | Playwright smoke tests run after every deploy and daily on both hosts through the end of judging. They never press the paid live-check button, so the live call is checked by hand. | `.github/workflows/` |
+| No view of the live endpoint in use | Each live-check request, refused or not, writes one telemetry record: outcome and fallback reason, timing, model calls, tokens and HTTP 429 answers (also for a run that fails half-way), claims rejected per attempt and response IDs. With Application Insights enabled on the Static Web App, the Functions host sends it to the `traces` table; server-side failures log at Warning, so an alert can watch them. No key, client address or request text is logged. Ready-made queries: [telemetry.kql](docs/telemetry.kql). | `live.py`, `api/host.json` |
 
 ### How the demo runs on Azure
 
@@ -110,7 +111,7 @@ flowchart LR
 
 - An adapter from a provider's feed to the MatchLens event schema, and the stream processor behind a service the page can subscribe to. Event-by-event processing exists (`matchlens stream`), but the web demo replays a precomputed match.
 - Keyless authentication to Foundry with Microsoft Entra ID instead of an API key in the app settings, and real user authentication on the live endpoint instead of the forgeable per-visitor limit.
-- Monitoring and tracing, for example with Application Insights: the demo has smoke tests but no telemetry.
+- Alert rules and a dashboard on the telemetry, and tracing through each Foundry call: the live check writes one record per request for Application Insights and comes with ready-made queries, but no alert is set up, and the static pages send no telemetry at all.
 - A native-speaker review for each language before rewrites go out, and a check of tone, which nothing in the pipeline does today.
 
 ## How MatchLens meets the judging criteria
@@ -302,9 +303,9 @@ Calls go to `POST {endpoint}/openai/v1/responses` with `store: false`. Without c
 |---|---|
 | `src/matchlens/` | generator, validator, metrics, moments, story, cards, overlays, the three agents, live endpoint, quota, replay bundle, static export |
 | `src/matchlens/web/` | replay UI (`index.html`, `app.js`) and on-air graphic (`broadcast.*`) |
-| `api/` | Azure Functions adapter for `/api/live-check` |
+| `api/` | Azure Functions adapter for `/api/live-check`, and its logging levels (`host.json`) |
 | `tests/` | unit and Playwright end-to-end tests |
-| `docs/` | [SPEC](docs/SPEC.md), [TASKS](docs/TASKS.md) (verified checkpoints), [DATA_MODEL](docs/DATA_MODEL.md), [DEPLOYMENT](docs/DEPLOYMENT.md), [ACCESSIBILITY](docs/ACCESSIBILITY.md), [evidence/](docs/evidence/) |
+| `docs/` | [SPEC](docs/SPEC.md), [TASKS](docs/TASKS.md) (verified checkpoints), [DATA_MODEL](docs/DATA_MODEL.md), [DEPLOYMENT](docs/DEPLOYMENT.md), [ACCESSIBILITY](docs/ACCESSIBILITY.md), [telemetry queries](docs/telemetry.kql), [evidence/](docs/evidence/) |
 
 ## How it was built
 

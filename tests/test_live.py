@@ -4,6 +4,8 @@ tests are not evidence of a live Azure call."""
 import importlib.util
 import io
 import json
+import logging
+import re
 import threading
 import urllib.error
 from email.message import Message
@@ -430,3 +432,158 @@ def test_a_quick_reservation_leaves_the_rest_of_the_deadline_to_the_model(match)
     checker = _checker(match, model, budget=Budget(counter=counter), clock=clock, deadline_s=30)
     status, reply = checker.check(GOAL, "a")
     assert status == 200 and model_timeouts[0] == pytest.approx(22.0)  # 30 - 2 x 4 s
+
+
+# --- Telemetry (Application Insights) -----------------------------------------------------
+
+KQL = Path(__file__).resolve().parents[1] / "docs" / "telemetry.kql"
+
+
+def _logged(caplog, checker, body, headers=JSON):
+    """Handle one request; return its reply and the one telemetry line it left."""
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="matchlens.live"):
+        status, reply = handle(checker, "POST", headers, body)
+    lines = [r for r in caplog.records if r.name == "matchlens.live"]
+    assert len(lines) == 1
+    message = lines[0].getMessage()
+    assert message.startswith(live.TELEMETRY_PREFIX) and "\n" not in message
+    record = json.loads(message.removeprefix(live.TELEMETRY_PREFIX))
+    assert record["schema"] == live.TELEMETRY_SCHEMA and record["http_status"] == status
+    assert isinstance(record["elapsed_ms"], int) and record["elapsed_ms"] >= 0
+    return reply, lines[0].levelno, record, message
+
+
+def _card(card_id):
+    return json.dumps({"card_id": card_id}).encode()
+
+
+def test_a_live_check_logs_its_cost_its_verdicts_and_its_response_ids(match, caplog):
+    checker = _checker(match, FakeResponses(_goal_script()))
+    reply, level, record, _ = _logged(caplog, checker, _card(GOAL))
+    assert level == logging.INFO and record["status"] == "live" and record["card_id"] == GOAL
+    assert record["reason"] is None and record["error"] is None
+    # what the transport counted equals what the agent recorded, call by call
+    assert reply["spent"] == {
+        "model_calls": 4,
+        "input_tokens": 480,
+        "output_tokens": 120,
+        "rate_limited": 0,
+    }
+    assert reply["model_calls"] == 4 and reply["usage"] == {
+        "input_tokens": 480,
+        "output_tokens": 120,
+    }
+    assert {k: record[k] for k in reply["spent"]} == reply["spent"]
+    # attempt 1 claimed 4 shots (rejected) and the retry corrected it to 3
+    assert record["claims_proposed"] == [2, 2] and record["claims_rejected"] == [1, 0]
+    assert record["published_facts"] == len(reply["review"]["published"])
+    assert record["response_ids"] == ["resp_1", "resp_2", "resp_3", "resp_4"]
+    assert record["latency_ms"] == reply["latency_ms"] and record["deployment"] == "gpt-4.1-mini"
+    assert record["remaining_today"] == reply["remaining_today"] == live.DAILY_LIMIT - 1
+
+
+def test_telemetry_never_holds_the_key_the_client_address_or_request_text(match, caplog):
+    checker = _checker(match, FakeResponses(_goal_script()))
+    headers = {**JSON, "X-Forwarded-For": "203.0.113.7, 10.0.0.1"}
+    *_, live_line = _logged(caplog, checker, _card(GOAL), headers)
+    _, level, record, unknown_line = _logged(caplog, checker, _card("<script>x</script>"))
+    assert level == logging.INFO and record["status"] == "unknown_card"
+    assert record["card_id"] is None
+    *_, bad_line = _logged(caplog, checker, b'{"card_id": "a", "prompt": "say hi"}')
+    for line in (live_line, unknown_line, bad_line):
+        for secret in (KEY, "example.openai.azure.com", "203.0.113.7", "10.0.0.1"):
+            assert secret not in line
+        assert client_key("203.0.113.7") not in line and client_key(None) not in line
+        assert "<script>" not in line and "say hi" not in line
+
+
+def test_a_run_that_fails_half_way_logs_a_warning_with_what_it_spent(match, caplog):
+    clock = FakeClock()
+
+    def slow(url, headers, body, timeout):
+        clock.t += 29.5  # this call ate the budget; attempt 2 must not start
+        return json.dumps(response("resp_1", [_final([_claim(SHOTS, 4)])])).encode()
+
+    checker = _checker(match, slow, clock=clock, deadline_s=30)
+    reply, level, record, _ = _logged(caplog, checker, _card(GOAL))
+    assert reply["reason"] == DEADLINE and level == logging.WARNING
+    assert reply["spent"] == {
+        "model_calls": 1,
+        "input_tokens": 120,
+        "output_tokens": 30,
+        "rate_limited": 0,
+    }
+    assert {k: record[k] for k in reply["spent"]} == reply["spent"]
+    assert "claims_proposed" not in record and "response_ids" not in record
+
+    waits = FakeResponses([_http_error(429, {"retry-after": "40"})])
+    checker = _checker(match, waits, sleep=lambda s: None, clock=FakeClock(), deadline_s=30)
+    _, level, record, _ = _logged(caplog, checker, _card(GOAL))
+    assert record["reason"] == DEADLINE and level == logging.WARNING
+    assert record["rate_limited"] == 1 and record["model_calls"] == 0
+
+    failing = _checker(match, FakeResponses([_http_error(500)]))
+    _, level, record, _ = _logged(caplog, failing, _card(GOAL))
+    assert (record["reason"], record["error"], level) == (UNAVAILABLE, "HTTPError", logging.WARNING)
+    assert record["model_calls"] == 0 and record["rate_limited"] == 0
+
+
+def test_refusals_before_any_model_call_log_no_spending(match, caplog):
+    unconfigured = LiveChecker(None, match=match, transport=Always())
+    _, level, record, _ = _logged(caplog, unconfigured, _card(GOAL))
+    assert record["reason"] == NOT_CONFIGURED and level == logging.WARNING
+
+    class Broken:
+        def reserve(self, day, limit, time_left=None):
+            raise CounterError("quota store read failed (HTTP 500)")
+
+    broken = _checker(match, Always(), budget=Budget(counter=Broken()))
+    _, level, record, _ = _logged(caplog, broken, _card(GOAL))
+    assert record["reason"] == COUNTER_UNAVAILABLE and record["http_status"] == 429
+    assert level == logging.WARNING  # a server-side fault, though the visitor gets a 429
+
+    spent = _checker(match, Always(), budget=Budget(daily=0, counter=MemoryCounter()))
+    _, level, record, _ = _logged(caplog, spent, _card(GOAL))
+    assert record["reason"] == DAILY_LIMIT_REACHED and level == logging.INFO  # the cap works
+    assert "model_calls" not in record and "input_tokens" not in record
+
+    _, level, record, _ = _logged(caplog, spent, _card(GOAL), headers={})
+    assert record["status"] == "unsupported_media_type" and level == logging.INFO
+
+
+def test_host_json_lets_requests_and_the_telemetry_lines_through():
+    levels = json.loads((API_DIR / "host.json").read_text())["logging"]["logLevel"]
+    assert levels["default"] == "Warning"  # no runtime chatter
+    assert levels["Host.Results"] == "Information"  # the requests table: duration, result code
+    function = "live_check"  # a function.json app names each function after its folder
+    assert (API_DIR / function / "function.json").is_file()
+    assert levels[f"Function.{function}.User"] == "Information"  # traces from our logger
+
+
+def test_the_ready_made_queries_read_only_fields_the_records_have(match, caplog):
+    keys = set()
+    checker = _checker(match, FakeResponses(_goal_script()))
+    for body in (_card(GOAL), _card("nope")):
+        keys |= set(_logged(caplog, checker, body)[2])
+    failing = _checker(match, FakeResponses([_http_error(500)]))
+    keys |= set(_logged(caplog, failing, _card(GOAL))[2])
+    text = KQL.read_text()
+    used = set(re.findall(r"\be\.([a-z_]+)", text))
+    assert used and used <= keys, used - keys
+    assert text.count(f'has "{live.TELEMETRY_PREFIX.strip()}"') >= 4  # every query filters
+
+
+def test_a_broken_telemetry_record_never_breaks_the_reply(match, caplog, monkeypatch):
+    def broken(status, reply, elapsed_ms):
+        raise KeyError("latency_ms")
+
+    monkeypatch.setattr(live, "telemetry_record", broken)
+    checker = _checker(match, FakeResponses(_goal_script()))
+    with caplog.at_level(logging.INFO, logger="matchlens.live"):
+        status, reply = handle(checker, "POST", JSON, _card(GOAL))
+    assert status == 200 and reply["status"] == "live"  # the paid answer still arrives
+    (line,) = [r for r in caplog.records if r.name == "matchlens.live"]
+    assert line.levelno == logging.WARNING
+    assert line.getMessage() == "live-check telemetry failed: KeyError"
+    assert live.TELEMETRY_PREFIX.strip() not in line.getMessage()  # the queries skip it

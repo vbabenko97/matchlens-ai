@@ -23,15 +23,20 @@ Fuses, in the order they apply:
 Whenever the live call is not made or does not finish, the reply says why and tells the
 page to keep showing the recorded run, which it labels as recorded. A fallback is never
 presented as a live response.
+
+Every request leaves one telemetry line (``log_telemetry``): its outcome, timing and, once a
+run starts, what it spent. On Azure the Functions host sends it to Application Insights.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import threading
 import time
+import urllib.error
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -39,6 +44,7 @@ from typing import Any
 
 from .agent import FoundryAgentProposer, review_card, review_record
 from .cards import InsightCard, build_cards
+from .claims import VERIFIED
 from .generator import generate_match
 from .narrative import (
     ANALYST,
@@ -70,6 +76,11 @@ MAX_BODY_BYTES = 1024
 # Where the client address may arrive, first match wins. Without any, every visitor shares
 # one per-client bucket (stricter, never looser).
 CLIENT_HEADERS = ("x-forwarded-for", "x-azure-clientip", "x-client-ip")
+TELEMETRY_SCHEMA = "matchlens.live-telemetry/v1"
+TELEMETRY_PREFIX = "matchlens.live_check "  # each telemetry line: this prefix, then JSON
+
+logger = logging.getLogger("matchlens.live")
+logger.addHandler(logging.NullHandler())  # silent unless the host (Azure Functions) logs
 
 # Fallback reasons (machine-readable; the page words them).
 NOT_CONFIGURED = "not_configured"
@@ -157,11 +168,16 @@ def client_key(forwarded_for: str | None, fallback: str = "") -> str:
 
 
 class _Deadline:
-    """Wraps the transport and the rate-limit sleep so no call or wait crosses the deadline."""
+    """Wraps the transport and the rate-limit sleep so no call or wait crosses the deadline.
+
+    It also counts what the run spent (``spent``): answered model calls, their tokens and
+    HTTP 429 answers, so a run that fails half-way still reports its cost.
+    """
 
     def __init__(self, transport: Transport, sleep: Callable[[float], None], clock, end: float):
         self._transport, self._sleep, self._clock = transport, sleep, clock
         self._end = end  # the request's deadline, on ``clock``
+        self.spent = {"model_calls": 0, "input_tokens": 0, "output_tokens": 0, "rate_limited": 0}
 
     def remaining(self) -> float:
         return self._end - self._clock()
@@ -170,7 +186,20 @@ class _Deadline:
         left = self.remaining()
         if left <= 1.0:
             raise DeadlineExceeded("no time left for another model call")
-        return self._transport(url, headers, body, min(timeout, left))
+        try:
+            raw = self._transport(url, headers, body, min(timeout, left))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 429:
+                self.spent["rate_limited"] += 1
+            raise
+        self.spent["model_calls"] += 1
+        try:
+            usage = json.loads(raw).get("usage") or {}
+            for k in ("input_tokens", "output_tokens"):
+                self.spent[k] += int(usage.get(k) or 0)
+        except (ValueError, TypeError, AttributeError):
+            pass  # the agent reports the malformed reply; the call still counts
+        return raw
 
     def sleep(self, seconds: float) -> None:
         if seconds >= self.remaining() - 1.0:
@@ -198,8 +227,12 @@ class LiveChecker:
         self._sleep, self._clock, self._deadline_s = sleep, clock, deadline_s
         self._busy = threading.Lock()
 
-    def _fallback(self, card_id: str, reason: str, status: int) -> tuple[int, dict[str, Any]]:
-        return status, {
+    def _fallback(
+        self, card_id: str, reason: str, status: int, run: _Deadline | None = None
+    ) -> tuple[int, dict[str, Any]]:
+        """``run`` is given once model calls may have started: the reply then says what they
+        spent (``spent``), so a failed run's cost is not lost."""
+        reply = {
             "schema": LIVE_SCHEMA,
             "status": "fallback",
             "card_id": card_id,
@@ -207,6 +240,9 @@ class LiveChecker:
             "live": False,
             "message": "No live call was made or completed; the recorded run stays on the page.",
         }
+        if run is not None:
+            reply["spent"] = dict(run.spent)
+        return status, reply
 
     def check(self, card_id: object, client: str) -> tuple[int, dict[str, Any]]:
         """Return ``(http_status, reply)`` for one card. Never raises for a bad request."""
@@ -238,9 +274,9 @@ class LiveChecker:
         try:
             review = review_card(self.match, self.cards[card_id], proposer, strict=True)
         except DeadlineExceeded:
-            return self._fallback(card_id, DEADLINE, 504)
+            return self._fallback(card_id, DEADLINE, 504, deadline)
         except Exception as exc:  # network, HTTP, format: report the type only, never content
-            status, reply = self._fallback(card_id, UNAVAILABLE, 502)
+            status, reply = self._fallback(card_id, UNAVAILABLE, 502, deadline)
             return status, {**reply, "error": type(exc).__name__}
         checked_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         review = replace(
@@ -268,7 +304,57 @@ class LiveChecker:
             "review": review_record(review),
             "metrics": {m.metric_id: m.to_record() for m in review.metrics},
             "remaining_today": self.budget.remaining_today(),
+            "spent": dict(deadline.spent),
         }
+
+
+def telemetry_record(status: int, reply: Mapping[str, Any], elapsed_ms: int) -> dict[str, Any]:
+    """What one request leaves in the logs: its outcome, its timing and what it spent.
+
+    Counts and IDs only: never the key, the endpoint, the client address or its hash, the
+    request body or claim text. ``card_id`` comes from the reply, which names only known
+    cards, so a request cannot write text of its own into the logs.
+    """
+    record: dict[str, Any] = {
+        "schema": TELEMETRY_SCHEMA,
+        "http_status": status,
+        "status": reply.get("status"),
+        "reason": reply.get("reason"),
+        "error": reply.get("error"),
+        "card_id": reply.get("card_id"),
+        "elapsed_ms": elapsed_ms,
+    }
+    record.update(reply.get("spent") or {})  # once a run started, live or not
+    review = reply.get("review")
+    if reply.get("status") == "live" and isinstance(review, Mapping):
+        attempts, verdicts = review["attempts"], review["verdicts"]
+        record.update(
+            latency_ms=reply["latency_ms"],
+            deployment=reply["deployment"],
+            claims_proposed=[len(a["claims"]) for a in attempts],
+            claims_rejected=[
+                sum(v["attempt"] == n and v["status"] != VERIFIED for v in verdicts)
+                for n in range(1, len(attempts) + 1)
+            ],
+            published_facts=len(review["published"]),
+            response_ids=[c["response_id"] for a in attempts for c in a["calls"]],
+            remaining_today=reply["remaining_today"],
+        )
+    return record
+
+
+def log_telemetry(status: int, reply: Mapping[str, Any], elapsed_ms: int) -> None:
+    """One line per request: ``TELEMETRY_PREFIX``, then the record as compact JSON.
+
+    On Azure the Functions host sends these records to Application Insights as ``traces``
+    (``api/host.json`` lets them through at Information). A server-side failure logs at
+    Warning, so an alert can watch for it: any HTTP 5xx, and a failed quota store (answered
+    429, since the visitor can only wait).
+    """
+    record = telemetry_record(status, reply, elapsed_ms)
+    server_side = status >= 500 or reply.get("reason") == COUNTER_UNAVAILABLE
+    level = logging.WARNING if server_side else logging.INFO
+    logger.log(level, "%s%s", TELEMETRY_PREFIX, json.dumps(record, separators=(",", ":")))
 
 
 def handle(
@@ -277,8 +363,21 @@ def handle(
     """Host-neutral HTTP handling (Azure Functions adapter and the local server share it).
 
     POST with ``Content-Type: application/json`` only: a cross-site page cannot send that
-    without a CORS preflight, which this endpoint never grants.
+    without a CORS preflight, which this endpoint never grants. Every request, refused or
+    not, leaves one telemetry line.
     """
+    started = time.monotonic()
+    status, reply = _respond(checker, method, headers, body, peer)
+    try:
+        log_telemetry(status, reply, round(1000 * (time.monotonic() - started)))
+    except Exception as exc:  # telemetry must never cost the visitor a paid answer
+        logger.warning("live-check telemetry failed: %s", type(exc).__name__)
+    return status, reply
+
+
+def _respond(
+    checker: LiveChecker, method: str, headers: Mapping[str, str], body: bytes, peer: str
+) -> tuple[int, dict[str, Any]]:
     lower = {k.lower(): v for k, v in headers.items()}
     if method != "POST":
         return 405, {"schema": LIVE_SCHEMA, "status": "method_not_allowed", "live": False}
