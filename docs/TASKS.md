@@ -23,6 +23,7 @@ Update this file after verified work. A task is done only when the acceptance ch
   - voice-over: "Each request lands in Application Insights with its tokens and verdicts." The shot has 33 words (124 per minute), the video 217;
   - Tab G: how to open Logs, the 2–5 min delay (record it separately), and what to keep out of frame (account e-mail, subscription ID, connection string);
   - the end card names Application Insights.
+- **Pitch** (`docs/SUBMISSION.md`): the list of enterprise controls now names telemetry in Application Insights.
 - **`docs/telemetry.kql` query 5:** the live checks of the last 30 minutes, one row each, for the video. The existing test checks its fields against real records.
 - **Verified:** `python -m pytest -q` (e2e on local Chromium) gives 699 passed, 2 skipped; `ruff check .` and `ruff format --check .` are clean. The e2e tests now check the chip text, its tooltip and the footer wording.
 
