@@ -7,6 +7,7 @@ import contextlib
 import json
 import os
 import sys
+import time
 import urllib.error
 from dataclasses import asdict
 from pathlib import Path
@@ -25,7 +26,7 @@ from .azure_check import run_check
 from .cards import build_cards, format_card
 from .critic import EVAL_SCHEMA, FoundryCritic, critic_eval, eval_metrics
 from .generator import FULL_PERIOD_S, generate_match
-from .io import MatchFormatError, dumps_match, read_match
+from .io import MatchFormatError, dumps_match, iter_records, match_to_lines, read_match
 from .live import DEMO_SEED as LIVE_DEMO_SEED
 from .live import LIVE_PATH, LiveChecker, checker_from_env
 from .metrics import DEFAULT_WINDOW_S, compute_metrics
@@ -53,8 +54,9 @@ from .personalize import build_trace as personalize_trace
 from .personalize import trace_problems as personalize_trace_problems
 from .recap import build_recap, format_recap
 from .replay import DEFAULT_DEMO_SEED, DEMO_EXTRA_SEEDS, build_bundle, demo_extra_bundles, dumps
-from .schema import AWAY, HOME
+from .schema import AWAY, HOME, Event, MatchMeta
 from .server import export_site, make_server
+from .stream import Publication, StreamProcessor, Update
 from .validate import assert_valid, validate_match
 
 
@@ -155,6 +157,19 @@ def _main(argv: list[str] | None = None) -> int:
     crd.add_argument("--limit", type=int, default=None, help="first N card moments")
     crd.add_argument("--json", action="store_true", help="emit JSON instead of text")
     crd.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    fed = sub.add_parser("feed", help="write a match as a JSONL feed, one event at a time")
+    source = fed.add_mutually_exclusive_group(required=True)
+    source.add_argument("--seed", type=int, help="generate this synthetic match")
+    source.add_argument("--file", type=Path, help="replay a JSONL match file")
+    fed.add_argument(
+        "--speed", type=float, default=0.0, help="match seconds per real second (0: no pauses)"
+    )
+    stm = sub.add_parser(
+        "stream", help="read a JSONL feed event by event and print cards as they are published"
+    )
+    stm.add_argument("path", help="JSONL file, or - for standard input (e.g. from `feed`)")
+    stm.add_argument("--mode", choices=(*MODES, "both"), default="both")
+    stm.add_argument("--json", action="store_true", help="one JSON line per card or issue")
     rcp = sub.add_parser("recap", help="the match recap built from the verified casual cards")
     rcp.add_argument("path", type=Path)
     rcp.add_argument("--json", action="store_true", help="emit JSON (lines with their IDs)")
@@ -325,6 +340,10 @@ def _main(argv: list[str] | None = None) -> int:
             server.server_close()
         return 0
 
+    if args.command == "feed":
+        return _feed(args)
+    if args.command == "stream":
+        return _stream(args)
     if args.command == "generate":
         match = assert_valid(generate_match(args.seed, period_length_s=args.period_length))
         text = dumps_match(match)
@@ -389,6 +408,143 @@ def _main(argv: list[str] | None = None) -> int:
     h, a = match.final_score
     print(f"OK: {len(match.events)} events, final score {h}-{a}")
     return 0
+
+
+def _feed(args: argparse.Namespace) -> int:
+    """Write the match record, then each event, flushing every line; with ``--speed``, wait
+    between events as the match clock does (scaled)."""
+    try:
+        if args.seed is not None:
+            match = assert_valid(generate_match(args.seed))
+        else:
+            match = read_match(args.file)
+    except MatchFormatError as exc:
+        print("\n".join(exc.errors), file=sys.stderr)
+        return 1
+    lines = match_to_lines(match)
+    try:
+        print(lines[0], flush=True)
+        clock = match.events[0].clock_s if match.events else 0.0
+        for event, line in zip(match.events, lines[1:], strict=True):
+            if args.speed > 0 and event.clock_s > clock:
+                time.sleep((event.clock_s - clock) / args.speed)
+            clock = event.clock_s
+            print(line, flush=True)
+    except BrokenPipeError:  # the reader stopped early: not an error for a feed
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+    return 0
+
+
+def _clock(seconds: float) -> str:
+    return f"{int(seconds // 60):02d}:{int(seconds % 60):02d}"
+
+
+_PERIOD_LINES = {
+    ("period_start", 1): "kick-off, first half",
+    ("period_start", 2): "kick-off, second half",
+    ("period_end", 1): "half time",
+    ("period_end", 2): "full time",
+}
+
+
+def _print_update(update: Update, as_json: bool) -> None:
+    e = update.event
+    if as_json:
+        for issue in update.issues:
+            record = {"kind": "issue", "event_id": e.event_id, "seq": e.seq, "issue": issue}
+            print(json.dumps(record))
+        for p in update.published:
+            print(json.dumps(_publication_record(p), ensure_ascii=False))
+        return
+    for issue in update.issues:
+        print(f"!! {issue}: publishing stopped")
+    period = _PERIOD_LINES.get((e.type, e.period))
+    if period:
+        h, a = update.score
+        print(f"{_clock(e.clock_s)}  {period}, {h}-{a}")
+    _print_publications(update.published, e)
+
+
+def _print_publications(published: tuple[Publication, ...], at: Event) -> None:
+    if not published:
+        return
+    what = at.type.replace("_", " ") + (f" ({at.outcome.replace('_', ' ')})" if at.outcome else "")
+    h, a = at.home_score, at.away_score
+    print(f"{_clock(at.clock_s)}  event {at.seq} arrived: {what}, {h}-{a}")
+    for p in published:
+        print(f"  ▸ {p.card.mode} card published: {p.card.title}")
+        why = next((f for f in p.card.facts if f.role == "why"), None)
+        if why is not None:
+            print(f"      ✓ {why.text}")
+
+
+def _publication_record(p: Publication) -> dict:
+    return {
+        "kind": "card",
+        "event_id": p.event_id,
+        "seq": p.seq,
+        "clock_s": p.clock_s,
+        "evidence_seq": p.evidence_seq,
+        "card": asdict(p.card),
+    }
+
+
+def _stream(args: argparse.Namespace) -> int:
+    try:
+        return _stream_feed(args)
+    except BrokenPipeError:  # the reader of our output stopped early (e.g. `| head`)
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 0
+
+
+def _stream_feed(args: argparse.Namespace) -> int:
+    """Process a feed as it arrives: nothing is read before the previous event is handled."""
+    source = sys.stdin if args.path == "-" else open(args.path, encoding="utf-8")  # noqa: SIM115
+    modes = MODES if args.mode == "both" else (args.mode,)
+    processor: StreamProcessor | None = None
+    try:
+        for record in iter_records(iter(source.readline, "")):
+            if isinstance(record, MatchMeta):
+                processor = StreamProcessor(record, modes=modes)
+            else:
+                assert processor is not None and isinstance(record, Event)
+                _print_update(processor.push(record), args.json)
+    except MatchFormatError as exc:
+        print("\n".join(exc.errors), file=sys.stderr)
+        return 1
+    finally:
+        if source is not sys.stdin:
+            source.close()
+    assert processor is not None
+    last = processor.events_received
+    final = processor.close()
+    if final:
+        if args.json:
+            for p in final:
+                print(json.dumps(_publication_record(p), ensure_ascii=False))
+        else:
+            print("end of stream: completing the moments still waiting")
+            _print_publications(final, processor.last_event)
+    issues = processor.issues + processor.end_issues
+    waits = [p.seq - p.evidence_seq for p in processor.publications]
+    summary = {
+        "kind": "summary",
+        "events": last,
+        "cards": len(processor.publications),
+        "max_wait_events": max(waits, default=0),
+        "issues": issues,
+    }
+    if args.json:
+        print(json.dumps(summary))
+    else:
+        for issue in processor.end_issues:
+            print(f"!! end of stream: {issue}")
+        print(
+            f"{last} events, {len(processor.publications)} cards published; each card waited "
+            f"at most {summary['max_wait_events']} event(s) after its last evidence event; "
+            f"{len(issues)} issue(s)."
+        )
+    return 1 if issues else 0
 
 
 def _progress(line: str) -> None:

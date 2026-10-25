@@ -8,7 +8,7 @@ Line 1 is a ``{"record": "match", ...}`` metadata record; every following line i
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -201,6 +201,47 @@ def parse_lines(lines: Iterable[str]) -> Match:
         raise MatchFormatError(errors)
     assert meta is not None
     return Match(meta=meta, events=tuple(events))
+
+
+def iter_records(lines: Iterable[str]) -> Iterator[MatchMeta | Event]:
+    """Yield the match record, then each event, as soon as its line is read.
+
+    For a live feed: nothing is buffered beyond the current line. The first malformed
+    record raises ``MatchFormatError`` (a stream cannot skip ahead to report the rest).
+    """
+    meta_seen = False
+    for lineno, raw in enumerate(lines, start=1):
+        where = f"line {lineno}"
+        if not raw.strip():
+            continue
+        try:
+            rec = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise MatchFormatError([f"{where}: invalid JSON ({exc.msg})"]) from None
+        if not isinstance(rec, dict):
+            raise MatchFormatError([f"{where}: record must be a JSON object"])
+        kind = rec.get("record")
+        if kind == "match":
+            if meta_seen:
+                raise MatchFormatError([f"{where}: match record must appear exactly once, first"])
+            try:
+                meta = _parse_meta(rec)
+            except ValueError as exc:
+                raise MatchFormatError([f"{where}: malformed match record ({exc})"]) from None
+            meta_seen = True
+            yield meta
+        elif kind == "event":
+            if not meta_seen:
+                raise MatchFormatError([f"{where}: first record must be the match record"])
+            errors: list[str] = []
+            event = _parse_event(rec, where, errors)
+            if event is None:
+                raise MatchFormatError(errors)
+            yield event
+        else:
+            raise MatchFormatError([f"{where}: unknown record kind {kind!r}"])
+    if not meta_seen:
+        raise MatchFormatError(["missing match record"])
 
 
 def read_match(path: str | Path) -> Match:

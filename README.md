@@ -34,12 +34,13 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 4. Back in **Casual Fan**, set **Language: Українська** and **Follow: Eastvale Athletic** ([direct link](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away)). Each line the personalizer agent rewrote is checked against the English fact, then reviewed for meaning by the critic agent; the lines that failed stay in English, marked as such.
 5. Press **▤ Match recap (full time)**: the full-time story and the scorers as one text, built only from the checked card lines. **Copy recap** gives plain text; **Recap JSON** keeps each line with its event and metric IDs. It follows the language and club you picked.
 6. Open **▣ On-air graphic**: a broadcast lower-third fed by the same overlay JSON, ready for an OBS or vMix browser source ([rundown](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&bg=dark)). The **Match** picker offers five more matches that were not tuned for the demo.
+7. With Python 3.11+ (no other dependencies), process a match as a feed: `pip install -e . && python -m matchlens feed --seed 1 --speed 60 | python -m matchlens stream -`. Events arrive one at a time; each is validated on arrival, and each card is printed when its last evidence event arrives.
 
 ## How it works
 
 ```mermaid
 flowchart TD
-  A["<b>Ingest</b><br/>synthetic event generator + validator<br/>same seed, same bytes"] --> B["<b>Interpret</b><br/>metrics and key moments,<br/>each with its source event IDs"]
+  A["<b>Ingest</b><br/>synthetic feed, validated event by event<br/>same seed, same bytes"] --> B["<b>Interpret</b><br/>metrics and key moments,<br/>each with its source event IDs"]
   B --> C["<b>Explain</b><br/>cards of template-rendered facts,<br/>published at their last evidence event"]
   C --> D["<b>Claim agent</b> · Microsoft Foundry<br/>read-only tools → structured claims"]
   D --> E{{"Validator"}}
@@ -61,7 +62,7 @@ On the public pages the three agents replay recorded live runs, and every build 
 
 | Stage (challenge §4.1) | What MatchLens does | Code |
 |---|---|---|
-| **Ingest** | A deterministic generator writes a full 90-minute match: passes, shots, tackles, interceptions, recoveries, clearances, pressure events, possession chains and match metadata. A validator enforces the invariants: unique IDs, nondecreasing clock, score only on goals, possession ownership, ball continuity within 1 m. The same seed gives the same bytes. | `generator.py`, `validate.py`, [DATA_MODEL](docs/DATA_MODEL.md) |
+| **Ingest** | A deterministic generator writes a full 90-minute match: passes, shots, tackles, interceptions, recoveries, clearances, pressure events, possession chains and match metadata. A validator enforces the invariants: unique IDs, nondecreasing clock, score only on goals, possession ownership, ball continuity within 1 m. The same seed gives the same bytes. The match can also arrive as a feed: `matchlens feed` writes it one event at a time, and `matchlens stream` validates each event on arrival and publishes each card as its last evidence event arrives, without looking ahead. | `generator.py`, `validate.py`, `stream.py`, [DATA_MODEL](docs/DATA_MODEL.md) |
 | **Interpret** | Metrics with stable IDs, full-match and 15-minute windows (passes, completion, shots, on target, goals, pressures, turnovers, possessions, synthetic xG), each listing its source event IDs. Key moments: every goal, every missed big chance, full time. | `metrics.py`, `moments.py` |
 | **Explain** | Match-story lines say why a moment matters (opener, equaliser, comeback, back in front, redemption, what a missed chance would have meant, how the match was won). Each line cites events and is re-rendered from those events alone before it is published. | `story.py`, `cards.py` |
 | **Render** | A card is published at its last evidence event, never earlier. Timed, machine-readable overlay cues (`matchlens.overlays/v1`, both modes); a transparent broadcast lower-third that plays them; a match recap at full time (`matchlens.recap/v1`) to copy as text or download with its sources; a replay UI with pitch view, timeline and scoreboard. | `overlays.py`, `recap.py`, `web/` |
@@ -77,7 +78,8 @@ MatchLens is entered for **Best Enterprise Solution**. This is the deployment ca
 |---|---|---|
 | A model states a wrong number or name | Facts are rendered from structured data by templates. The claim agent proposes structured claims (metric, value, event IDs) that the validator accepts or rejects. A rewrite must keep every number, score pair (home first) and name of its English fact. | `claims.py`, `agent.py`, `personalize.py` |
 | A rewrite changes the meaning | A critic agent reviews each line that passed the checker; a missing verdict is a rejection; a line still rejected shows the English fact. The critic is a model and misses errors ([measured](#the-critic-measured)). | `critic.py` |
-| Look-ahead and spoilers | A card is published at its last evidence event. The claim agent's tools see the match only up to that event. The recap appears only at full time. | `cards.py`, `agent.py`, `recap.py` |
+| Look-ahead and spoilers | A card is published at its last evidence event. The claim agent's tools see the match only up to that event. The recap appears only at full time. Fed one event at a time, every match gives the same cards at the same events: checked on 31 seeds in the tests and on every match at every build. | `cards.py`, `agent.py`, `recap.py`, `stream.py` |
+| A broken feed | The stream processor checks each event on arrival with the validator's rules. The first invalid event stops publishing for the rest of the stream. | `validate.py`, `stream.py` |
 | AI output taken for fact | AI wording is labelled wherever it appears. The on-air graphic shows template facts only. Synthetic xG and xPass are labelled as heuristics. | `web/` |
 | No audit trail | Live runs are recorded with response IDs and token use, and every build re-checks them. Editorial rejections are kept with reasons in a versioned file that the build applies to the exact text. | `docs/evidence/` |
 | Runaway cost from a public page | The live endpoint takes a card ID only. A shared daily cap is reserved in Azure Table Storage before any model call; if the store fails, no call is made. | `live.py`, `quota.py` |
@@ -99,14 +101,14 @@ flowchart LR
 
 - **User:** a studio editor or stream producer, during and after a match.
 - **First use:** explanations of key moments, and the post-match recap.
-- **Input:** the provider's event feed, through an adapter to the MatchLens event schema ([DATA_MODEL](docs/DATA_MODEL.md)). In this hackathon the events are synthetic, and a live-feed adapter is not built yet.
+- **Input:** the provider's event feed, through an adapter to the MatchLens event schema ([DATA_MODEL](docs/DATA_MODEL.md)). In this hackathon the events are synthetic. The stream processor takes them one at a time; an adapter for a real feed is not built yet.
 - **Output:** cards with their sources, overlay JSON for the graphics system, the browser-source lower-third, and the recap.
 - **A person in the loop:** an editor accepts or rejects rewritten lines. The mechanism exists today: rejections are recorded with reasons in a versioned file that the build applies to the exact text.
 - **What to measure:** factual errors that reach air; the share of AI rewrites rejected by the checker, the critic and the editor; editor corrections per match; time from a moment to its card, and to a ready recap. These are the pilot's questions, not results: none of them has been measured yet.
 
 ### Before production
 
-- A live-feed adapter and incremental processing. Today the match is precomputed and replayed, though card selection and timing are already causal.
+- An adapter from a provider's feed to the MatchLens event schema, and the stream processor behind a service the page can subscribe to. Event-by-event processing exists (`matchlens stream`), but the web demo replays a precomputed match.
 - Keyless authentication to Foundry with Microsoft Entra ID instead of an API key in the app settings, and real user authentication on the live endpoint instead of the forgeable per-visitor limit.
 - Monitoring and tracing, for example with Application Insights: the demo has smoke tests but no telemetry.
 - A native-speaker review for each language before rewrites go out, and a check of tone, which nothing in the pipeline does today.
@@ -152,7 +154,7 @@ flowchart LR
   - Example: reading the personalizer run showed flipped scores ("перемагають 3-2" on a 2-3 scoreboard). The checker now enforces home-first score order, and those lines fall back to English. Meaning drift that no deterministic check can see led to the critic agent; an editorial review (done by Claude Code, the AI coding assistant, not checked by a human) still rejects what the critic misses, with reasons in a versioned file the build applies to the exact text. See [the critic's results](#the-critic-measured), including what it does not catch.
 
 ### Real-world impact and applicability
-- **For broadcasters.** Overlay cues are timed in match seconds, carry their facts and evidence IDs, and are published only once their evidence exists, which is what a live feed needs (the feed adapter itself is not built yet). The on-air page is a working browser source today.
+- **For broadcasters.** Overlay cues are timed in match seconds, carry their facts and evidence IDs, and are published only once their evidence exists. The stream processor publishes the same cards as events arrive (`matchlens feed | matchlens stream -`); an adapter for a real provider feed is not built yet. The on-air page is a working browser source today.
 - **For fans in any market.** The same verified facts reach a German or Ukrainian fan of either club. Nothing the checker cannot verify in numbers and names is shown as a rewrite.
 - **For editorial trust.** Every line is traceable to event IDs, AI wording is always labelled, and heuristics are labelled as heuristics. This is the control a newsroom or a league would need before letting a model write on screen.
 - **Production path.** Static hosting plus one small serverless function with fail-closed spend controls, and smoke tests after every deploy and daily. The controls, a pilot plan and the gaps before production are in [From demo to production](#from-demo-to-production); operator steps are in [DEPLOYMENT](docs/DEPLOYMENT.md).
@@ -181,7 +183,7 @@ MatchLens is entered for the Grand Prize and for Best Enterprise Solution; the o
 | Best Azure Cloud Native Integration | Static Web Apps + managed Functions + Table Storage quota, CI/CD with post-deploy smoke tests |
 
 ## Honest limits
-- The match is precomputed and replayed. Card selection and timing are causal (no card uses later events), but MatchLens does not ingest a live feed. Video auto-eventing, player speed and ball speed are not modelled.
+- The web demo replays a precomputed match. The stream processor (`matchlens stream`) does take the events one at a time from a feed and gives the same cards at the same events, checked at every build. But it runs from the command line: the web page does not run it live, and there is no adapter for a real provider's feed. Video auto-eventing, player speed and ball speed are not modelled.
 - The synthetic data is football-realistic in structure: 11-a-side squads with positions, possession chains, passes, pressures, tackles, shots, scores and pitch coordinates over two halves. Its dynamics are simplified (no fouls, set pieces beyond restarts, substitutions or player skill; see [DATA_MODEL](docs/DATA_MODEL.md)), and its rates are tuned only to look plausible. Synthetic xG is an uncalibrated heuristic. Synthetic xPass is built from the generator's own pass rules, so it matches the simulated outcomes by construction (within 1 % over seeds 100–129) and proves nothing about real football. The generator gives players no passing skill, so "completed minus xPass" is luck. Ball speed is not shown: event times are drawn at random, independent of distance.
 - The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent, personalizer and critic); the five extra matches use the offline proposer and template wording, with no AI at all.
 - The personalizer checker verifies numbers, score order, names, `xG` and script, not meaning. The critic reviews meaning but is a model too: it misses errors and raises false alarms (measured below), and it does not check tone. The page says so on every rewritten card.
@@ -211,7 +213,14 @@ python -m matchlens moments match.jsonl                     # card moments with 
 python -m matchlens cards match.jsonl --mode casual         # verified insight cards (--json, --offline)
 python -m matchlens overlays match.jsonl --out overlays.json # timed overlay cues, both modes
 python -m matchlens recap match.jsonl                       # full-time recap as text (--json: with IDs)
+python -m matchlens feed --seed 1 --speed 60 | python -m matchlens stream -   # a feed, processed as it arrives
 ```
+
+**Event by event.** `feed` writes the match record and then one event per line, flushed, waiting between events as the match clock does (`--speed 60`: one match minute per second; `0`: no waiting). `stream` reads a file or standard input line by line.
+- **Validation on arrival.** Each event is checked with the validator's rules (`EventValidator`; `validate_match` runs the same checks over a whole match). The first invalid event stops publishing.
+- **When cards are built.** When an event can complete a key moment (a shot, the event after a shot, the final whistle), the moments are detected again on the events received so far, and each complete moment gets its cards from those events alone. A missed big chance waits one event, because the next event may answer the shot.
+- **Output.** Each published card is printed with the event that completed it; `--json` gives one record per card. No model is called per event.
+- **Checked against the batch build.** On seeds 1 and 100–129 every card equals the batch card and is published as its last evidence event arrives (no extra wait); each build of the page repeats that check and fails on any difference.
 
 ## The replay UI
 

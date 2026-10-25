@@ -31,6 +31,7 @@ from .players import player_records
 from .recap import build_recap
 from .schema import AWAY, HOME, Match, minute_of
 from .story import full_time_story
+from .stream import stream_check
 from .validate import assert_valid
 
 BUNDLE_SCHEMA = "matchlens.replay/v1"
@@ -164,6 +165,8 @@ def build_bundle(
     recap = build_recap(match, casual.cards)
     if recap is not None:
         doc["recap"] = recap
+    if limit is None:  # fed one event at a time, the match must give exactly these cards
+        doc["stream"] = stream_check(match, card_sets)
     return doc
 
 

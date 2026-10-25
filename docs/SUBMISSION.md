@@ -31,7 +31,7 @@ No account, sign-in or API key is needed. Everything runs in the browser. The da
 7. Press **▤ Match recap (full time)**: the full-time story and the scorers, built only from checked card lines. **Copy recap** copies plain text; **Recap JSON** keeps every line with its event and metric IDs. With a language and club set, the recap follows them.
 8. Press **▣ On-air graphic** for the broadcast lower-third, or **⬇ Overlay JSON** for the timed cues. The **Match** picker offers five more matches the demo was not tuned for.
 
-To run locally (Python 3.11+, no runtime dependencies): `pip install -e . && python -m matchlens serve`, then open <http://127.0.0.1:8000/>.
+To run locally (Python 3.11+, no runtime dependencies): `pip install -e . && python -m matchlens serve`, then open <http://127.0.0.1:8000/>. To process a match as a feed, one event at a time: `python -m matchlens feed --seed 1 --speed 60 | python -m matchlens stream -`.
 
 ## Category
 Enter **Best Enterprise Solution** (with the Grand Prize). Decided on 2026-10-25: the description asks for "a clear path to enterprise adoption, balancing innovation with the reliability, transparency, and controls required for use in production", and that is MatchLens's case. The README's [From demo to production](../README.md#from-demo-to-production) section is written for it: the controls already in place, the Azure deployment, a pilot plan and the gaps before production. If the form takes a second category, Best Use of Microsoft Foundry is the next fit.

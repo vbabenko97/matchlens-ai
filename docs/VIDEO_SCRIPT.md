@@ -59,6 +59,10 @@ Do not say "every AI line is proven": the critic is a model, and the voice-over 
 | 1:26–1:42 | Tab D: on the 77' card press **Check this card live with Microsoft Foundry** (the one live call). Cut the wait. Show the green line "Live result from Microsoft Foundry: N model call(s), N tokens, N s" and the plain summary of the live run. Cut to Tab F for 3 s. | "On Azure, a Functions endpoint runs the claim agent live against Microsoft Foundry, behind a daily spend cap reserved before every call. Static Web Apps serves the replay, and every deploy is tested." |
 | 1:42–1:50 | End card: "MatchLens AI · Microsoft Foundry · Azure Static Web Apps + Functions · synthetic data · github.com/vbabenko97/matchlens-ai". | "Synthetic data, open source, every line traceable. MatchLens: match intelligence you can verify." |
 
+**Optional: the feed in a terminal.** This only works for a version that includes `matchlens stream`; deploy and tag it before recording.
+- **Recording.** Open the 0:10–0:26 shot with 4 s of a terminal running `python -m matchlens feed --seed 1 --speed 120 | python -m matchlens stream -`, as it prints "event 1206 arrived: shot (goal), 2-2" and "▸ casual card published". Start the command about 40 s earlier, because 77' arrives after 38 s at 120×. Then cut to the page.
+- **Voice-over for that shot**, the same length: "Events arrive one at a time; each card is published as its last piece of evidence arrives, never earlier, and leads with why the moment matters: two–one down in minute seventy-one, then two goals turned it around."
+
 Left out on purpose (it is in the README and on the page): player focus, the passing table, the spend-cap mechanics, response IDs, the five extra matches, and test counts.
 
 ## After recording
