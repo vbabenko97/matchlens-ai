@@ -22,7 +22,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 
 1. **A card for every key moment, never early.** It appears once its last evidence event exists and leads with what changed: an equaliser, a comeback, what a missed chance would have meant.
 2. **Every line can be checked.** In Analyst mode each fact opens its events and metrics on the pitch, and the AI's claims show the validator's verdict in plain words.
-3. **One set of facts, many audiences.** A fan gets the same facts in their language and from their club's side; the AI wording is labelled and checked for numbers and names.
+3. **One set of facts, many audiences.** A fan reads the match at a glance: comparison bars, both lineups and one line per moment, in their language and from their club's side, with the AI wording labelled and checked for numbers and names. An analyst gets every line with its evidence.
 4. **Ready for air.** The moment plays as a lower-third in a browser source (OBS, vMix), or goes to a graphics system as timed overlay JSON.
 5. **A recap at the final whistle.** Copy it as text, or download it with the sources of every line.
 
@@ -31,7 +31,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 1. Open the [demo](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/) and press **▶ Watch the comeback (77'–81')**. Cards appear as the moments happen: never before the events they cite, and each one leads with why the moment matters.
 2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. A short summary says what happened in a recorded Foundry agent run: the checker rejected the claim "Pressures applied: 131" because its evidence was a tackle, two passes and a goal, and the agent's retry cited pressures instead. The claim-by-claim list and the response IDs are below it.
 3. On the Azure demo, an analyst card offers **Check this card live with Microsoft Foundry**. It runs the same agent live behind a shared daily cap, or says why it did not.
-4. Back in **Casual Fan**, set **Language: Українська** and **Follow: Eastvale Athletic** ([direct link](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away)). Each line the personalizer agent rewrote is checked against the English fact, then reviewed for meaning by the critic agent; the lines that failed stay in English, marked as such.
+4. Back in **Casual Fan**, switch the pitch to **Lineups** and select a player to follow them: their goals, their last touch and a badge on every card that cites them. Then set **Language: Українська** and **Follow: Eastvale Athletic** ([direct link](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400&lang=uk&follow=away)). Each line the personalizer agent rewrote is checked against the English fact, then reviewed for meaning by the critic agent; the lines that failed stay in English, marked as such. Each card leads with one line; **More** opens the rest.
 5. Press **▤ Match recap (full time)**: the full-time story and the scorers as one text, built only from the checked card lines. **Copy recap** gives plain text; **Recap JSON** keeps each line with its event and metric IDs. It follows the language and club you picked.
 6. Open **▣ On-air graphic**: a broadcast lower-third fed by the same overlay JSON, ready for an OBS or vMix browser source ([rundown](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&bg=dark)). The **Match** picker offers five more matches that were not tuned for the demo.
 7. With Python 3.11+ (no other dependencies), process a match as a feed: `pip install -e . && python -m matchlens feed --seed 1 --speed 60 | python -m matchlens stream -`. Events arrive one at a time; each is validated on arrival, and each card is printed when its last evidence event arrives.
@@ -66,7 +66,7 @@ On the public pages the three agents replay recorded live runs, and every build 
 | **Interpret** | Metrics with stable IDs, full-match and 15-minute windows (passes, completion, shots, on target, goals, pressures, turnovers, possessions, synthetic xG), each listing its source event IDs. Key moments: every goal, every missed big chance, full time. | `metrics.py`, `moments.py` |
 | **Explain** | Match-story lines say why a moment matters (opener, equaliser, comeback, back in front, redemption, what a missed chance would have meant, how the match was won). Each line cites events and is re-rendered from those events alone before it is published. | `story.py`, `cards.py` |
 | **Render** | A card is published at its last evidence event, never earlier. Timed, machine-readable overlay cues (`matchlens.overlays/v1`, both modes); a transparent broadcast lower-third that plays them; a match recap at full time (`matchlens.recap/v1`) to copy as text or download with its sources; a replay UI with pitch view, timeline and scoreboard. | `overlays.py`, `recap.py`, `web/` |
-| **Personalize** | Casual and Analyst are different experiences: story-first cards versus event chains, metric chips, an evidence inspector and the claim check. Fans also pick a language (en/de/uk) and a club, rewritten by the personalizer agent, checked line by line and reviewed by the critic agent. | `narrative.py`, `personalize.py`, `web/app.js` |
+| **Personalize** | Casual and Analyst are different experiences. Casual reads at a glance: comparison bars, both lineups with a player to follow, one line per moment. Analyst shows event chains, metric chips, an evidence inspector and the claim check. Fans also pick a language (en/de/uk) and a club, rewritten by the personalizer agent, checked line by line and reviewed by the critic agent. | `narrative.py`, `personalize.py`, `web/app.js` |
 
 ## From demo to production
 
@@ -163,13 +163,18 @@ flowchart LR
 - **Production path.** Static hosting plus one small serverless function with fail-closed spend controls, and smoke tests after every deploy and daily. The controls, a pilot plan and the gaps before production are in [From demo to production](#from-demo-to-production); operator steps are in [DEPLOYMENT](docs/DEPLOYMENT.md).
 
 ### User experience and presentation
-- Two modes that differ in substance, not just in density. Shortcuts take a judge to the turning point, to the AI fact-check and to the full-time recap without watching 90 minutes.
+- Two modes that differ in substance, not just in density.
+  - **Casual Fan** reads at a glance: comparison bars instead of tables, both lineups on the pitch (select a player to follow them), and one line per moment, with **More** for the rest.
+  - **Analyst** shows every line with its events and metrics, the claim check and the passing table.
+  - Shortcuts take a judge to the turning point, to the AI fact-check and to the full-time recap without watching 90 minutes.
+
+  ![The lineups view at 81', following Ugo Vale, with the comparison bars below](docs/images/lineups.png)
 
   | Fan view in Ukrainian, following Eastvale | Match recap at full time |
   |---|---|
   | ![Casual cards in Ukrainian; lines whose rewrite was rejected stay in English](docs/images/fan-uk.png) | ![The match recap with Copy recap and Recap JSON](docs/images/recap.png) |
 - Accessibility target WCAG 2.2 AA ([audit](docs/ACCESSIBILITY.md)):
-  - axe-core: 0 violations in the audited states, including the match recap and the claim-check summary;
+  - axe-core: 0 violations in the audited states, including the lineups, the comparison bars, the match recap and the claim-check summary;
   - keyboard operation, reflow down to 320 px, `lang` attributes on rewritten lines.
   - A screen-reader pass with real assistive technology is still open.
 - Demo video (< 2 min): *link added at submission*.

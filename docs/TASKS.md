@@ -10,7 +10,33 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-25): before the video — template label and a telemetry shot
+## Latest checkpoint (2026-10-25): casual redesign — comparison bars, lineups, short cards
+- **Why:** the operator found the casual view text-heavy (a reference: a broadcast match centre with bars and lineups). UX and the video are 20% of the score. Approved after a prototype with screenshots on real data.
+- **Casual Fan** (Analyst keeps every line and the tiles):
+  - **Comparison bars** instead of the four tiles: shots, on target, synthetic xG (drawn fainter, labelled), pass accuracy, pressures, ball wins.
+    - The values are as of the replay time. Shots, xG and pass accuracy come from the same steps as the analyst tiles (equal at every tested time).
+    - On target, pressures and ball wins are summed from the players' running stats, which the unit tests already tie to the team metrics.
+    - No possession share (not modelled), no player ratings (they would be invented).
+  - **Short cards:** title and the first "why" line (the lower-third's line); the other checked lines, and the personalizer's note, under a native **More (n)**. The "checked" and wording labels stay visible. The template narrative's "Wording" fold is analyst only.
+- **Lineups** (both modes):
+  - A **Live play / Lineups** toggle above the pitch (`?view=lineups`).
+  - Both squads in their formation from the match metadata (4-4-2), with number, initial and surname (the generated squads share surnames), and a ball per goal scored so far.
+  - Select a player, by click or Enter/Space, to follow them: the same state as the **Player** picker. The lower-third stays with the live view.
+- **Bug found by the new tests:** before the first goal, the lineup's redraw key was "", which meant "not drawn", so the lineup stayed empty until a goal; fixed.
+- **Verified:**
+  - New e2e tests (both local targets):
+    - the bars equal the analyst tiles at four times, and the summed stats at full time; analyst shows tiles;
+    - the lineup has 22 players and the formations, a goal appears only once scored, and the goals at full time equal the final score;
+    - follow and unfollow by click, Enter and Space (Space does not start playback), with focus kept;
+    - the casual cards lead with the why line, fold the rest, and keep **More** open across re-renders; analyst has no **More**;
+    - 320 px reflow with names hidden;
+    - 24 px targets in the lineups;
+    - the bars are not clipped on narrow screens.
+  - axe-core 4.10.2: 0 violations in five new states ([ACCESSIBILITY](ACCESSIBILITY.md)).
+  - Full suite: `python -m pytest -q` (e2e on local Chromium) gives 711 passed, 2 skipped; `ruff check .` and `ruff format --check .` are clean.
+- **Docs:** README (what an editor gets, the tour, the pipeline table, UX with `lineups.png`), SUBMISSION (pitch, testing steps, image 8), VIDEO_SCRIPT (the fan shot opens **More** and follows Ugo Vale on the lineup; 223 words), ACCESSIBILITY. Screenshots `comeback`, `fan-uk`, `recap`, `ai-check` retaken and `lineups` added, from the local static build (1440×900).
+
+## Checkpoint (2026-10-25): before the video — template label and a telemetry shot
 - **Goal:** two presentation fixes before recording, no new feature.
 - **Template label.** Every English card ended with "Offline template · not an Azure response". It sat in the video's first frame and in the README's main screenshot, and in an Azure hackathon it reads like a failure. On this page, template wording is the design, not a fallback: facts are rendered from structured data.
   - The chip now says what the wording is: **"Template wording · no AI"**.

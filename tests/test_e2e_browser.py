@@ -385,10 +385,15 @@ def test_shortcuts_leave_native_controls_alone(page):
     assert page.evaluate("window.matchlens.state.t") == 630
 
 
-def test_interactive_targets_are_at_least_24px(page):
-    _open(page, "?mode=analyst&t=5400")
+@pytest.mark.parametrize("query", ["?mode=analyst&t=5400", "?t=5400&view=lineups"])
+def test_interactive_targets_are_at_least_24px(page, query):
+    _open(page, query)
+    targets = (
+        "#markers button, #cards .chip, .shortcuts button, #view-toggle button, "
+        "#cards details.more > summary, #lineup .lp-dot"
+    )
     small = page.evaluate(
-        """[...document.querySelectorAll('#markers button, #cards .chip, .shortcuts button')]
+        f"""[...document.querySelectorAll('{targets}')]
              .filter((e) => e.getClientRects().length)  // rendered (not in a closed <details>)
              .map((e) => e.getBoundingClientRect())
              .filter((r) => r.width < 24 || r.height < 24).length"""
@@ -414,13 +419,20 @@ def test_narrow_screens_reflow_without_overlapping_markers(browser, base_url, wi
            })()"""
     )
     assert overlaps == 0  # buttons and non-interactive goal dots alike
-    pg.goto(base_url + "?t=60")  # long "Last event": 1' <team>: kick off (complete)
+    pg.goto(base_url + "?t=60&mode=analyst")  # long "Last event": 1' <team>: kick off (complete)
     pg.wait_for_selector("body[data-ready=true]")
     clipped = pg.evaluate(
         """[...document.querySelectorAll('.stats > div > span:last-child')]
              .filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.id)"""
     )
     assert clipped == []  # stat values wrap instead of being cut off with an ellipsis
+    pg.goto(base_url + "?t=5400")  # casual: the comparison bars, at their widest values
+    pg.wait_for_selector("body[data-ready=true]")
+    clipped = pg.evaluate(
+        """[...document.querySelectorAll('#bars .bar-val, #bars .bar-label')]
+             .filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent)"""
+    )
+    assert clipped == []
     pg.close()
 
 
@@ -1066,4 +1078,137 @@ def test_passing_panel_reflows_at_320px(browser, base_url, bundle):
     pg.wait_for_selector("body[data-ready=true]")
     assert pg.locator("#passing-panel").is_visible()
     assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pg.close()
+
+
+# --- Casual design: comparison bars, lineups, short cards ------------------------------------
+
+
+def _bar(page, key):
+    row = page.locator(f'#bars [data-bar="{key}"]')
+    return row.locator(".bar-val.home").text_content(), row.locator(".bar-val.away").text_content()
+
+
+def _team_final(bundle, side, name):
+    """A team total summed from its players' final running stats (matchlens.players)."""
+    total = 0
+    for p in bundle["players"]["players"]:
+        stat = next(s for s in p["stats"] if s["name"] == name)
+        if p["team"] == side and stat["steps"]:
+            total += stat["steps"][-1][1]
+    return total
+
+
+def test_casual_bars_show_the_team_stats_as_they_stood(page, bundle):
+    _open(page, "?t=0")
+    assert page.locator("#bars").is_visible() and page.locator("#stats").is_hidden()
+    assert _bar(page, "shots") == ("0", "0") and _bar(page, "pass_acc") == ("–", "–")
+    for t in (600, 2700, 4862, bundle["duration_s"]):  # in step with the analyst tiles
+        page.evaluate(f"window.matchlens.seek({t})")
+        assert " – ".join(_bar(page, "shots")) == page.text_content("#stat-shots")
+        assert " – ".join(_bar(page, "xg")) == page.text_content("#stat-xg")
+        assert " – ".join(_bar(page, "pass_acc")) == page.text_content("#stat-pass")
+    for key, name in (
+        ("on_target", "shots_on_target"),
+        ("pressures", "pressures"),
+        ("ball_wins", "ball_wins"),
+    ):
+        home, away = (_team_final(bundle, side, name) for side in ("home", "away"))
+        assert _bar(page, key) == (str(home), str(away))
+    sr = page.locator('#bars [data-bar="xg"] .sr-only').text_content()
+    assert "synthetic heuristic, not calibrated" in sr and bundle["meta"]["home"]["name"] in sr
+    page.click('.mode-toggle [data-mode="analyst"]')
+    assert page.locator("#bars").is_hidden() and page.locator("#stats").is_visible()
+
+
+def test_lineups_show_both_squads_and_only_goals_already_scored(page, bundle):
+    goal, scorer = _scorer(bundle)
+    _open(page, f"?view=lineups&t={goal['clock_s'] - 1}")
+    assert page.locator("#lineup").is_visible() and page.locator("#pitch").is_hidden()
+    assert page.get_attribute("#view-lineups", "aria-pressed") == "true"
+    assert page.locator("#lower-third").is_hidden()  # the graphic belongs to the live view
+    squads = [p for side in ("home", "away") for p in bundle["meta"][side]["players"]]
+    assert page.locator("#lineup .lp").count() == len(squads) == 22
+    shape = {
+        side: "-".join(
+            str(sum(p["position"] == pos for p in bundle["meta"][side]["players"]))
+            for pos in ("DF", "MF", "FW")
+        )
+        for side in ("home", "away")
+    }
+    assert shape["home"] in page.text_content("#lineup-home")
+    assert shape["away"] in page.text_content("#lineup-away")
+    one = page.locator(f'#lineup .lp[data-player-id="{scorer["player_id"]}"]')
+    assert f"#{scorer['number']} {scorer['name']}" in one.get_attribute("aria-label")
+    assert one.locator(".lp-goal").count() == 0  # not yet
+    page.evaluate(f"window.matchlens.seek({goal['clock_s']})")
+    assert one.locator(".lp-goal").count() == 1
+    assert "1 goal" in one.get_attribute("aria-label")
+    page.evaluate(f"window.matchlens.seek({bundle['duration_s']})")
+    assert page.locator("#lineup .lp-goal").count() == sum(bundle["final_score"])
+    page.click("#view-live")
+    assert page.locator("#pitch").is_visible() and page.locator("#lineup").is_hidden()
+
+
+def test_a_lineup_player_can_be_followed_by_click_or_keyboard(page, bundle):
+    goal, scorer = _scorer(bundle)
+    _open(page, f"?view=lineups&t={goal['clock_s']}")
+    sel = f'#lineup .lp[data-player-id="{scorer["player_id"]}"]'
+    page.click(sel)
+    assert page.input_value("#player") == scorer["player_id"]
+    assert page.locator("#player-panel").is_visible()
+    assert page.get_attribute(sel, "aria-pressed") == "true"
+    assert scorer["name"] in page.locator(".card .features").first.text_content()
+    page.focus(sel)  # the lineup re-rendered: the same player keeps the focus
+    page.keyboard.press("Space")
+    assert page.evaluate("window.matchlens.state.playing") is False  # Space acts on the player
+    assert page.input_value("#player") == ""
+    assert page.locator("#player-panel").is_hidden()
+    page.keyboard.press("Enter")
+    assert page.input_value("#player") == scorer["player_id"]
+    assert page.evaluate("document.activeElement.dataset.playerId") == scorer["player_id"]
+    page.click("#view-live")
+    assert page.locator("#trail .player-pos").count() == 1  # their last touch, on the live pitch
+
+
+def _lead(card):
+    lines = [f for f in card["facts"] if f["role"] != "chain"]
+    return next((f for f in lines if f["role"] == "why"), lines[0]), len(lines) - 1
+
+
+def test_casual_cards_lead_with_why_and_fold_the_rest(page, bundle):
+    _open(page, f"?t={bundle['duration_s']}")
+    cards = bundle["cards"]["casual"]
+    for card in cards:
+        art = page.locator(f"#cards [data-card-id='{card['card_id']}']")
+        lead, rest = _lead(card)
+        shown = art.locator(":scope > ul.facts > li")
+        assert shown.count() == 1
+        assert lead["text"] in shown.first.text_content()
+        more = art.locator("details.more")
+        if rest:
+            assert more.locator("summary").text_content() == f"More ({rest})"
+            assert more.get_attribute("open") is None  # folded until asked
+            assert more.locator("ul.facts > li").count() == rest
+        else:
+            assert more.count() == 0
+    folded = next(c for c in cards if _lead(c)[1])
+    summary = page.locator(f"#cards [data-card-id='{folded['card_id']}'] details.more > summary")
+    summary.click()
+    assert _poll(page, f"window.matchlens.state.openMore.has({folded['card_id']!r})")
+    page.evaluate(f"window.matchlens.seek({bundle['duration_s'] - 1})")  # cards re-render
+    reopened = page.locator(f"#cards [data-card-id='{folded['card_id']}'] details.more")
+    assert reopened.get_attribute("open") is not None  # stays open across re-renders
+    page.click('.mode-toggle [data-mode="analyst"]')
+    assert page.locator("#cards details.more").count() == 0  # analyst cards show every line
+
+
+def test_lineups_and_bars_reflow_at_320px(browser, base_url):
+    pg = browser.new_page(viewport={"width": 320, "height": 800})
+    pg.goto(base_url + "?t=5400&view=lineups")
+    pg.wait_for_selector("body[data-ready=true]")
+    assert pg.locator("#lineup").is_visible() and pg.locator("#bars").is_visible()
+    assert pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    # Names would be unreadably small: numbers only, each name still in the player's label.
+    assert pg.evaluate("getComputedStyle(document.querySelector('.lp-name')).display") == "none"
     pg.close()
