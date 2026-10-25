@@ -19,7 +19,16 @@ Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or 
 - **Verified:** `python -m pytest -q` (with `MATCHLENS_CHROMIUM=/opt/pw-browsers/chromium` for e2e) -> 646 passed, 3 skipped; `ruff check .` and `ruff format --check .` clean. New tests: `tests/test_recap.py` (lines equal their card lines with IDs; goals complete on seeds 100–129; no recap without a full-time card; every personalized variant covers every recap line; CLI), summary tests in `tests/test_agent.py` (pinned 77' wording), e2e (shortcut, causality, copy to clipboard, JSON download, uk/away variant with `lang`, 320 px reflow, folded claims).
 - **Known, for the human language review:** the Ukrainian recap shows the recorded rewrites as they are, so tenses differ between goal lines ("забив" / "забиває"), and the headline and one line stay in English because their rewrites were rejected.
 - **Not deployed:** the public hosts still serve `v1.1-submission`. After merge: both deploy workflows, then a new submission tag if this version is submitted.
-- **Next:** README/SUBMISSION for the judges (Enterprise category, deployment path, screenshots, diagram); operator: draft video, human review of the shown Ukrainian lines.
+- **PR:** #24 (this checkpoint).
+- **README for the judges (same branch, after #24):**
+  - The top now says who MatchLens is for (a studio editor or stream producer) and what they get, with a screenshot.
+  - New "How it works" Mermaid diagram (pipeline and the three agents).
+  - New "From demo to production" section for **Best Enterprise Solution**, now the entered category (decided 2026-10-25): controls already in place, the Azure deployment diagram, a pilot plan with what to measure (stated as questions, nothing measured), and the gaps before production (live-feed adapter, Entra ID instead of an API key, telemetry, native-speaker review).
+  - Wording tightened where it overclaimed: AI wording "labelled wherever it appears"; overlay cues fit a live feed, but no feed adapter exists; the smoke tests never press the paid button.
+  - `docs/SUBMISSION.md`: new pitch, category decision, the images for the form, and an updated checklist (new tag needed; end of judging in Vienna time).
+- **Images** (`docs/images/`, from the local static build): `comeback.png`, `ai-check.png`, `fan-uk.png`, `recap.png`, `on-air.png`, `architecture-pipeline.png`, `architecture-azure.png`. Diagrams rendered with mermaid-cli 11.4.2 from the README's Mermaid source. No tool is added to the project.
+- **Accessibility re-run:** axe-core 4.10.2 on five new states (recap: en, uk/away, analyst, phone; AI check with all `<details>` open): 0 violations ([ACCESSIBILITY](ACCESSIBILITY.md)).
+- **Next:** merge -> both deploys -> smoke; new submission tag. Operator: draft video, human review of the shown Ukrainian lines, Innovation Studio form (category: Best Enterprise Solution).
 
 ## Checkpoint (2026-10-24): pass quality and tempo (improvement 3 of 3)
 - **Player focus published:** PR #20 squash-merged as `8339d96`. SWA [run 40128356758](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128356758) and Pages [run 40128358841](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128358841) succeeded, including smoke.

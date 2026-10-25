@@ -9,9 +9,9 @@ The form asks for a pitch, the Microsoft technologies used, a public GitHub link
 - **Demo video:** *add the YouTube/Vimeo URL*
 
 ## Elevator pitch
-MatchLens AI turns synthetic football match events into explainable match intelligence that can be checked line by line. Every card says why a moment matters (a comeback, an equaliser, what a missed chance would have meant) and cites the events it comes from. Cards appear only once their evidence exists, so they can sit beside a live feed. The same intelligence becomes two different experiences: a story-first view for casual fans, in English, German or Ukrainian and from either club's side, and an analyst view with event chains, metrics and an evidence inspector. It is also exported as timed overlay JSON that a broadcast lower-third plays in OBS or vMix.
+MatchLens AI is explainable match intelligence for the people who put words on screen: a studio editor or stream producer who has to say why a moment matters without risking a wrong number on air. From synthetic football match events it builds a card for every key moment that says why it matters (a comeback, an equaliser, what a missed chance would have meant) and cites the events it comes from. Cards appear only once their evidence exists. The same facts become two different experiences: a story-first view for casual fans, in English, German or Ukrainian and from either club's side, and an analyst view with event chains, metrics and an evidence inspector. They also go out as timed overlay JSON that a broadcast lower-third plays in OBS or vMix, and as a full-time recap to copy or download with its sources.
 
-Three Microsoft Foundry agents do the language work. A claim agent explores the match with read-only tools and proposes structured claims; a personalizer rewrites fan cards for a language and a club; a critic reviews each rewrite for meaning. Deterministic checks decide what is published, and rejections from the checks or the critic go back once with reasons. The critic is measured against a labelled run, and its misses are published. The problem it solves is trust: a broadcaster or league cannot put model output on screen unless every number and name is traceable, and MatchLens makes that the default.
+Facts are rendered from structured data, never written by a model. Three Microsoft Foundry agents work around them: a claim agent explores the match with read-only tools and proposes structured claims that a deterministic validator accepts or rejects; a personalizer rewrites fan cards for a language and a club; a critic reviews each rewrite for meaning. Rejections go back once with reasons, each claim check says in plain words what was rejected and why, and AI wording is always labelled; the on-air graphic shows template facts only. The problem it solves is trust: a broadcaster or league cannot put model output on screen unless every number and name is traceable. MatchLens makes that the default, with the controls an enterprise rollout needs (an audit trail of recorded runs, fail-closed spend limits, smoke tests) and a pilot plan that states what is still missing.
 
 ## Microsoft technologies
 - **Microsoft Foundry:** Azure OpenAI `gpt-4.1-mini`, Responses API v1, function calling and strict JSON-schema outputs, `store: false`. Three agents (claim agent, personalizer, critic), plus recorded live runs with response IDs (`docs/evidence/`).
@@ -34,11 +34,21 @@ No account, sign-in or API key is needed. Everything runs in the browser. The da
 To run locally (Python 3.11+, no runtime dependencies): `pip install -e . && python -m matchlens serve`, then open <http://127.0.0.1:8000/>.
 
 ## Category
-The README maps MatchLens to the Grand Prize and to Best Use of Microsoft Foundry, Best Multi-Agent System and Best Azure Cloud Native Integration. The category chosen in the form is the operator's decision. The strongest evidence is the Foundry integration: three agents, validator- and critic-gated publishing, and recorded and live runs with response IDs.
+Enter **Best Enterprise Solution** (with the Grand Prize). Decided on 2026-10-25: the description asks for "a clear path to enterprise adoption, balancing innovation with the reliability, transparency, and controls required for use in production", and that is MatchLens's case. The README's [From demo to production](../README.md#from-demo-to-production) section is written for it: the controls already in place, the Azure deployment, a pilot plan and the gaps before production. If the form takes a second category, Best Use of Microsoft Foundry is the next fit.
+
+## Images for the form
+From `docs/images/` (taken from the local static build of this version):
+1. `comeback.png`: the replay at 81', with the comeback card and the lower-third.
+2. `ai-check.png`: the 77' claim check, with the plain summary above the claim list.
+3. `fan-uk.png`: the fan view in Ukrainian, following Eastvale.
+4. `recap.png`: the match recap at full time.
+5. `on-air.png`: the on-air lower-third.
+6. `architecture-pipeline.png` and `architecture-azure.png`: the two diagrams from the README.
 
 ## Before pressing submit
 - [ ] Video under 2:00, public on YouTube or Vimeo, link in the form and in `README.md`.
 - [ ] Both demo URLs open in a private window (no sign-in).
-- [ ] The repository is public and the tag `v1.1-submission` is visible.
+- [ ] The repository is public and the submission tag is visible. `v1.1-submission` (`c79b15e`) predates the match recap; tag the deployed version again before submitting it.
+- [ ] Category in the form: Best Enterprise Solution.
 - [ ] The project page shows as submitted, not as a draft.
-- [ ] Keep both hosts up through 10 November 2026 (daily smoke test on both).
+- [ ] Keep both hosts up through the end of judging, 10 November 2026 23:59 PT (11 November 08:59 Vienna); the daily smoke test covers both, but not the paid live-check button.
