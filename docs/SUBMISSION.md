@@ -3,7 +3,7 @@
 The form asks for a pitch, the Microsoft technologies used, a public GitHub link, a public demo video under 2 minutes, and testing instructions. All texts below are in English, ready to paste.
 
 ## Links
-- **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag [`v1.1-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.1-submission), commit `c79b15e` (the earlier tag `v1.0-submission` is `2b9da2a`).
+- **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag [`v1.2-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.2-submission), commit `6f8556b` (earlier tags: `v1.1-submission` is `c79b15e`, `v1.0-submission` is `2b9da2a`).
 - **Demo (primary, Azure):** <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>
 - **Demo (backup, GitHub Pages, static only):** <https://vbabenko97.github.io/matchlens-ai/>
 - **Demo video:** *add the YouTube/Vimeo URL*
@@ -48,7 +48,7 @@ From `docs/images/` (taken from the local static build of this version):
 ## Before pressing submit
 - [ ] Video under 2:00, public on YouTube or Vimeo, link in the form and in `README.md`.
 - [ ] Both demo URLs open in a private window (no sign-in).
-- [ ] The repository is public and the submission tag is visible. `v1.1-submission` (`c79b15e`) predates the match recap; tag the deployed version again before submitting it.
+- [ ] The repository is public and the tag `v1.2-submission` is visible. If code changes again before submitting, deploy and tag again.
 - [ ] Category in the form: Best Enterprise Solution.
 - [ ] The project page shows as submitted, not as a draft.
 - [ ] Keep both hosts up through the end of judging, 10 November 2026 23:59 PT (11 November 08:59 Vienna); the daily smoke test covers both, but not the paid live-check button.
