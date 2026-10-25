@@ -187,7 +187,11 @@ MatchLens is entered for the Grand Prize and for Best Enterprise Solution; the o
 - The synthetic data is football-realistic in structure: 11-a-side squads with positions, possession chains, passes, pressures, tackles, shots, scores and pitch coordinates over two halves. Its dynamics are simplified (no fouls, set pieces beyond restarts, substitutions or player skill; see [DATA_MODEL](docs/DATA_MODEL.md)), and its rates are tuned only to look plausible. Synthetic xG is an uncalibrated heuristic. Synthetic xPass is built from the generator's own pass rules, so it matches the simulated outcomes by construction (within 1 % over seeds 100–129) and proves nothing about real football. The generator gives players no passing skill, so "completed minus xPass" is luck. Ball speed is not shown: event times are drawn at random, independent of distance.
 - The live Foundry check covers the demo match's analyst cards only. Elsewhere the demo match replays recorded runs (claim agent, personalizer and critic); the five extra matches use the offline proposer and template wording, with no AI at all.
 - The personalizer checker verifies numbers, score order, names, `xG` and script, not meaning. The critic reviews meaning but is a model too: it misses errors and raises false alarms (measured below), and it does not check tone. The page says so on every rewritten card.
-- An editorial review of the published run ([file](docs/evidence/personalize-review-v2-2026-10-24.json)), done by Claude Code (the AI coding assistant) and not checked by a human, rejected 12 lines that passed both the checker and the critic, mostly German and Ukrainian language errors. Those lines show the English fact. The recorded trace itself is unchanged.
+- Two editorial reviews of the published run ([file](docs/evidence/personalize-review-v3-2026-10-25.json)) rejected 30 lines that passed both the checker and the critic. Both reviews were done by AI, and no human has checked either one:
+  - Claude Code (the AI coding assistant) rejected 12, mostly German and Ukrainian language errors;
+  - a second model (ChatGPT, run by the operator) read the 68 Ukrainian lines that were left and rejected 18, mostly literal calques of football phrases, plus one added detail ("підкат" for a tackle).
+
+  Those lines show the English fact, so 50 of the 87 Ukrainian lines remain rewrites. The recorded trace itself is unchanged. No native speaker has reviewed the German or Ukrainian text.
 - The per-visitor limit relies on forgeable headers. The spend cap is the shared daily count.
 - Microsoft Agent Framework, MCP and Fabric are not used; the agents call the Responses API directly.
 
@@ -248,13 +252,17 @@ The replay UI has a scoreboard, a pitch view of the latest ball events, a timeli
 - `xG` kept, the right script, no Russian-only letters in Ukrainian, no markup.
 
 Lines that pass go to the critic agent (`src/matchlens/critic.py`, one call per card and attempt). A line rejected by the checker or the critic goes back once with the reasons; still rejected, the English fact is shown with `lang="en"`.
-- **Editorial review.** Claude Code (the AI coding assistant that built this project) also read every line that passed the checker and the critic against its source. No human has checked this review. The 12 lines it rejected are listed with reasons in [personalize-review-v2-2026-10-24.json](docs/evidence/personalize-review-v2-2026-10-24.json). The build applies the review to the exact text it names and fails if it no longer matches.
-- **On the page.** 26 of 232 lines show the English fact: 4 rejected by the checker, 10 by the critic, 12 by the editorial review.
+- **Editorial review.** Two AI reviewers read the lines that passed the checker and the critic against their sources; no human has checked either review.
+  - Claude Code (the AI coding assistant that built this project) read every such line and rejected 12.
+  - ChatGPT, a second model run by the operator, then read the 68 Ukrainian lines still shown and rejected 18.
+  - The 30 rejections are listed with reasons and reviewer in [personalize-review-v3-2026-10-25.json](docs/evidence/personalize-review-v3-2026-10-25.json).
+  - The build applies the review to the exact text it names and fails if it no longer matches.
+- **On the page.** 44 of 232 lines show the English fact: 4 rejected by the checker, 10 by the critic, 30 by the editorial reviews.
 - **Recording:** `python -m matchlens personalize-review --out <trace>` (critic on; `--no-critic` for the personalizer alone); replay with `--personalize-trace <trace> --editorial-review <review>`. The published run took 90 personalizer calls and 89 critic calls (about 91,000 tokens in total).
 
 <a id="the-critic-measured"></a>**The critic, measured.** Two checks, both small; neither proves the critic generalizes.
 - **Against a labelled run** ([critic-eval-2026-10-24.json](docs/evidence/critic-eval-2026-10-24.json); `python -m matchlens critic-eval --from <file>` re-scores it). The critic judged the 220 lines of the first, critic-free run that passed the checker. Claude Code's review had rejected 12 of them. The critic caught 8 (recall 0.67) and raised 13 false alarms (precision 0.38); most false alarms object to tone words, a few are plain misreadings. The prompt names categories of error only and was not tuned on these lines, so this is a regression check, not a benchmark.
-- **In the loop.** With the critic, the editorial review still rejected 12 lines (of 218), as many as without it (12 of 220), but of a different kind: added details in English went from 5 to 1, while German and Ukrainian language errors remain (for example "Голі" for "Голи"). The critic's own 10 kept lines include some of its false alarms, so a correct rewrite sometimes falls back to English.
+- **In the loop.** With the critic, the first editorial review still rejected 12 lines (of 218), as many as without it (12 of 220), but of a different kind: added details in English went from 5 to 1, while German and Ukrainian language errors remain (for example "Голі" for "Голи"). The critic's own 10 kept lines include some of its false alarms, so a correct rewrite sometimes falls back to English. A second AI review of the Ukrainian lines then rejected 18 more that the checker, the critic and the first review had let through. Language errors are the critic's blind spot.
 
 **Claim agent.** `python -m matchlens agent-review --seed 1` runs one bounded Foundry agent per analyst card, with tools `list_metrics`, `get_metric` and `get_events`. In the [recorded run](docs/evidence/agent-trace-2026-10-24.json) (`gpt-4.1-mini`, 19 calls, 27 tool calls), the validator rejected a claim at 77' that cited the wrong events, and the retry was verified.
 

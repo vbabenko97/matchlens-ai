@@ -84,7 +84,8 @@ Verified locally against independent static hosts: the app server, a plain stati
 - `docs/evidence/critic-eval-2026-10-24.json` (19:23 UTC): 56 critic calls over 220 lines; against the 12 editorial rejections, 8 caught, 4 missed, 13 false alarms (recall 0.667, precision 0.381). `critic-eval --from` reproduces these numbers.
 - `docs/evidence/personalize-trace-v2-2026-10-24.json` (19:40 UTC): 90 personalizer calls (35,444 in / 9,934 out tokens) and 89 critic calls (37,906 in / 7,620 out); 34 of 56 cards retried. Of 232 lines, 4 are kept by the checker and 10 by the critic.
 - Its editorial review, `docs/evidence/personalize-review-v2-2026-10-24.json` (by Claude Code, not checked by a human), rejects 12 of the 218 accepted lines, so 26 of 232 lines show English.
-- Both deploy workflows replay the v2 trace with that review.
+- `docs/evidence/personalize-review-v3-2026-10-25.json` supersedes it. It keeps those 12 rejections and adds 18 more from a second AI review of the Ukrainian lines (ChatGPT, run by the operator; not checked by a human), so 44 of 232 lines show English.
+- Both deploy workflows replay the v2 trace with the v3 review.
 
 The steps, for a re-run. Two runs, with the same `AZURE_OPENAI_*` variables as for `personalize-review`. Both print what they find, and neither writes a file unless the run is acceptable evidence.
 
