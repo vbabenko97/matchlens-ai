@@ -10,7 +10,23 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-25): event-by-event processing (`matchlens stream`)
+## Latest checkpoint (2026-10-25): live-check telemetry for Application Insights
+- **Goal:** close the README gap "no telemetry" for **Best Enterprise Solution** without a new dependency: the live endpoint should show in production what it did, what it cost and why it refused.
+- **What was built:**
+  - `log_telemetry` / `telemetry_record` (`live.py`): one log line per `POST /api/live-check`, refused or not: `matchlens.live_check ` + JSON (`matchlens.live-telemetry/v1`). Outcome, reason, error type, known card ID only, handler time; once a run starts, model calls, tokens and HTTP 429 answers; for a live run also latency, claims proposed and rejected per attempt, facts published, response IDs, checks left today.
+  - The deadline wrapper counts calls, tokens and 429s at the transport, so a run that fails half-way reports what it spent. Such fallbacks, and live replies, now carry `spent`; the page ignores it.
+  - Warning for server-side failures (5xx and `counter_unavailable`), Information otherwise; `daily_limit` is the cap working, not a fault.
+  - `api/host.json`: default stays Warning; `Host.Results` (requests table) and `Function.live_check.User` (our lines) at Information. Without this, Application Insights would have shown failures only.
+  - `docs/telemetry.kql`: four queries (every request; live checks per day with p50/p95, tokens, retries, first-attempt rejections, 429s; fallback reasons with what failed runs spent; the host's request record joined by `operation_Id`).
+- **Verified:**
+  - New tests in `tests/test_live.py` (7): the live record matches the reply call by call (4 calls, 480/120 tokens, claims rejected `[1, 0]`, response IDs); key, endpoint, client address, its hash, an unknown card ID and extra request text never reach the log; a deadline after one answered call logs a Warning with 1 call and its tokens; a 429 wait past the deadline logs `rate_limited: 1`; refusals before any model call log no spending, with the right level; `host.json` levels; every field the KQL file reads exists in a record; a failing telemetry record never breaks the reply (the paid answer still arrives, with a Warning the queries skip).
+  - Mutation check: dropping the `counter_unavailable` Warning or the token count fails the tests.
+  - Full suite: `python -m pytest -q` (e2e on local Chromium, `azure-functions` installed) gives 699 passed, 2 skipped; `ruff check .` and `ruff format --check .` are clean.
+- **Docs:** README (a row in "Controls already in place", "Before production" now says what is still missing: alerts, dashboard, tracing per Foundry call, no telemetry from static pages), DEPLOYMENT ("Telemetry of the live check": what is and is not recorded, operator steps, troubleshooting), SUBMISSION checklist.
+- **Not verified:** nothing on Azure yet. Application Insights is not enabled, so no record has been collected. README and SUBMISSION do not list Application Insights as in use until the operator steps below are done.
+- **Next (operator):** after merge, enable Application Insights on the Static Web App, run the Azure deploy, send the free `telemetry-probe` request and check query 1 ([DEPLOYMENT](DEPLOYMENT.md), "Telemetry of the live check"); then a screenshot for `docs/images/telemetry.png`, and a docs update that lists Application Insights.
+
+## Checkpoint (2026-10-25): event-by-event processing (`matchlens stream`)
 - **Goal (plan of 2026-10-25, timeboxed):** close the gap to challenge §4.1(a) "ingest … as they happen" without a new generator, an external provider, cloud infrastructure or a model call per event.
 - **Readiness criterion:** a new event arrives, changes the state, and produces a result that did not exist before. Met: `feed | stream -` prints each card as the event that completes it arrives, with the running score.
 - **What was built:**

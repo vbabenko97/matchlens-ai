@@ -49,6 +49,7 @@ From `docs/images/` (taken from the local static build of this version):
 - [ ] Video under 2:00, public on YouTube or Vimeo, link in the form and in `README.md`.
 - [ ] Both demo URLs open in a private window (no sign-in).
 - [ ] The code is final and deployed (both deploy runs green, smoke included), and the video was recorded from that version.
+- [ ] Application Insights: enabled on the Static Web App and checked with the free `telemetry-probe` request ([DEPLOYMENT](DEPLOYMENT.md), "Telemetry of the live check"). Only then add it to "Microsoft technologies" above; otherwise leave it out.
 - [ ] Tag the final version once: `git fetch origin main && git tag -a v1.3-submission FETCH_HEAD -m "Submission version" && git push origin v1.3-submission`. The repository is public and the tag is visible. A docs-only commit after the tag needs no new tag.
 - [ ] Category in the form: Best Enterprise Solution.
 - [ ] The project page shows as submitted, not as a draft.

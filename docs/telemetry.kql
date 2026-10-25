@@ -1,0 +1,56 @@
+// MatchLens live-check telemetry: queries for Application Insights → Monitoring → Logs.
+// Each POST /api/live-check writes one trace: "matchlens.live_check " and then JSON
+// (schema matchlens.live-telemetry/v1, written by matchlens.live.log_telemetry).
+// Server-side failures have severityLevel 2 (Warning), everything else 1 (Information).
+// Run one query at a time: put the cursor in it and press Run.
+
+// 1. Every request, newest first.
+traces
+| where message has "matchlens.live_check"
+| extend e = parse_json(substring(message, indexof(message, "{")))
+| project timestamp, severityLevel,
+    http_status = toint(e.http_status), status = tostring(e.status),
+    reason = tostring(e.reason), error_type = tostring(e.error), card_id = tostring(e.card_id),
+    elapsed_ms = toint(e.elapsed_ms), model_calls = toint(e.model_calls),
+    input_tokens = toint(e.input_tokens), output_tokens = toint(e.output_tokens),
+    rate_limited = toint(e.rate_limited), claims_proposed = e.claims_proposed,
+    claims_rejected = e.claims_rejected, remaining_today = toint(e.remaining_today),
+    operation_Id
+| order by timestamp desc
+
+// 2. Live checks per UTC day: latency, tokens, and how often the validator sent claims back.
+traces
+| where message has "matchlens.live_check"
+| extend e = parse_json(substring(message, indexof(message, "{")))
+| where tostring(e.status) == "live"
+| summarize checks = count(),
+    p50_s = percentile(toint(e.elapsed_ms), 50) / 1000.0,
+    p95_s = percentile(toint(e.elapsed_ms), 95) / 1000.0,
+    tokens = sum(toint(e.input_tokens) + toint(e.output_tokens)),
+    retried = countif(array_length(e.claims_proposed) > 1),
+    rejected_first_attempt = sum(toint(e.claims_rejected[0])),
+    http_429 = sum(toint(e.rate_limited))
+    by day = startofday(timestamp)
+| order by day desc
+
+// 3. Why checks did not run or finish, and what the runs that failed still spent.
+traces
+| where message has "matchlens.live_check"
+| extend e = parse_json(substring(message, indexof(message, "{")))
+| where tostring(e.status) != "live"
+| summarize requests = count(), model_calls = sum(toint(e.model_calls)),
+    tokens = sum(toint(e.input_tokens) + toint(e.output_tokens))
+    by status = tostring(e.status), reason = tostring(e.reason), http_status = toint(e.http_status)
+| order by requests desc
+
+// 4. The host's request record next to each telemetry line (server duration, result code).
+requests
+| where name == "live_check"
+| join kind=leftouter (
+    traces
+    | where message has "matchlens.live_check"
+    | extend e = parse_json(substring(message, indexof(message, "{")))
+    | project operation_Id, status = tostring(e.status), reason = tostring(e.reason)
+    ) on operation_Id
+| project timestamp, resultCode, duration, status, reason
+| order by timestamp desc
