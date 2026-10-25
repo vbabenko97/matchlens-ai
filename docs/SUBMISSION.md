@@ -40,7 +40,7 @@ Enter **Best Enterprise Solution** (with the Grand Prize). Decided on 2026-10-25
 From `docs/images/` (taken from the local static build of this version):
 1. `comeback.png`: the replay at 81', with the comeback card and the lower-third.
 2. `ai-check.png`: the 77' claim check, with the plain summary above the claim list.
-3. `fan-uk.png`: the fan view in Ukrainian, following Eastvale.
+3. `fan-uk.png`: the fan view in Ukrainian, following Eastvale, at the 81' comeback. Lines whose rewrite was rejected stay in English.
 4. `recap.png`: the match recap at full time.
 5. `on-air.png`: the on-air lower-third.
 6. `architecture-pipeline.png` and `architecture-azure.png`: the two diagrams from the README.
