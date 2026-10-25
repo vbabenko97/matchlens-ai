@@ -52,7 +52,14 @@ Update this file after verified work. A task is done only when the acceptance ch
   - Tag once: `v1.3-submission` is created on `main` right before the form is submitted, after the last code change and the video.
   - The docs name that tag without a commit SHA, so no docs PR follows a tag, and a docs-only commit after the tag needs no new tag.
   - Deploy runs are not recorded in separate PRs; the Actions history keeps them.
-- **Next (operator):** human review of the Ukrainian lines in Tab B; record the video; tag `v1.3-submission` and submit the form (category: Best Enterprise Solution).
+- **Second review of the Ukrainian lines (2026-10-25):**
+  - The operator had ChatGPT review the 68 Ukrainian rewrites (an AI review; the report itself says it must not be labelled as human-checked). It flagged 18.
+  - Applied as option A, rejections only: `docs/evidence/personalize-review-v3-2026-10-25.json` keeps the 12 rejections by Claude Code and adds the 18, each entry naming its reviewer.
+  - 44 of 232 lines now show English (4 checker, 10 critic, 30 editorial); 50 of 87 Ukrainian lines remain rewrites.
+  - Corrected wording was not substituted: it would be text no Foundry agent wrote or the critic checked.
+  - The video's Ukrainian shot moves to the 81' card for Eastvale fans (3 Ukrainian lines of 5). After the review, the full-time card for Eastvale fans is mostly English.
+  - README, DEPLOYMENT and VIDEO_SCRIPT say who reviewed and that no human did.
+- **Next (operator):** record the video; tag `v1.3-submission` and submit the form (category: Best Enterprise Solution). Optional: a Ukrainian speaker reads the 50 remaining lines; only then may the docs say a human checked them.
 
 ## Checkpoint (2026-10-25): match recap and a plain claim-check summary
 Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or frameworks before the deadline; make the existing value obvious to a judge.

@@ -1,0 +1,281 @@
+{
+ "schema": "matchlens.personalize-review/v1",
+ "trace": "docs/evidence/personalize-trace-v2-2026-10-24.json",
+ "reviewed_on": "2026-10-25",
+ "reviewer": "Two AI reviews at the operator's request; not checked by a human. Claude Code (the AI coding assistant), 2026-10-24: every line that passed check_line and the critic. ChatGPT (a second AI model, run by the operator), 2026-10-25: the 68 Ukrainian lines shown after the first review.",
+ "scope": "Every line of the v2 trace (critic in the loop) that passed check_line and the critic (218 of 232), read against its English source fact. Second review: the Ukrainian lines still shown after the first one (68 of 87).",
+ "rule": "Same rule as the first (v1) review: reject a rewrite that adds a detail not in the fact, changes its meaning, overstates the data, or is not correct, idiomatic language. Tone and point of view alone are allowed. A rejected line shows its English source on the page, marked as kept. The second review applies the same rule; most of its rejections are literal calques of football phrases ('comeback', 'so close', 'chance saved'), wrong prepositions or endings, and one added detail ('підкат' for a tackle).",
+ "supersedes": "docs/evidence/personalize-review-v2-2026-10-24.json",
+ "rejections": [
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "en",
+   "focus": "away",
+   "index": 3,
+   "text": "The goal started with a ball-winning tackle followed by 6 precise passes.",
+   "reason": "adds detail not in the fact (\"precise\" passes)",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "home",
+   "index": -1,
+   "text": "Full time: Eastvale Athletic drehen das Spiel und gewinnen 2-3",
+   "reason": "not correct language: English words (\"Full time\") in a German title",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "home",
+   "index": 1,
+   "text": "Ugo Vale erzielte den Siegtreffer in der 81. Minute, nachdem sein Schuss in der 38. Minute großartig pariert wurde.",
+   "reason": "adds detail not in the fact (\"großartig\" pariert)",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "de",
+   "focus": "away",
+   "index": 2,
+   "text": "Das Tor entstand direkt aus einer abgefangenen Aktion.",
+   "reason": "not correct language: \"abgefangenen Aktion\" is not an idiomatic way to say interception",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "de",
+   "focus": "away",
+   "index": 3,
+   "text": "Northbridge Rovers hatten mehr Schüsse (14–11), aber Eastvale Athletic die besseren Chancen (synthetisches xG, ein Heuristik: 3.04 gegen 2.05).",
+   "reason": "not correct language: grammar error \"ein Heuristik\"",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "home",
+   "index": -1,
+   "text": "Майже для Eastvale Athletic!",
+   "reason": "not correct language: \"Майже для\" does not mean \"so close for\"",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "home",
+   "index": -1,
+   "text": "Нічия Eastvale Athletic",
+   "reason": "changes the meaning: \"Нічия\" reads as a drawn match, not as drawing level",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 1,
+   "text": "На 71-й хвилині Eastvale Athletic поступалися 2-1. Голі на 77-й і 81-й хвилинах змінили рахунок.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Northbridge Rovers поступалися 0-1 на 5-й хвилині. Голі на 56-й та 71-й хвилинах змінили хід гри.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Eastvale Athletic відставали 2-1 на 71-й хвилині. Голі на 77-й та 81-й хвилинах змінили хід матчу.",
+   "reason": "not a Ukrainian word: \"Голі\" (should be \"Голи\")",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "away",
+   "index": 2,
+   "text": "Ведучий гол змінювався двічі.",
+   "reason": "changes the meaning: \"Ведучий гол змінювався двічі\" (the leading goal changed twice) for \"the lead changed hands twice\"",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 3,
+   "text": "Northbridge Rovers зробили більше ударів (14–11), але Eastvale Athletic мали кращі шанси за synthetic xG (3.04 проти 2.05).",
+   "reason": "not correct language: English \"synthetic\" in a Ukrainian line",
+   "reviewer": "Claude Code"
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "home",
+   "index": -1,
+   "text": "Eastvale Athletic забиває першими",
+   "reason": "grammar: singular 'забиває' with plural 'першими' (should be 'забивають першими')",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-00089",
+   "lang": "uk",
+   "focus": "away",
+   "index": 2,
+   "text": "Гол був забитий після перехоплення.",
+   "reason": "drops 'straight from': 'після перехоплення' loses the immediacy ('одразу після перехоплення')",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": -1,
+   "text": "Так близько для Eastvale Athletic!",
+   "reason": "literal calque 'Так близько для …', unnatural as a football headline",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "away",
+   "index": -1,
+   "text": "Так близько для Eastvale Athletic!",
+   "reason": "literal calque 'Так близько для …', unnatural as a football headline",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:big_chance_missed:ml1-00591",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 1,
+   "text": "Рахунок залишається 0-1; гол міг подвоїти лідерство Eastvale Athletic.",
+   "reason": "unnatural collocation 'подвоїти лідерство' (a goal doubles the 'перевагу')",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-00871",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Northbridge Rovers зрівнюють рахунок на 1-1 через 51 хвилину після пропущеного голу.",
+   "reason": "unnatural construction 'зрівнюють рахунок на 1-1'",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": -1,
+   "text": "Комбек! Northbridge Rovers вийшли вперед",
+   "reason": "misspelling 'Комбек' (Ukrainian football usage: 'камбек')",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "away",
+   "index": -1,
+   "text": "Повернення у грі! Northbridge Rovers виходять уперед",
+   "reason": "literal calque 'Повернення у грі' for 'comeback'",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "home",
+   "index": 0,
+   "text": "Hugo Elmswick забив у 71-й хвилині: 2-1.",
+   "reason": "preposition: 'у 71-й хвилині' (a match minute takes 'на 71-й хвилині')",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01112",
+   "lang": "uk",
+   "focus": "away",
+   "index": 1,
+   "text": "Northbridge Rovers поступалися 0-1 на 5-й хвилині, але голи на 56-й і 71-й повернули результат.",
+   "reason": "literal calque 'повернули результат' for 'turned it around'",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "home",
+   "index": 0,
+   "text": "Teo Kestrel забив на 77 хвилині: 2-2.",
+   "reason": "ordinal without its ending: 'на 77 хвилині' (should be 'на 77-й хвилині')",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01206",
+   "lang": "uk",
+   "focus": "neutral",
+   "index": 1,
+   "text": "Eastvale Athletic зрівнюють рахунок на 2-2 через 6 хвилин після пропущеного голу.",
+   "reason": "unnatural construction 'зрівнюють рахунок на 2-2'",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "away",
+   "index": -1,
+   "text": "Повернення в грі! Eastvale Athletic вийшли вперед",
+   "reason": "literal calque 'Повернення в грі' for 'comeback'",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:goal:ml1-01253",
+   "lang": "uk",
+   "focus": "home",
+   "index": 3,
+   "text": "Комбінація почалась із підкату, що повернув м’яч, потім було 6 передач.",
+   "reason": "adds detail: 'підкат' (a sliding tackle) where the fact only says a tackle won the ball",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "home",
+   "index": -1,
+   "text": "Eastvale Athletic відіграються та перемагають 2-3",
+   "reason": "wrong tense ('відіграються' is future) and drops 'Full time'",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "home",
+   "index": 1,
+   "text": "Ugo Vale забив переможний гол на 81-й хвилині після того, як великий шанс був відбитий на 38-й.",
+   "reason": "calque 'великий шанс був відбитий': a shot is saved, not a chance",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "away",
+   "index": 1,
+   "text": "Ugo Vale забив переможний гол на 81-й хвилині після того, як великий шанс було відбито на 38-й.",
+   "reason": "calque 'великий шанс було відбито': a shot is saved, not a chance",
+   "reviewer": "ChatGPT"
+  },
+  {
+   "card_id": "casual:full_time:ml1-01399",
+   "lang": "uk",
+   "focus": "away",
+   "index": 3,
+   "text": "Northbridge Rovers били більше (14–11), але Eastvale Athletic мали кращі шанси за синтетичним xG (3.04 проти 2.05).",
+   "reason": "drops 'a heuristic' from the synthetic xG note",
+   "reviewer": "ChatGPT"
+  }
+ ]
+}

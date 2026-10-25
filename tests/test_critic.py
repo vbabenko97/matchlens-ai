@@ -355,7 +355,7 @@ def test_the_published_run_replays_with_the_critic_and_the_review(match, cards):
     results = personalize_cards(match, cards, proposer)
     lines = [ln for r in results for ln in r.lines]
     assert len(lines) == 232
-    assert _kept_by(lines) == {"checker": 4, "critic": 10, "editorial": 12}
+    assert _kept_by(lines) == {"checker": 4, "critic": 10, "editorial": 30}
     assert all(r.critic == "recorded_foundry_critic" for r in results)
     rewritten = [(r.lang, ln.text) for r in results for ln in r.lines if ln.status == VERIFIED]
     bad = (*BAD_PHRASES, "precise passes", "ein Heuristik")
