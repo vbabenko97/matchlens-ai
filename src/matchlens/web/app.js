@@ -37,13 +37,14 @@ const $ = (id) => document.getElementById(id);
 const state = {
   bundle: null, t: 0, playing: false, speed: 60, mode: "casual",
   selected: [], lastFrame: null, cardsKey: "", eventsById: new Map(),
-  openChains: new Set(), spotlight: null, // UI state kept across card re-renders
+  openChains: new Set(), openReviews: new Set(), spotlight: null, // UI state kept across card re-renders
   announced: { cards: -1, mode: "", fullTime: false }, announceTimer: null,
   live: {}, // card_id -> { pending } | { ok, message, review? }: live Foundry checks this visit
   index: null, entry: null, // data/matches.json and the match shown (null on older exports)
   variant: "en|neutral", // personalizer variant "lang|focus" (casual cards); en|neutral = source
   player: null, playerKey: "", // focused player (bundle.players record) and its rendered state
   passingKey: "",
+  recapOpen: false, recapKey: "", recapReturn: null, // match recap panel and where focus goes on close
 };
 
 const LANG_NAME = { en: "English", de: "Deutsch", uk: "Українська" };
@@ -357,6 +358,12 @@ function renderCard(card, isActive) {
   (loc ? loc.facts : card.facts).filter((f) => f.role !== "chain").forEach((f) => facts.appendChild(factItem(f, analyst)));
   art.appendChild(facts);
   if (loc) art.appendChild(el("p", { class: "hint personalized-note" }, personalizedNote(loc)));
+  if (card.kind === "full_time" && state.bundle.recap) {
+    const open = el("button", { type: "button", class: "recap-open", "data-recap-open": card.card_id });
+    open.append(el("span", { "aria-hidden": "true" }, "▤ "), "Match recap: copy or download");
+    open.addEventListener("click", openRecap);
+    art.appendChild(open);
+  }
 
   // Analyst: the move event by event, folded so the card reads as an explanation first.
   const chain = card.facts.filter((f) => f.role === "chain");
@@ -471,17 +478,26 @@ function verdictItem(r, v, published) {
   return li;
 }
 
-// Claim check: every proposed claim with the validator's verdict, attempt by attempt. Only
-// ✓ claims and corrections rendered from computed metrics are published; the browser decides nothing.
+// Claim check: a plain summary first (built in Python from the verdicts), then every proposed
+// claim with the validator's verdict, attempt by attempt, folded unless this is the demo's
+// spotlighted card. Only ✓ claims and corrections rendered from computed metrics are
+// published; the browser decides nothing.
 function renderReview(r, spotlight) {
   const sec = el("section", { class: `review${spotlight ? " spotlight" : ""}`, "aria-label": "Claim check", tabindex: "-1", "data-review": r.card_id });
   sec.appendChild(el("h4", {}, "Claim check"));
+  if (r.explanation && r.explanation.length) sec.appendChild(el("p", { class: "explain" }, r.explanation.join(" ")));
   sec.appendChild(el("p", { class: "hint" }, r.proposer_label));
   if (r.fallback_reason) sec.appendChild(el("p", { class: "warn" }, r.fallback_reason));
   sec.appendChild(el("p", { class: "summary" }, reviewSummary(r)));
+  const det = el("details", { class: "claims" });
+  det.open = spotlight || state.openReviews.has(r.card_id);
+  det.addEventListener("toggle", () => {
+    if (det.open) state.openReviews.add(r.card_id); else state.openReviews.delete(r.card_id);
+  });
+  det.appendChild(el("summary", {}, "Claim by claim: the validator's reasons and the response IDs"));
   const calls = r.attempts.flatMap((a) => a.calls);
   if (calls.length) {
-    sec.appendChild(el("p", { class: "hint" },
+    det.appendChild(el("p", { class: "hint" },
       "The agent proposes structured claims (metric, value, event IDs) using read-only tools " +
       "that see the match only up to this card; the validator accepts or rejects each one, and " +
       "rejections go back to the agent once. Only verified claims are published."));
@@ -490,7 +506,7 @@ function renderReview(r, spotlight) {
     ids.appendChild(el("summary", {},
       `${r.attempts.length} attempt(s), ${calls.length} model call(s), ${tools} tool call(s): response IDs`));
     ids.appendChild(el("p", { class: "hint" }, calls.map((c) => c.response_id).join(", ")));
-    sec.appendChild(ids);
+    det.appendChild(ids);
   }
   const published = new Set(r.published.map((f) => f.text));
   const groups = r.attempts.map((_, i) => [
@@ -500,11 +516,12 @@ function renderReview(r, spotlight) {
   groups.push(["Test claim — deliberately wrong", r.verdicts.filter((v) => v.source === INJECTED)]);
   for (const [title, verdicts] of groups) {
     if (!verdicts.length) continue;
-    sec.appendChild(el("h5", {}, title));
+    det.appendChild(el("h5", {}, title));
     const list = el("ul", { class: "verdicts" });
     verdicts.forEach((v) => list.appendChild(verdictItem(r, v, published)));
-    sec.appendChild(list);
+    det.appendChild(list);
   }
+  sec.appendChild(det);
   for (const n of r.notes) sec.appendChild(el("p", { class: "warn" }, n));
   return sec;
 }
@@ -607,6 +624,177 @@ function renderCards() {
   } else {
     lt.hidden = true;
   }
+}
+
+// --- Match recap: lines of the casual cards (matchlens.recap), never new wording ---
+
+const RECAP_LINE_STATUS = { verified: "verified_fact", rewrite: "ai_rewrite_checked", kept: "english_fact_kept" };
+const RECAP_GOALS = { en: "Goals", de: "Tore", uk: "Голи" }; // section label (UI text, not a fact)
+const recapLang = () => (state.mode === "casual" ? state.variant.split("|")[0] : "en");
+
+// One recap line in the chosen language and club, as localized() does for a card: the checked
+// rewrite, or the English fact when the rewrite was rejected.
+function recapLine(line, role) {
+  const f = {
+    text: line.text, kind: line.kind, event_ids: line.event_ids, metric_ids: line.metric_ids,
+    role, card_id: line.card_id, index: line.index, status: RECAP_LINE_STATUS.verified,
+  };
+  const p = state.bundle.personalized;
+  if (state.mode !== "casual" || !p || state.variant === "en|neutral") return f;
+  const v = p.variants[state.variant];
+  const rec = v && v.cards[line.card_id];
+  const ln = rec && rec.lines.find((l) => l.index === line.index);
+  if (!ln) return { ...f, lang: "en" };
+  if (ln.status !== "verified") return { ...f, text: ln.text, lang: "en", status: RECAP_LINE_STATUS.kept };
+  return { ...f, text: ln.text, lang: v.lang, rewritten: true, status: RECAP_LINE_STATUS.rewrite };
+}
+
+function recapView() {
+  const r = state.bundle.recap;
+  return {
+    headline: recapLine(r.headline, "headline"),
+    summary: r.summary.map((ln) => recapLine(ln, "why")),
+    goals: r.goals.map((ln) => recapLine(ln, "what")),
+  };
+}
+
+// Who wrote the shown wording: empty for the English source (verified facts only).
+function recapNote(view) {
+  const p = state.bundle.personalized;
+  if (state.mode !== "casual" || !p || state.variant === "en|neutral") return "";
+  const lines = [view.headline, ...view.summary, ...view.goals];
+  const rewritten = lines.filter((f) => f.rewritten).length;
+  const kept = lines.length - rewritten;
+  const run = p.proposers.includes("recorded_foundry_personalizer") ? "recorded run" : "live";
+  const critic = (p.critics || []).length ? " and meaning reviewed by a critic agent (also AI)" : "";
+  return `${rewritten} of ${lines.length} lines are AI rewrites by the Microsoft Foundry personalizer ` +
+    `(${run}), with numbers and names checked against the English facts${critic}` +
+    (kept ? `; ${kept} stay in English because the rewrite was rejected.` : ".");
+}
+
+// Plain text for copying; for the English source it equals matchlens.recap.format_recap.
+function recapText(view = recapView()) {
+  const r = state.bundle.recap;
+  const parts = [view.headline.text, view.summary.map((f) => f.text).join(" ")];
+  if (view.goals.length) parts.push([RECAP_GOALS[recapLang()] || "Goals", ...view.goals.map((f) => `- ${f.text}`)].join("\n"));
+  const note = recapNote(view);
+  if (note) parts.push(note);
+  parts.push(`Synthetic match ${r.match_id} (seed ${r.seed}) between fictional teams. ` +
+    "Every line is checked against the match events; synthetic xG is a heuristic, not calibrated.");
+  return `${parts.join("\n\n")}\n`;
+}
+
+function renderRecap() {
+  const r = state.bundle.recap;
+  if (r && state.recapOpen && state.t < r.publish_clock_s) state.recapOpen = false; // no recap before full time
+  const shown = !!r && state.recapOpen;
+  $("recap").hidden = !shown;
+  if (!shown) { state.recapKey = ""; return; }
+  const key = [state.mode, state.variant, state.selected.join(",")].join("|");
+  if (key === state.recapKey) return;
+  state.recapKey = key;
+  const body = $("recap-body");
+  const a = document.activeElement;
+  const attr = a && body.contains(a) && ["data-event-id", "data-metric-id"].find((n) => a.hasAttribute(n));
+  const refocus = attr ? `[${attr}="${CSS.escape(a.getAttribute(attr))}"]` : null;
+  const view = recapView();
+  const analyst = state.mode === "analyst";
+  body.replaceChildren(el("h3", view.headline.lang ? { lang: view.headline.lang } : {}, view.headline.text));
+  const summary = el("ul", { class: "facts", "aria-label": "Summary" });
+  view.summary.forEach((f) => summary.appendChild(factItem(f, analyst)));
+  body.appendChild(summary);
+  if (view.goals.length) {
+    const lang = RECAP_GOALS[recapLang()] ? recapLang() : "en";
+    body.appendChild(el("h4", { lang }, RECAP_GOALS[lang]));
+    const goals = el("ul", { class: "facts", "aria-label": "Goals" });
+    view.goals.forEach((f) => goals.appendChild(factItem(f, analyst)));
+    body.appendChild(goals);
+  }
+  const note = recapNote(view);
+  if (note) body.appendChild(el("p", { class: "hint personalized-note" }, note));
+  if (refocus) {
+    const target = body.querySelector(refocus);
+    if (target) target.focus();
+  }
+}
+
+// Scroll the card panel (desktop) or the page (narrow layout) to a node and focus it.
+function reveal(node) {
+  const side = node.closest(".side");
+  if (side.scrollHeight > side.clientHeight + 1) {
+    side.scrollTop += node.getBoundingClientRect().top - side.getBoundingClientRect().top - 8;
+  } else {
+    node.scrollIntoView({ block: "start" });
+  }
+  node.focus({ preventScroll: true });
+}
+
+function openRecap(ev) {
+  const r = state.bundle.recap;
+  state.recapReturn = ev && ev.currentTarget && ev.currentTarget.id ? ev.currentTarget.id : "jump-recap";
+  setPlaying(false);
+  state.recapOpen = true;
+  state.recapKey = "";
+  $("recap-status").textContent = "";
+  seek(Math.max(state.t, r.publish_clock_s));
+  reveal($("recap"));
+}
+
+function closeRecap() {
+  state.recapOpen = false;
+  render();
+  const back = $(state.recapReturn) || $("jump-recap");
+  if (back && !back.hidden) back.focus();
+}
+
+// A visible status line under the buttons, also spoken through the page's one status region.
+function recapStatus(text) {
+  $("recap-status").textContent = text;
+  announce(text);
+}
+
+async function copyRecap() {
+  try {
+    await navigator.clipboard.writeText(recapText());
+    recapStatus("Recap copied as plain text.");
+  } catch (err) {
+    recapStatus("This browser blocked copying; use Recap JSON instead.");
+  }
+}
+
+// The shown recap with its sources: one entry per line, with event and metric IDs.
+function downloadRecap() {
+  const r = state.bundle.recap;
+  const { home, away } = state.bundle.meta;
+  const [lang, focus] = state.mode === "casual" ? state.variant.split("|") : ["en", "neutral"];
+  const view = recapView();
+  const line = (f) => ({
+    text: f.text, lang: f.lang || "en", status: f.status, kind: f.kind,
+    event_ids: f.event_ids, metric_ids: f.metric_ids, card_id: f.card_id, index: f.index,
+  });
+  const doc = {
+    schema: "matchlens.recap-export/v1",
+    match_id: r.match_id, seed: r.seed, synthetic: true,
+    home: home.name, away: away.name, final_score: state.bundle.final_score,
+    published_at_match_s: r.publish_clock_s, lang, focus,
+    wording: recapNote(view) || "Verified facts rendered from structured event data; no AI wording.",
+    headline: line(view.headline), summary: view.summary.map(line), goals: view.goals.map(line),
+    text: recapText(view),
+  };
+  const url = URL.createObjectURL(new Blob([`${JSON.stringify(doc, null, 2)}\n`], { type: "application/json" }));
+  const a = el("a", { href: url, download: `matchlens-recap-${r.match_id}-${lang}-${focus}.json` });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  recapStatus("Recap JSON downloaded: every line with its event and metric IDs.");
+}
+
+function bindRecap() {
+  if (!state.bundle.recap) return;
+  $("recap-copy").addEventListener("click", copyRecap);
+  $("recap-download").addEventListener("click", downloadRecap);
+  $("recap-close").addEventListener("click", closeRecap);
 }
 
 // --- Player focus: precomputed running stats (matchlens.players), shown as they stood now ---
@@ -900,6 +1088,7 @@ function render() {
   renderPassing(idx);
   renderPlayer(idx);
   renderCards();
+  renderRecap();
   $("seek").value = String(Math.floor(state.t));
   $("seek").setAttribute("aria-valuetext", `${fmtClock(state.t)}, ${$("period").textContent}`);
   const fullTime = state.t >= state.bundle.duration_s;
@@ -971,26 +1160,20 @@ function showAiCheck(target) {
   state.spotlight = target.card_id;
   seek(target.publish_s);
   const sec = document.querySelector(`[data-review="${CSS.escape(target.card_id)}"]`);
-  if (!sec) return;
-  const side = sec.closest(".side");
-  if (side.scrollHeight > side.clientHeight + 1) { // desktop: scroll the card panel only
-    side.scrollTop += sec.getBoundingClientRect().top - side.getBoundingClientRect().top - 8;
-  } else {
-    sec.scrollIntoView({ block: "start" });
-  }
-  sec.focus({ preventScroll: true });
+  if (sec) reveal(sec);
 }
 
-function bindShortcuts(h) {
-  const add = (id, label, action, play) => {
+function bindShortcuts(h, recap) {
+  const add = (id, label, action, glyph) => {
     const b = $(id);
-    b.replaceChildren(el("span", { "aria-hidden": "true" }, play ? "▶ " : "✓ "), document.createTextNode(label));
+    b.replaceChildren(el("span", { "aria-hidden": "true" }, glyph), document.createTextNode(label));
     b.hidden = false;
     b.addEventListener("click", action);
   };
-  if (h.turning_point) add("jump-turning", h.turning_point.label, () => { seek(h.turning_point.start_s); setPlaying(true); }, true);
-  if (h.ai_check) add("jump-ai", h.ai_check.label, () => showAiCheck(h.ai_check), false);
-  $("shortcuts").hidden = !(h.turning_point || h.ai_check);
+  if (h.turning_point) add("jump-turning", h.turning_point.label, () => { seek(h.turning_point.start_s); setPlaying(true); }, "▶ ");
+  if (h.ai_check) add("jump-ai", h.ai_check.label, () => showAiCheck(h.ai_check), "✓ ");
+  if (recap) add("jump-recap", "Match recap (full time)", openRecap, "▤ ");
+  $("shortcuts").hidden = !(h.turning_point || h.ai_check || recap);
 }
 
 function bindControls() {
@@ -1110,7 +1293,8 @@ function init(bundle, index, entry) {
   $("stat-pass-tile").hidden = !bundle.passing;
   bindMatchPicker(index, entry);
   bindControls();
-  bindShortcuts(bundle.highlights || {});
+  bindShortcuts(bundle.highlights || {}, bundle.recap);
+  bindRecap();
   const params = new URLSearchParams(location.search);
   bindPersonalize(params);
   bindPlayerPicker(params);
@@ -1122,7 +1306,7 @@ function init(bundle, index, entry) {
   document.body.dataset.ready = "true";
 }
 
-window.matchlens = { state, seek, setMode, setPlaying };
+window.matchlens = { state, seek, setMode, setPlaying, recapText };
 
 // The match index is optional (older exports have none); without it, the default bundle.
 async function load() {

@@ -123,7 +123,19 @@
       <div class="shortcuts" id="shortcuts" role="group" aria-label="Demo shortcuts" hidden>
         <button type="button" id="jump-turning" class="primary" hidden></button>
         <button type="button" id="jump-ai" hidden></button>
+        <button type="button" id="jump-recap" hidden></button>
       </div>
+      <section class="recap" id="recap" aria-labelledby="recap-heading" tabindex="-1" hidden>
+        <h2 id="recap-heading">Match recap</h2>
+        <p class="hint">Built only from the checked lines of the match cards, with no new wording: ready for a studio script, a post-match post or an end screen.</p>
+        <div id="recap-body"></div>
+        <div class="recap-actions">
+          <button type="button" id="recap-copy">Copy recap</button>
+          <button type="button" id="recap-download"><span aria-hidden="true">⬇</span> Recap JSON<span class="sr-only"> (each line with its event and metric IDs)</span></button>
+          <button type="button" id="recap-close">Close</button>
+        </div>
+        <p class="hint" id="recap-status"></p>
+      </section>
       <p class="hint" id="cards-hint">Press play: a card appears with every goal and big chance, saying why it matters. Every line is checked against the match events.</p>
       <div id="cards"></div>
       <section class="inspector" id="inspector" hidden aria-label="Evidence inspector">

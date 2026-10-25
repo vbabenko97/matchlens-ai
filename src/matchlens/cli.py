@@ -51,6 +51,7 @@ from .personalize import (
 )
 from .personalize import build_trace as personalize_trace
 from .personalize import trace_problems as personalize_trace_problems
+from .recap import build_recap, format_recap
 from .replay import DEFAULT_DEMO_SEED, DEMO_EXTRA_SEEDS, build_bundle, demo_extra_bundles, dumps
 from .schema import AWAY, HOME
 from .server import export_site, make_server
@@ -154,6 +155,9 @@ def _main(argv: list[str] | None = None) -> int:
     crd.add_argument("--limit", type=int, default=None, help="first N card moments")
     crd.add_argument("--json", action="store_true", help="emit JSON instead of text")
     crd.add_argument("--offline", action="store_true", help="ignore Azure settings")
+    rcp = sub.add_parser("recap", help="the match recap built from the verified casual cards")
+    rcp.add_argument("path", type=Path)
+    rcp.add_argument("--json", action="store_true", help="emit JSON (lines with their IDs)")
     demo = sub.add_parser("demo", help="generate a match and print casual and analyst cards")
     demo.add_argument("--seed", type=int, default=42)
     demo.add_argument("--limit", type=int, default=3)
@@ -355,6 +359,17 @@ def _main(argv: list[str] | None = None) -> int:
             print("\n\n".join(format_card(c) for c in card_set.cards))
             for moment_id, reason in card_set.suppressed:
                 print(f"suppressed {moment_id}: {reason}")
+        return 0
+    if args.command == "recap":
+        recap = build_recap(match, build_cards(match, CASUAL, OfflineTemplateProvider()).cards)
+        if recap is None:
+            print("no recap: the match has no full-time card", file=sys.stderr)
+            return 1
+        if args.json:
+            json.dump(recap, sys.stdout, indent=1, ensure_ascii=False)
+            sys.stdout.write("\n")
+        else:
+            sys.stdout.write(format_recap(recap))
         return 0
     if args.command == "overlays":
         provider = _provider(args.offline)

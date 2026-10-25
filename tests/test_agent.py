@@ -35,6 +35,8 @@ from matchlens.agent import (
     OfflineProposer,
     RecordedProposer,
     check_claim,
+    describe_events,
+    explain_review,
     format_review,
     get_events,
     get_metric,
@@ -465,6 +467,69 @@ def test_failed_retry_drops_the_rejected_claims(match, goal):
     assert any(t.startswith("Northbridge Rovers — Shots: 3") for t in texts)
 
 
+# --- Plain-language summary -----------------------------------------------------------------
+
+
+def test_describe_events_counts_kinds_in_order(match):
+    by_id = {e.event_id: e for e in match.events}
+    ids = ["ml1-01202", "ml1-01203", "ml1-01205", "ml1-01206"]  # the 77' move
+    assert describe_events([by_id[i] for i in ids]) == "a tackle, 2 passes and a goal"
+    kinds = {e.type: e for e in match.events}
+    assert describe_events([kinds["interception"]]) == "an interception"
+    assert describe_events([kinds["recovery"]] * 2) == "2 recoveries"
+
+
+def test_summary_tells_the_retry_story_in_plain_words(match, goal):
+    proposer = FoundryAgentProposer(_config(), FakeResponses(_goal_script()))
+    review = review_card(match, goal, proposer)
+    assert review.explanation == (
+        "The Microsoft Foundry agent proposed 2 claims about this moment.",
+        "The checker rejected “Shots: 4”: the match events give 3.",
+        "The reason went back to the agent; on its second try it corrected “Shots” to 3, "
+        "and both claims checked out.",
+        "Only claims that pass the checker are published.",
+    )
+    assert "In short: The Microsoft Foundry agent proposed 2 claims" in format_review(review)
+
+
+def test_summary_names_corrections_fallbacks_and_test_claims(match, card_set, goal):
+    script = _goal_script()[:3] + [OSError("down")]
+    failed = review_card(match, goal, FoundryAgentProposer(_config(), FakeResponses(script)))
+    assert (
+        "For 1 claim still rejected, the value computed from the events is published instead."
+        in failed.explanation
+    )
+    down = review_card(match, goal, FoundryAgentProposer(_config(), FakeResponses([OSError()])))
+    assert down.explanation[0] == (
+        "The AI agent was unavailable, so an offline proposer (no AI) drafted 3 claims."
+    )
+    offline = {r.card_id: r for r in review_cards(match, card_set, OfflineProposer())}
+    assert offline[FIRST_GOAL].explanation == (
+        "No AI on this card: an offline proposer drafted 3 claims from its statistics.",
+        "The checker confirmed all 3 against the match events.",
+        "A test claim that is wrong on purpose, “Goals: 2”, was rejected: the match events "
+        "give 1, so the computed value is published instead.",
+        "Only claims that pass the checker are published.",
+    )
+
+
+def test_summary_explains_wrong_evidence_and_later_events(match, ctx):
+    def rejected(claim):
+        return check_claim(ctx, claim, FOUNDRY, 1)
+
+    wrong = rejected(Claim(SHOTS, 3, ("ml1-01111",)))  # a tackle is not a shot
+    late = rejected(Claim(SHOTS, 3, ("ml1-01166",)))  # after the card is published
+    unknown = rejected(Claim("home.magic", 1))
+    assert not (wrong.verified or late.verified or unknown.verified)
+    text = explain_review(ctx, FOUNDRY, [wrong, late, unknown], False, None)
+    assert (
+        "The checker rejected “Shots: 3”: the events it cited as evidence (a tackle) are not "
+        "counted by that statistic." in text
+    )
+    assert "The checker rejected “Shots: 3”: it cited events that had not happened yet." in text
+    assert "The checker rejected “home.magic”: no statistic of that name exists." in text
+
+
 # --- Recorded live runs -------------------------------------------------------------------
 
 
@@ -525,6 +590,15 @@ def test_committed_live_trace_is_acceptable_and_replays_exactly(match, card_set)
     assert "published instead" not in text
     injected = format_review(next(r for r in reviews if r.card_id == GOAL))
     assert "published instead: Northbridge Rovers — Goals: 2 (as of 71')" in injected
+    # The demo's plain summary of that self-correction, shown above the claim list.
+    assert fixed.explanation == (
+        "In a recorded run, the Microsoft Foundry agent proposed 4 claims about this moment.",
+        "The checker rejected “Pressures applied: 131”: the events it cited as evidence "
+        "(a tackle, 2 passes and a goal) are not counted by that statistic.",
+        "The reason went back to the agent; on its second try it cited 5 pressures for "
+        "“Pressures applied”, and all 4 claims checked out.",
+        "Only claims that pass the checker are published.",
+    )
 
 
 def test_public_builds_replay_the_committed_trace():

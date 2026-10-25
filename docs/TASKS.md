@@ -10,7 +10,27 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-24): pass quality and tempo (improvement 3 of 3)
+## Latest checkpoint (2026-10-25): match recap and a plain claim-check summary
+Plan agreed on 2026-10-25 (after a second review of the plan): no new agents or frameworks before the deadline; make the existing value obvious to a judge.
+- **Claim-check summary (`explain_review`, `src/matchlens/agent.py`):** each review gets `explanation`, a few sentences built from the verdicts and the as-of state, never by a model and never by parsing reason strings. For the 77' card: the checker rejected "Pressures applied: 131" because its evidence was a tackle, 2 passes and a goal; the retry cited 5 pressures and all 4 claims checked out. Offline, fallback, failed-retry and injected-claim cases have their own wording. The live endpoint returns it too (it uses `review_card`).
+- **UI:** the summary leads the claim check; the claim list is folded (`details.claims`), open on the spotlighted card and kept open across re-renders.
+- **Match recap (`src/matchlens/recap.py`, bundle key `recap`, `matchlens.recap/v1`):** the full-time card's title and why-lines plus each goal's scorer line, by `(card_id, index)`: no new wording, so the recorded language variants apply unchanged and the English source text of the cards (which the recorded personalizer trace does not pin) is not touched. Goal list empty unless complete. CLI: `matchlens recap match.jsonl [--json]`.
+- **UI:** **▤ Match recap (full time)** shortcut and a button on the full-time card; Copy recap (plain text, same as `format_recap` for English), Recap JSON (`matchlens.recap-export/v1`, every line with language, status and IDs), Close (focus returns). Hidden before full time. Status messages go through the page's one live region.
+- **Verified:** `python -m pytest -q` (with `MATCHLENS_CHROMIUM=/opt/pw-browsers/chromium` for e2e) -> 646 passed, 3 skipped; `ruff check .` and `ruff format --check .` clean. New tests: `tests/test_recap.py` (lines equal their card lines with IDs; goals complete on seeds 100–129; no recap without a full-time card; every personalized variant covers every recap line; CLI), summary tests in `tests/test_agent.py` (pinned 77' wording), e2e (shortcut, causality, copy to clipboard, JSON download, uk/away variant with `lang`, 320 px reflow, folded claims).
+- **Known, for the human language review:** the Ukrainian recap shows the recorded rewrites as they are, so tenses differ between goal lines ("забив" / "забиває"), and the headline and one line stay in English because their rewrites were rejected.
+- **Not deployed:** the public hosts still serve `v1.1-submission`. After merge: both deploy workflows, then a new submission tag if this version is submitted.
+- **PR:** #24 (this checkpoint).
+- **README for the judges (same branch, after #24):**
+  - The top now says who MatchLens is for (a studio editor or stream producer) and what they get, with a screenshot.
+  - New "How it works" Mermaid diagram (pipeline and the three agents).
+  - New "From demo to production" section for **Best Enterprise Solution**, now the entered category (decided 2026-10-25): controls already in place, the Azure deployment diagram, a pilot plan with what to measure (stated as questions, nothing measured), and the gaps before production (live-feed adapter, Entra ID instead of an API key, telemetry, native-speaker review).
+  - Wording tightened where it overclaimed: AI wording "labelled wherever it appears"; overlay cues fit a live feed, but no feed adapter exists; the smoke tests never press the paid button.
+  - `docs/SUBMISSION.md`: new pitch, category decision, the images for the form, and an updated checklist (new tag needed; end of judging in Vienna time).
+- **Images** (`docs/images/`, from the local static build): `comeback.png`, `ai-check.png`, `fan-uk.png`, `recap.png`, `on-air.png`, `architecture-pipeline.png`, `architecture-azure.png`. Diagrams rendered with mermaid-cli 11.4.2 from the README's Mermaid source. No tool is added to the project.
+- **Accessibility re-run:** axe-core 4.10.2 on five new states (recap: en, uk/away, analyst, phone; AI check with all `<details>` open): 0 violations ([ACCESSIBILITY](ACCESSIBILITY.md)).
+- **Next:** merge -> both deploys -> smoke; new submission tag. Operator: draft video, human review of the shown Ukrainian lines, Innovation Studio form (category: Best Enterprise Solution).
+
+## Checkpoint (2026-10-24): pass quality and tempo (improvement 3 of 3)
 - **Player focus published:** PR #20 squash-merged as `8339d96`. SWA [run 40128356758](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128356758) and Pages [run 40128358841](https://github.com/vbabenko97/matchlens-ai/actions/runs/40128358841) succeeded, including smoke.
 - **New `matchlens.passing` (`matchlens.passing/v1`, bundle key `passing`):** open-play passes only.
   - Facts: length, band, progress toward the goal centre (progressive >= 10 m), pressed, tempo.
