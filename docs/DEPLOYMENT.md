@@ -186,7 +186,7 @@ Operator steps:
      -H 'Content-Type: application/json' -d '{"card_id":"telemetry-probe"}'
    ```
    Expect `"status":"unknown_card"` (HTTP 404). After a few minutes, query 1 in [telemetry.kql](telemetry.kql) shows that request with `status` `unknown_card` and an empty `card_id`. Open *Application Insights → Monitoring → Logs*. If the page opens an **Agent** chat, switch the *Agent* toggle off and choose **KQL mode**.
-4. **[operator]** The next live call (for example the one in the video) appears with `status` `live`, its tokens, its claims rejected per attempt and its response IDs. Queries 2 and 3 give the daily view and the fallback reasons; query 4 puts the host's request record next to each line.
+4. **[operator]** The next live call (for example the one in the video) appears with `status` `live`, its tokens, its claims rejected per attempt and its response IDs. Queries 2 and 3 give the daily view and the fallback reasons; query 4 puts the host's request record next to each line; query 5 lists the live checks of the last 30 minutes, one row each, for a screen (the video's telemetry shot).
 5. **[operator]** Evidence for the judges: a screenshot of query 1 (`docs/images/telemetry.png`, 2026-10-25, the probe). README and SUBMISSION list Application Insights as in use since then. Optional: retake it after the video's live call, so it shows a `live` row with tokens and claims.
 
 If nothing appears after about 10 minutes: run `traces | where timestamp > ago(1h) | project timestamp, message, customDimensions.Category | take 50`. If the `matchlens.live_check` lines are missing but other traces arrive, the Functions host files them under another category: raise that category to Information in `api/host.json`.

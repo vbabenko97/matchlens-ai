@@ -135,7 +135,8 @@ def test_initial_state(page, bundle):
     assert page.locator("#cards .card").count() == 0  # no spoilers before kick-off
     disclosure = page.text_content("#disclosure")
     if bundle["provider"] == "offline_template":
-        assert "offline deterministic template" in disclosure
+        assert "wording comes from deterministic templates, not from a model" in disclosure
+        assert "not an Azure response" not in disclosure  # template wording is the design here
     else:
         assert "NOT verified" in disclosure
     assert page.locator("#markers .marker").count() >= 4
@@ -289,8 +290,10 @@ def test_disclosure_states_the_stream_check(page, bundle):
 def test_narrative_is_labelled_not_verified_as_fact(page):
     _open(page, "?t=5400")
     statuses = page.locator("#cards .narrative .status").all_text_contents()
-    allowed = ("Offline template · not an Azure response", "AI wording · NOT VERIFIED")
+    allowed = ("Template wording · no AI", "AI wording · NOT VERIFIED")
     assert statuses and all(s in allowed for s in statuses)
+    template = page.locator("#cards .narrative .status.template").first
+    assert "no model wrote this wording" in template.get_attribute("title")
     checks = page.locator("#cards .narrative .check").count()
     assert checks == 0  # ✓ marks only verified facts, never the narrative
 
@@ -917,7 +920,7 @@ def test_language_and_club_rewrite_the_casual_cards(page, personalized_base):
     assert "1 line(s) kept in English: the checker, the critic or the editorial review" in note
     chip = art.locator(".narrative .status").text_content()
     assert chip == "AI wording (Foundry personalizer) · numbers & names checked · critic-reviewed"
-    assert "Offline template" not in art.text_content()
+    assert "Template wording" not in art.text_content()
     assert "AI rewrite" in items.nth(1).locator(".sr-only").text_content()
     assert items.nth(0).locator(".sr-only").text_content().startswith("Verified")
     page.click(".mode-toggle button[data-mode=analyst]")  # analyst cards are never rewritten
