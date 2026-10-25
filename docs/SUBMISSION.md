@@ -17,6 +17,7 @@ Facts are rendered from structured data, never written by a model. Three Microso
 - **Microsoft Foundry:** Azure OpenAI `gpt-4.1-mini`, Responses API v1, function calling and strict JSON-schema outputs, `store: false`. Three agents (claim agent, personalizer, critic), plus recorded live runs with response IDs (`docs/evidence/`).
 - **Azure Static Web Apps:** hosting, plus a managed **Azure Functions** API (Python 3.11) for live Foundry checks.
 - **Azure Table Storage:** the shared daily spend cap, reserved before every model call.
+- **Application Insights:** one telemetry record per live-check request (outcome, timing, tokens, claims rejected per attempt), with ready-made KQL queries (`docs/telemetry.kql`).
 - **GitHub Actions:** CI on Python 3.11 and 3.13, deploys to both hosts, and Playwright smoke tests after every deploy and daily through 10 November.
 
 ## Testing instructions
@@ -44,12 +45,13 @@ From `docs/images/` (taken from the local static build of this version):
 4. `recap.png`: the match recap at full time.
 5. `on-air.png`: the on-air lower-third.
 6. `architecture-pipeline.png` and `architecture-azure.png`: the two diagrams from the README.
+7. `telemetry.png`: the live-check telemetry in Application Insights (Logs, query 1).
 
 ## Before pressing submit
 - [ ] Video under 2:00, public on YouTube or Vimeo, link in the form and in `README.md`.
 - [ ] Both demo URLs open in a private window (no sign-in).
 - [ ] The code is final and deployed (both deploy runs green, smoke included), and the video was recorded from that version.
-- [ ] Application Insights: enabled on the Static Web App and checked with the free `telemetry-probe` request ([DEPLOYMENT](DEPLOYMENT.md), "Telemetry of the live check"). Only then add it to "Microsoft technologies" above; otherwise leave it out.
+- [x] Application Insights: connected to the Static Web App and checked with the free `telemetry-probe` request on 2026-10-25 ([DEPLOYMENT](DEPLOYMENT.md), "Telemetry of the live check").
 - [ ] Tag the final version once: `git fetch origin main && git tag -a v1.3-submission FETCH_HEAD -m "Submission version" && git push origin v1.3-submission`. The repository is public and the tag is visible. A docs-only commit after the tag needs no new tag.
 - [ ] Category in the form: Best Enterprise Solution.
 - [ ] The project page shows as submitted, not as a draft.
