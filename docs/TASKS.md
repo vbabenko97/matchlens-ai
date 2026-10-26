@@ -10,7 +10,15 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-26): review fixes before the video
+## Latest checkpoint (2026-10-26): stream shot in the video, runner pinned
+- **Goal:** act on a second review before the video, without changing the app. The review's main code suggestion, cards for press wins, is not taken: seed 1 has 6 press wins next to its 7 cards, `story.py` has no "why" lines for them, the recorded personalizer and agent runs do not cover them, and the 77' press win is the build-up of the 77' goal.
+- **Video script.** The terminal shot (`matchlens feed --seed 1 --speed 120 | matchlens stream -`, 4 s) opens the 0:10–0:26 shot instead of being optional, so the video shows the match taken one event at a time, not only the replay. The voice-over for that shot is 33 words in 16 s. The quoted terminal lines (`76:44  event 1206 arrived: shot (goal), 2-2`, `▸ casual card published: Eastvale Athletic draw level`) were checked with `--speed 0`.
+- **Submission text.** The testing instructions say that the page replays a match processed in advance and that the stream processor gives the same cards one event at a time.
+- **CI runners.** `ubuntu-latest` is moving to Ubuntu 26 (run annotation since 2026-10-19), and the daily public smoke test runs through 2026-11-10. All jobs now name `ubuntu-24.04`, the image the last green runs used (CI run 40319566474).
+- **Verified:** `python -m pytest -q` gives 713 passed, 3 skipped (e2e on local Chromium); `ruff check .` and `ruff format --check .` pass. The app code is unchanged, so no redeploy is needed for the video; the pinned runner is checked by the CI run of this PR.
+- **Next:** unchanged from the checkpoint below.
+
+## Checkpoint (2026-10-26): review fixes before the video
 - **Goal:** fix what a review found before the video is recorded from the deployed version; no new feature.
 - **Lower-third on the pitch.** With a language and club chosen, it showed the personalizer's rewrite with no AI label (at `?t=4862&lang=uk&follow=away`, a Ukrainian line), although the README says AI wording is labelled wherever it appears. It now always shows the card's template title and first "why" fact, as `broadcast.html` does; the cards keep their language. A new e2e test checks the English title and "why" line at that URL; it fails on the old `app.js` on both local targets.
 - **`fan-uk.png` retaken** from the local static build (the Pages workflow's flags, written outside the repository), 1440×900, `?t=4862&lang=uk&follow=away`, Live play, **More (3)** open on the 81' card, Playwright's bundled Chromium (headless shell 1248).

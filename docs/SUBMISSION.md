@@ -21,7 +21,7 @@ Facts are rendered from structured data, never written by a model. Three Microso
 - **GitHub Actions:** CI on Python 3.11 and 3.13, deploys to both hosts, and Playwright smoke tests after every deploy and daily through 10 November.
 
 ## Testing instructions
-No account, sign-in or API key is needed. The replay runs in the browser; the live check in step 3 calls Microsoft Foundry through an Azure Function. The data is synthetic and the teams and players are fictional.
+No account, sign-in or API key is needed. The page replays a match processed in advance, in the browser; the live check in step 3 calls Microsoft Foundry through an Azure Function. The same cards also come from the stream processor, which takes the match one event at a time and publishes each card when its last evidence event arrives (command at the end of this section). The data is synthetic and the teams and players are fictional.
 
 1. Open <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/> and press **▶ Watch the comeback (77'–81')**. Insight cards appear as the moments happen; each leads with why it matters.
 2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. The claim check opens with a plain summary of a recorded Foundry agent run: the checker rejected one claim because its evidence did not fit the statistic, and the agent's retry was verified. The claim-by-claim list and the response IDs are below it. Click any event or metric ID on a card to inspect it and highlight it on the pitch.
