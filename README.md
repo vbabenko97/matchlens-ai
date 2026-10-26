@@ -277,7 +277,7 @@ Lines that pass go to the critic agent (`src/matchlens/critic.py`, one call per 
   - ChatGPT, a second model run by the project's operator, then read the 68 Ukrainian lines still shown and rejected 18.
   - The 30 rejections are listed with reasons and reviewer in [personalize-review-v3-2026-10-25.json](docs/evidence/personalize-review-v3-2026-10-25.json).
   - The build applies the review to the exact text it names and fails if it no longer matches.
-- **On the page.** 44 of 232 lines show the English fact: 4 rejected by the checker, 10 by the critic, 30 by the editorial reviews.
+- **On the page.** 52 of 232 lines show the English fact: 12 rejected by the checker, 10 by the critic, 30 by the editorial reviews. Eight of the checker's 12 are the rewrites of one line, the 56' move: its English fact was corrected after the run ("then 6 passes", not 7: the throw-in had been counted as one of the passes after it), and the rewrites still say 7.
 - **Recording:** `python -m matchlens personalize-review --out <trace>` (critic on; `--no-critic` for the personalizer alone); replay with `--personalize-trace <trace> --editorial-review <review>`. The published run took 90 personalizer calls and 89 critic calls (about 91,000 tokens in total).
 
 <a id="the-critic-measured"></a>**The critic, measured.** Two checks, both small; neither proves the critic generalizes.

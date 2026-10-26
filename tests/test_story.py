@@ -185,3 +185,42 @@ def test_unsupported_story_line_is_dropped_and_reported(match, monkeypatch):
         "goal:ml1-00089",
         "story line opener dropped: text does not match its cited events",
     ) in (card_set.suppressed)
+
+
+def _goals_upto(match, goal_id):
+    seq = next(e.seq for e in match.events if e.event_id == goal_id)
+    return [
+        e.event_id
+        for e in match.events
+        if e.seq <= seq and e.type == "shot" and e.outcome == "goal"
+    ]
+
+
+def test_a_team_that_led_after_trailing_is_back_in_front_not_a_comeback():
+    """Regression (seed 16): Eastvale went 1-0 down, led 1-3, were caught at 3-3 and scored
+    the 85' winner. The card said "Comeback!" and that goals in minutes 13, 16, 48 and 85
+    turned it around, although the comeback was complete by 16'."""
+    m = generate_match(16)
+    goal = "ml16-01269"
+    line = goal_story(m, goal)[0]
+    assert (line.kind, line.text) == ("back_in_front", "Eastvale Athletic are back in front, 3-4.")
+    assert line.event_ids == tuple(_goals_upto(m, goal)[1:])  # since it last trailed (2')
+    assert check_line(line, m, goal) == []
+    card = next(c for c in build_cards(m, CASUAL).cards if c.moment_id == f"goal:{goal}")
+    assert card.title == "Eastvale Athletic back in front"
+    # The old line renders honestly from its goals, but the checker now rejects it.
+    old = _forge(m, "comeback", "away", tuple(_goals_upto(m, goal)))
+    assert old.text.endswith("Goals in minutes 13, 16, 48 and 85 turned it around.")
+    assert check_line(old, m, goal) == ["cited events do not show a comeback"]
+
+
+def test_redemption_only_for_the_first_goal_after_the_missed_chance():
+    """Regression (seed 91): Dario Northcote's big chance was saved at 19' and he scored at
+    21'; his goals at 42' and 71' still said "this time it went in"."""
+    m = generate_match(91)
+    kinds = {g: [ln.kind for ln in goal_story(m, g)] for g in ("ml91-00313", "ml91-00633")}
+    assert kinds == {
+        "ml91-00313": ["opener", "redemption"],
+        "ml91-00633": ["extends_lead", "brace"],
+    }
+    assert "redemption" not in [ln.kind for ln in goal_story(m, "ml91-01075")]

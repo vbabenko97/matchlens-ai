@@ -12,9 +12,10 @@ to the moment's own event (``_goals_upto``), so a line never depends on later ev
 
 Kinds (``team`` is the side the line is about):
 - goal situation (exactly one per goal): ``opener``, ``equaliser``, ``comeback`` (takes the
-  lead after trailing), ``back_in_front`` (takes the lead again, never trailed),
-  ``extends_lead``, ``pulls_back``;
-- goal extras: ``redemption`` (the scorer missed a big chance earlier), ``brace``;
+  lead after trailing, without leading in between), ``back_in_front`` (takes the lead again,
+  having led since it last trailed, if it ever did), ``extends_lead``, ``pulls_back``;
+- goal extras: ``redemption`` (the scorer missed a big chance earlier and has not scored
+  since), ``brace``;
 - missed big chance: ``stakes`` (what a goal would have meant);
 - full time: ``ft_comeback`` or ``ft_result``, ``winner`` (the goal that won it),
   ``lead_changes``.
@@ -203,16 +204,20 @@ def goal_story(match: Match, goal_id: str) -> tuple[StoryLine, ...]:
         lines = [_line("equaliser", x, goals[start:], match)]
     elif m == 1:
         deepest = _deepest_in_last_spell(before, x)
-        if deepest is not None:
+        if deepest is not None and all(_margin(e, x) <= 0 for e in before[deepest:]):
             lines = [_line("comeback", x, goals[deepest:], match)]
-        else:  # took the lead from level without ever trailing: led before
-            lines = [_line("back_in_front", x, goals, match)]
+        else:  # took the lead from level, and had led since it last trailed (if ever)
+            trailed = [i for i, e in enumerate(before) if _margin(e, x) < 0]
+            lines = [_line("back_in_front", x, goals[trailed[-1] + 1 if trailed else 0 :], match)]
     elif m > 1:
         lines = [_line("extends_lead", x, [g], match)]
     else:
         lines = [_line("pulls_back", x, [g], match)]
     miss = _last_big_miss(match, g)
-    if miss is not None:
+    scored_since = miss is not None and any(
+        e.seq > miss.seq and e.team == x and e.player_id == g.player_id for e in before
+    )
+    if miss is not None and not scored_since:  # "this time it went in" only on the first goal
         lines.append(_line("redemption", x, [miss, g], match))
     if sum(e.team == x and e.player_id == g.player_id for e in goals) >= 2:
         lines.append(_line("brace", x, goals, match))
@@ -326,10 +331,11 @@ def _condition(kind: str, x: str, ev: Sequence[Event]) -> bool:
             and last.team == x
             and _margin(last, x) == 1
             and _margin(ev[-2], x) == 0
+            and all(_margin(e, x) <= 0 for e in ev[:-1])  # never led on the way back
         )
     if kind == "back_in_front":
         return (
-            _consecutive(ev, True)
+            _consecutive(ev, False)
             and last.team == x
             and _margin(last, x) == 1
             and len(ev) >= 2

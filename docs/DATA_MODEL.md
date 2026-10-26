@@ -70,8 +70,8 @@ Why a moment matters, as structured `StoryLine`s (`kind`, `team`, cited `event_i
 
 | moment | kinds |
 |---|---|
-| goal (exactly one situation) | `opener`, `equaliser` ("level it at 2-2, 6 minutes after going behind"), `comeback` (takes the lead after trailing: "were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around."), `back_in_front`, `extends_lead`, `pulls_back` |
-| goal (extras) | `redemption` (the scorer's earlier big chance was missed), `brace` |
+| goal (exactly one situation) | `opener`, `equaliser` ("level it at 2-2, 6 minutes after going behind"), `comeback` (takes the lead after trailing, without leading in between: "were 2-1 down in minute 71. Goals in minutes 77 and 81 turned it around."), `back_in_front`, `extends_lead`, `pulls_back` |
+| goal (extras) | `redemption` (the scorer's earlier big chance was missed, and the scorer has not scored since), `brace` |
 | missed big chance | `stakes` ("It stays 0-1; a goal would have doubled Eastvale Athletic's lead.") |
 | full time | `ft_comeback` or `ft_result`, `winner` (the goal that took the winner past the loser's final total), `lead_changes` |
 

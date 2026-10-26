@@ -99,6 +99,14 @@ def test_player_not_in_squad(match):
     _assert_rejected(_swap(match, idx, player_id="XXX-99"), "not in")
 
 
+def test_player_id_in_both_squads(match):
+    """Regression: the check compared set sizes per squad, so a shared ID passed."""
+    away = match.meta.away
+    twin = replace(away.players[0], player_id=match.meta.home.players[0].player_id)
+    meta = replace(match.meta, away=replace(away, players=(twin, *away.players[1:])))
+    _assert_rejected(replace(match, meta=meta), "unique across both squads")
+
+
 def test_xg_on_non_shot(match):
     idx = _first(match, lambda e: e.type == "pass")
     _assert_rejected(_swap(match, idx, xg_heuristic=0.2), "xg_heuristic only allowed")

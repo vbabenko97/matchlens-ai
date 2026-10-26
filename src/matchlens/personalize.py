@@ -296,6 +296,10 @@ class FoundryPersonalizer:
         return Draft(parse_draft(text), (_call_record(response, [], retries),))
 
 
+class NoRecordedRetry(LookupError):
+    """The recorded run made one attempt for this card, so there is no retry to replay."""
+
+
 class RecordedPersonalizer:
     """Replays the drafts of a recorded live run; every line is re-checked."""
 
@@ -334,7 +338,10 @@ class RecordedPersonalizer:
         return (card_id, lang, focus) in self._runs
 
     def propose(self, card, lang, focus, team_names, feedback=()) -> Draft:
-        rec = self._runs[(card.card_id, lang, focus)][1 if feedback else 0]
+        attempts = self._runs[(card.card_id, lang, focus)]
+        if feedback and len(attempts) < 2:  # the recheck rejects a line the run had accepted
+            raise NoRecordedRetry(f"{card.card_id} {lang}|{focus}")
+        rec = attempts[1 if feedback else 0]
         lines = {int(k): v for k, v in rec["lines"].items()}
         return Draft(lines, tuple(rec["calls"]))
 
@@ -403,6 +410,8 @@ def personalize_card(
             break
         try:
             draft = proposer.propose(card, lang, focus, teams, feedback)
+        except NoRecordedRetry:
+            break  # a replay, not a failure: rejected lines stay in English with their reasons
         except Exception as exc:  # network, HTTP, format: the type only, never content
             if strict:
                 raise
