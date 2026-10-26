@@ -68,7 +68,7 @@ def _parse_point(
     if value is None:
         return None
     if len(value) != 2 or not all(
-        isinstance(v, (int, float)) and not isinstance(v, bool) for v in value
+        isinstance(v, int | float) and not isinstance(v, bool) for v in value
     ):
         errors.append(f"{where}: '{name}' must be [x, y] numbers")
         return None

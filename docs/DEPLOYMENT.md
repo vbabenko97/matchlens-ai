@@ -133,7 +133,7 @@ Whenever a check is not made or does not finish, the reply gives a reason (`not_
 What the Azure-side settings do and do not do:
 - **Budget:** an alert only. Azure budgets do not stop spending, and cost data arrives with a delay ([Microsoft Learn: budgets](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/tutorial-acm-create-budgets)).
 - **TPM limit:** caps the request rate, not the total.
-- **The daily count (4) is what bounds spend.** One check is at most 12 model calls. The recorded run averaged ≈ 10K input / 0.5K output tokens per card. So 100 checks a day is about 1M input tokens, under $1/day at `gpt-4.1-mini` list prices (check current pricing); a runaway worst case is a few dollars a day.
+- **The daily count (4) is what bounds spend.** One check makes at most 24 generation requests: up to 6 per attempt, 2 attempts, and each request resent once when its answer is cut off. HTTP 429 and network retries can add more HTTP requests on top of these. The recorded run averaged ≈ 10K input / 0.5K output tokens per card. So 100 checks a day is about 1M input tokens, under $1/day at `gpt-4.1-mini` list prices (check current pricing). A check that uses every request costs more than this average; that worst case has not been measured.
 
 Operator steps:
 1. **[operator]** Create the **Free** Static Web App (Option A steps 1–2 above) and add `AZURE_STATIC_WEB_APPS_API_TOKEN`.

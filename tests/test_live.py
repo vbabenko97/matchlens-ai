@@ -498,6 +498,25 @@ def test_telemetry_never_holds_the_key_the_client_address_or_request_text(match,
         assert "<script>" not in line and "say hi" not in line
 
 
+def test_json_nested_too_deep_is_a_bad_request_like_any_other(match, caplog, monkeypatch):
+    checker = _checker(match, Always())
+    deep = b"[" * 1000  # under the size cap
+    _, bad_level, bad_record, _ = _logged(caplog, checker, b"{not json")
+    real_loads = json.loads
+
+    def loads(s, *args, **kwargs):  # Python 3.11 raises this for `deep`; 3.13 does not
+        if s == deep:
+            raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+        return real_loads(s, *args, **kwargs)
+
+    for forced in (False, True):
+        if forced:
+            monkeypatch.setattr(live.json, "loads", loads)
+        reply, level, record, _ = _logged(caplog, checker, deep)
+        assert reply["status"] == "bad_request" and record["http_status"] == 400
+        assert level == bad_level and {**record, "elapsed_ms": 0} == {**bad_record, "elapsed_ms": 0}
+
+
 def test_a_run_that_fails_half_way_logs_a_warning_with_what_it_spent(match, caplog):
     clock = FakeClock()
 

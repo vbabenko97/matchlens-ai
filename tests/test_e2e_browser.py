@@ -975,6 +975,25 @@ def test_the_recorded_personalizer_run_is_live_on_the_page(page, bundle):
     assert "Впевненість" not in text and "відійшли назад" not in text  # editorial review
 
 
+def test_the_pitch_lower_third_shows_the_english_template_not_the_rewrite(page, bundle):
+    """The lower-third on the pitch carries no AI label, so it keeps the English casual card."""
+    p = bundle.get("personalized")
+    if not p:
+        pytest.skip("this deployment has no personalizer run")
+    t = 4862  # just after 81': the comeback card
+    card = [c for c in bundle["cards"]["casual"] if c["publish_clock_s"] <= t][-1]
+    i, why = next((i, f) for i, f in enumerate(card["facts"]) if f["role"] == "why")
+    lines = p["variants"]["uk|away"]["cards"][card["card_id"]]["lines"]
+    rewrite = next(ln for ln in lines if ln["index"] == i)
+    assert rewrite["status"] == "verified" and rewrite["text"] != why["text"]
+    _open(page, f"?t={t}&lang=uk&follow=away")
+    assert page.is_visible("#lower-third")
+    assert page.text_content("#lt-title") == card["title"]
+    assert page.text_content("#lt-fact") == re.sub(r"\s*\[evidence:[^\]]*\]", "", why["text"])
+    art = page.locator(f"#cards [data-card-id='{card['card_id']}']")
+    assert rewrite["text"] in art.text_content()  # the card keeps its checked rewrite
+
+
 # --- Player focus ------------------------------------------------------------------------------
 
 
