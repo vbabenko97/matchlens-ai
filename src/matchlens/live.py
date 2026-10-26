@@ -69,7 +69,7 @@ LIVE_SCHEMA = "matchlens.live-check/v1"
 LIVE_PATH = "api/live-check"
 PER_CLIENT_LIMIT = 3
 PER_CLIENT_WINDOW_S = 600.0
-DAILY_LIMIT = 100  # card checks per UTC day; each is at most a dozen small model calls
+DAILY_LIMIT = 100  # card checks per UTC day; each makes up to 24 generation requests, plus retries
 DAILY_LIMIT_ENV = "MATCHLENS_LIVE_DAILY_LIMIT"
 DEADLINE_S = 30.0  # under the HTTP timeout of a serverless front end
 MAX_BODY_BYTES = 1024
@@ -387,7 +387,7 @@ def _respond(
         return 413, {"schema": LIVE_SCHEMA, "status": "too_large", "live": False}
     try:
         doc = json.loads(body)
-    except ValueError:
+    except (ValueError, RecursionError):  # RecursionError: nested too deep (Python 3.11)
         doc = None
     if not isinstance(doc, dict) or set(doc) != {"card_id"}:
         return 400, {"schema": LIVE_SCHEMA, "status": "bad_request", "live": False}

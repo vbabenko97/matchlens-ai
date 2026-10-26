@@ -639,11 +639,10 @@ function renderCards() {
   if (active && state.view === "live") {
     lt.hidden = false;
     $("lt-kind").textContent = KIND_LABEL[active.kind] || active.kind;
-    const loc = localized(active);
-    $("lt-title").textContent = loc ? loc.title : active.title;
-    // The caption says why the moment matters; evidence brackets are dropped on the graphic.
-    const facts = loc ? loc.facts : active.facts;
-    const summary = facts.find((f) => f.role === "why") || facts[0];
+    // Template wording only, never the personalizer's (it carries no AI label here); the cards
+    // keep their language. The caption says why the moment matters, without evidence brackets.
+    $("lt-title").textContent = active.title;
+    const summary = active.facts.find((f) => f.role === "why") || active.facts[0];
     $("lt-fact").textContent = summary ? summary.text.replace(EVIDENCE_RE, "") : "";
   } else {
     lt.hidden = true;

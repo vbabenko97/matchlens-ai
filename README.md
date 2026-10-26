@@ -23,7 +23,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 1. **A card for every key moment, never early.** It appears once its last evidence event exists and leads with what changed: an equaliser, a comeback, what a missed chance would have meant.
 2. **Every line can be checked.** In Analyst mode each fact opens its events and metrics on the pitch, and the AI's claims show the validator's verdict in plain words.
 3. **One set of facts, many audiences.** A fan reads the match at a glance: comparison bars, both lineups and one line per moment, in their language and from their club's side, with the AI wording labelled and checked for numbers and names. An analyst gets every line with its evidence.
-4. **Ready for air.** The moment plays as a lower-third in a browser source (OBS, vMix), or goes to a graphics system as timed overlay JSON.
+4. **Ready for air.** The moment plays as a lower-third (the caption graphic across the bottom of the picture) in a browser source (a web page that streaming software such as OBS or vMix lays over the video), or goes to a graphics system as timed overlay JSON.
 5. **A recap at the final whistle.** Copy it as text, or download it with the sources of every line.
 
 ## Try it in 60 seconds
@@ -60,10 +60,10 @@ On the public pages the three agents replay recorded live runs, and every build 
 
 ### The five-stage pipeline
 
-| Stage (challenge §4.1) | What MatchLens does | Code |
+| Stage ([challenge §4.1](https://github.com/microsoft/insidethegamehackathon/blob/main/OFFICIAL%20RULES.md)) | What MatchLens does | Code |
 |---|---|---|
-| **Ingest** | A deterministic generator writes a full 90-minute match: passes, shots, tackles, interceptions, recoveries, clearances, pressure events, possession chains and match metadata. A validator enforces the invariants: unique IDs, nondecreasing clock, score only on goals, possession ownership, ball continuity within 1 m. The same seed gives the same bytes. The match can also arrive as a feed: `matchlens feed` writes it one event at a time, and `matchlens stream` validates each event on arrival and publishes each card as its last evidence event arrives, without looking ahead. | `generator.py`, `validate.py`, `stream.py`, [DATA_MODEL](docs/DATA_MODEL.md) |
-| **Interpret** | Metrics with stable IDs, full-match and 15-minute windows (passes, completion, shots, on target, goals, pressures, turnovers, possessions, synthetic xG), each listing its source event IDs. Key moments: every goal, every missed big chance, full time. | `metrics.py`, `moments.py` |
+| **Ingest** | A deterministic generator writes a full 90-minute match: passes, shots, tackles, interceptions, recoveries, clearances, pressure events, possession chains and match metadata. A validator enforces the invariants: unique IDs, nondecreasing clock, score only on goals, possession ownership, ball continuity within 1 m. The same seed (the number that starts the generator's random draws) gives the same bytes. The match can also arrive as a feed: `matchlens feed` writes it one event at a time, and `matchlens stream` validates each event on arrival and publishes each card as its last evidence event arrives, without looking ahead. | `generator.py`, `validate.py`, `stream.py`, [DATA_MODEL](docs/DATA_MODEL.md) |
+| **Interpret** | Metrics with stable IDs, full-match and 15-minute windows (passes, completion, shots, on target, goals, pressures, turnovers, possessions, synthetic xG), each listing its source event IDs; xG (expected goals) is a shot's estimated chance of scoring, here from its distance and angle. Key moments: every goal, every missed big chance, full time. | `metrics.py`, `moments.py` |
 | **Explain** | Match-story lines say why a moment matters (opener, equaliser, comeback, back in front, redemption, what a missed chance would have meant, how the match was won). Each line cites events and is re-rendered from those events alone before it is published. | `story.py`, `cards.py` |
 | **Render** | A card is published at its last evidence event, never earlier. Timed, machine-readable overlay cues (`matchlens.overlays/v1`, both modes); a transparent broadcast lower-third that plays them; a match recap at full time (`matchlens.recap/v1`) to copy as text or download with its sources; a replay UI with pitch view, timeline and scoreboard. | `overlays.py`, `recap.py`, `web/` |
 | **Personalize** | Casual and Analyst are different experiences. Casual reads at a glance: comparison bars, both lineups with a player to follow, one line per moment. Analyst shows event chains, metric chips, an evidence inspector and the claim check. Fans also pick a language (en/de/uk) and a club, rewritten by the personalizer agent, checked line by line and reviewed by the critic agent. | `narrative.py`, `personalize.py`, `web/app.js` |
@@ -80,8 +80,8 @@ MatchLens is entered for **Best Enterprise Solution**. This is the deployment ca
 | A rewrite changes the meaning | A critic agent reviews each line that passed the checker; a missing verdict is a rejection; a line still rejected shows the English fact. The critic is a model and misses errors ([measured](#the-critic-measured)). | `critic.py` |
 | Look-ahead and spoilers | A card is published at its last evidence event. The claim agent's tools see the match only up to that event. The recap appears only at full time. Fed one event at a time, every match gives the same cards at the same events: checked on 31 seeds in the tests and on every match at every build. | `cards.py`, `agent.py`, `recap.py`, `stream.py` |
 | A broken feed | The stream processor checks each event on arrival with the validator's rules. The first invalid event stops publishing for the rest of the stream. | `validate.py`, `stream.py` |
-| AI output taken for fact | AI wording is labelled wherever it appears. The on-air graphic shows template facts only. Synthetic xG and xPass are labelled as heuristics. | `web/` |
-| No audit trail | Live runs are recorded with response IDs and token use, and every build re-checks them. Editorial rejections are kept with reasons in a versioned file that the build applies to the exact text. | `docs/evidence/` |
+| AI output taken for fact | AI wording is labelled wherever it appears. The on-air graphic shows template facts only. Synthetic xG and xPass (expected pass completion: a pass's estimated chance of arriving) are labelled as heuristics. | `web/` |
+| No audit trail | Live runs are recorded with response IDs and token use, and every build re-checks them. Editorial rejections, from AI reviews that no human has checked, are kept with reasons in a versioned file that the build applies to the exact text. | `docs/evidence/` |
 | Runaway cost from a public page | The live endpoint takes a card ID only. A shared daily cap is reserved in Azure Table Storage before any model call; if the store fails, no call is made. | `live.py`, `quota.py` |
 | Exposed secrets and stored data | The browser never holds a key: live checks run in an Azure Function. Every Foundry call is made with `store: false`. The data is synthetic, with no personal data. | `live.py`, `api/` |
 | Silent breakage | Playwright smoke tests run after every deploy and daily on both hosts through the end of judging. They never press the paid live-check button, so the live call is checked by hand. | `.github/workflows/` |
@@ -184,7 +184,7 @@ MatchLens is entered for the Grand Prize and for Best Enterprise Solution; the o
 
 | Category | How MatchLens fits |
 |---|---|
-| **Grand Prize** (explainable match intelligence, narratives, personalized experiences for fans, analysts and broadcasters) | All five pipeline stages, both audiences, broadcast output, a full-time recap, multi-language storytelling (challenge §4.1 vi) |
+| **Grand Prize** (explainable match intelligence, narratives, personalized experiences for fans, analysts and broadcasters) | All five pipeline stages, both audiences, broadcast output, a full-time recap, multi-language storytelling ([challenge §4.1 (vi)](https://github.com/microsoft/insidethegamehackathon/blob/main/OFFICIAL%20RULES.md)) |
 | **Best Enterprise Solution** (entered) | Controls a broadcaster or league would need before a model writes on screen: template-rendered facts, validator- and critic-gated AI output, labelled AI wording, an audit trail of recorded runs, fail-closed spend control, and a pilot plan with stated gaps ([From demo to production](#from-demo-to-production)) |
 | Best Use of Microsoft Foundry | Three Foundry agents (tools, structured outputs), recorded and live runs with response IDs, validator-gated publishing |
 | Best Multi-Agent System | A claim agent, a personalizer and a critic with distinct roles, shared verified state, validator and critic handoffs, retries and labelled fallbacks |
@@ -208,10 +208,15 @@ MatchLens is entered for the Grand Prize and for Best Enterprise Solution; the o
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e .
-python -m matchlens serve            # seed 1 (2-3) plus five extra matches, http://127.0.0.1:8000/
+# What the public build serves: seed 1 (2-3) with the recorded Foundry runs, plus five extra matches
+python -m matchlens serve --offline \
+  --agent-trace docs/evidence/agent-trace-2026-10-24.json \
+  --personalize-trace docs/evidence/personalize-trace-v2-2026-10-24.json \
+  --editorial-review docs/evidence/personalize-review-v3-2026-10-25.json
+# then open http://127.0.0.1:8000/
 ```
 
-It runs fully offline without Azure credentials, with deterministic template wording labelled as such. Options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`, `--single-match`, `--agent-trace`, `--personalize-trace`, `--editorial-review`, `--live-api`. `python -m matchlens export-site --out site/` writes the same UI as a static folder.
+Run it from the repository root. With `--offline` no Azure call is made: the agents' recorded runs are replayed and re-checked. Plain `python -m matchlens serve` loads no recorded run, so it shows only template wording, labelled as such, with no Language and Follow choice and no recorded claim check; without `--offline` it also uses Azure credentials when they are set. Options: `--seed N`, `--file match.jsonl`, `--port`, `--offline`, `--single-match`, `--agent-trace`, `--personalize-trace`, `--editorial-review`, `--live-api`. `python -m matchlens export-site --out site/` with the same options writes the same UI as a static folder.
 
 ```bash
 pip install -e ".[dev]"
