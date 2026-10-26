@@ -26,7 +26,7 @@ Built for the Microsoft × Premier League *Inside the Game* Developer Hackathon.
 4. **Ready for air.** The moment plays as a lower-third (the caption graphic across the bottom of the picture) in a browser source (a web page that streaming software such as OBS or vMix lays over the video), or is exported as timed overlay JSON for a graphics system to read.
 5. **A recap at the final whistle.** Copy it as text, or download it with the sources of every line.
 
-## Try it in 60 seconds
+## Try the demo
 
 1. Open the [demo](https://wonderful-hill-04967dd0f.5.azurestaticapps.net/) and press **▶ Watch the comeback (77'–81')**. Cards appear as the moments happen: never before the events they cite, and each one leads with why the moment matters.
 2. Switch to **Analyst** and press **See the AI get fact-checked (77')**. A short summary says what happened in a recorded Foundry agent run: the validator rejected the claim "Pressures applied: 131" because its evidence was a tackle, two passes and a goal, and the agent's retry cited pressures instead. The claim-by-claim list and the response IDs are below it.

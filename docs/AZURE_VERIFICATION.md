@@ -45,7 +45,7 @@ python -m matchlens azure-check | tee azure-check.json
 
 ## 5. Record the evidence
 - [ ] Commit `azure-check.json` (it holds no secrets) as `docs/evidence/azure-check-<date>.json`, with a portal screenshot of the deployment metrics with the key area cropped.
-- [ ] Update `docs/TASKS.md` (M3: "live Azure run verified") and README's Microsoft integration section with the date, model and region.
+- [ ] Update `docs/TASKS.md` (M3: "live Azure run verified") and the status line under "Microsoft Foundry / Azure OpenAI inference" in [DEPLOYMENT](DEPLOYMENT.md) with the date, model and region.
 
 ## 5b. Record a live claim-agent run [operator: same shell as step 2]
 `agent-review` runs the bounded Foundry claim agent on the seven analyst cards of seed 1. That is up to 6 Responses API calls per attempt, plus one retry per card if the validator rejects a claim; the 2026-10-24 recording made 3 to 6 calls per card. It is **strict**, and a trace is written only when the run is acceptable evidence:

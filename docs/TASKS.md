@@ -18,7 +18,8 @@ Update this file after verified work. A task is done only when the acceptance ch
   - DATA_MODEL points to the stream processor.
   - The README quotes the fallback label exactly. It now says that the second personalizer attempt also retries the checker's rejections (23 of its 40 verified lines had been rejected by the critic).
 - **Reader fixes.** README: the opening runs from what it is, to the screenshot, to the links; the pipeline table is a list; "validator", "event validator" and "checker" each name one thing; a clone command is added. README and SUBMISSION say "work with" for "work around". The docs drop milestone codes and Latin abbreviations.
-- **Left for the author:** 10 flags, listed in the PR. Among them are the heading "Try it in 60 seconds", the editorial-review story told twice in the README, and the voice-over's "work around these facts" (change it only if the video is not recorded yet).
+- **After review of the PR.** The README heading is "Try the demo", because the 60 seconds had no source. AZURE_VERIFICATION step 5 points to DEPLOYMENT, replacing a README section that does not exist. DATA_MODEL marks the press-win regression as history.
+- **Left for the author:** 7 flags, listed in the PR. Among them are the editorial-review story told twice in the README and the voice-over's "work around these facts" (change it only if the video is not recorded yet).
 - **Verified:**
   - `python -m pytest -q` gives 713 passed, 3 skipped; `ruff check .` and `ruff format --check .` pass.
   - A per-file token diff shows every number, URL, code span, link target and quoted string kept, except the logged corrections.
