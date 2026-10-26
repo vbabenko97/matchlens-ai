@@ -16,7 +16,7 @@ JSONL. Line 1 is the `{"record": "match", ...}` metadata record (match ID, seed,
 | `home_score`, `away_score` | score **after** the event |
 | `start`, `end` | `[x, y]` in metres |
 | `xg_heuristic` | shots only; synthetic, **uncalibrated** heuristic from distance and goal-mouth angle |
-| `related_event_id` | earlier event this one responds to (e.g. interception -> failed pass, goal kick -> missed shot) |
+| `related_event_id` | earlier event this one responds to (for example interception -> failed pass, goal kick -> missed shot) |
 
 ## Geometry
 Absolute pitch frame, 105 x 68 m, origin at a corner flag; `x` runs goal-to-goal, `y` touchline-to-touchline. Home always attacks toward `x = 105`, away toward `x = 0` (the half-time side switch is not modelled). Coordinates are rounded to 0.1 m. Consecutive ball events in open play must connect: `next.start` lies within **1.0 m** of `prev.end`.
@@ -30,7 +30,7 @@ Unique IDs and gap-free `seq`; clock nondecreasing and inside its period; `perio
 ## Known simplifications
 No stoppage time, corners, fouls, cards, substitutions, offside or pass recipients. The generator produces football-realistic event *structure* with simplified dynamics; its rates are tuned only so a demo match looks plausible (~24 shots, ~3.6 goals per match averaged over seeds 1-60).
 
-## Metrics (`matchlens.metrics`, M2)
+## Metrics (`matchlens.metrics`)
 `compute_metrics(match, window_s=900)` returns metrics keyed by stable IDs: `<team>.<name>` for full-match totals and `<team>.<name>@<start>-<end>` for clock windows `[start, end)` (the final window includes the end whistle). Each metric carries `value`, `unit`, `kind` (`fact` or `heuristic`), a plain-language `definition`, and the `source_event_ids` it was computed from (ratios also list `numerator_event_ids`).
 
 | name | definition |
@@ -44,14 +44,14 @@ No stoppage time, corners, fouls, cards, substitutions, offside or pass recipien
 
 Window metrics: `passes`, `shots`, `pressures`, `turnovers`, `xg_heuristic`.
 
-As-of metrics: `compute_metrics(match, window_s, as_of_event_id=X)` counts only the events up to and including `X` in match order, i.e. the metrics known when `X` happened. Every ID gets the suffix `:asof:X` (e.g. `home.shots@3600-4500:asof:ml1-01112`), the record carries `as_of_event_id`, and windows that start after `X` are omitted. Rendered text adds "as of N'" (e.g. "Shots: 3 (between 60' and 75', as of 71')"). Each as-of metric equals the plain metric computed on the match truncated at `X` (tested).
+As-of metrics: `compute_metrics(match, window_s, as_of_event_id=X)` counts only the events up to and including `X` in match order, that is, the metrics known when `X` happened. Every ID gets the suffix `:asof:X` (for example `home.shots@3600-4500:asof:ml1-01112`), the record carries `as_of_event_id`, and windows that start after `X` are omitted. Rendered text adds "as of N'" (for example "Shots: 3 (between 60' and 75', as of 71')"). Each as-of metric equals the plain metric computed on the match truncated at `X` (tested).
 
 ## Claim verification (`matchlens.claims`)
 A `Claim` is structured: `metric_id`, `value`, `cited_event_ids`. It deliberately has **no free-text field**. `verify_claim(claim, metrics, match)` returns `verified` only if the claim cites a metric and/or events; all cited events exist; a cited metric exists, is defined and matches the stated value (tolerance 5e-4); cited events are sources of that metric; and a value is never stated without a metric. Otherwise it returns `unsupported` with reasons and no text.
 
 Wording is rendered **after** verification from fixed templates using only verified data (`ClaimCheck.text`), and always ends with `[evidence: ...]`. Heuristic metrics are always rendered with "synthetic heuristic, not empirically calibrated".
 
-**Limitation (by design):** the meaning of free prose cannot be machine-verified. `assess_prose(text)` therefore always returns `unverified`, for true and false text alike, including prose that imitates an evidence citation. UIs must show only template-rendered statements as facts; any LLM wording (M3) is presentation only and must be labelled unverified, never shown as a verified claim.
+**Limitation (by design):** the meaning of free prose cannot be machine-verified. `assess_prose(text)` therefore always returns `unverified`, for true and false text alike, including prose that imitates an evidence citation. UIs must show only template-rendered statements as facts; any LLM wording is presentation only and must be labelled unverified, never shown as a verified claim.
 
 ## Key moments (`matchlens.moments`)
 Deterministic detectors; each `KeyMoment` has an ID `<kind>:<anchor_event_id>`, anchor clock (`clock_s`), start clock (first evidence event), `known_clock_s` (last evidence event), evidence `event_ids` in match order, and structured `details`. Some detectors need events after the anchor (a press win's shot, the save after a missed chance), so a moment is fully known only at `known_clock_s`.
@@ -75,14 +75,14 @@ Why a moment matters, as structured `StoryLine`s (`kind`, `team`, cited `event_i
 | missed big chance | `stakes` ("It stays 0-1; a goal would have doubled Eastvale Athletic's lead.") |
 | full time | `ft_comeback` or `ft_result`, `winner` (the goal that took the winner past the loser's final total), `lead_changes` |
 
-`check_line(line, match, as_of_event_id)` is the validator: cited events must exist, be in match order and not after the as-of event; the text must re-render identically from them; and the kind's condition must hold on them (e.g. `comeback`: behind after the first cited goal, level before the last, ahead after it). Lines that rely on the whole score history ("for the first time", "changed hands twice") cite every goal so far, and the check requires each cited goal to add exactly one to the total, so no goal can be left out. A line that fails is dropped from the card and reported in `suppressed`.
+`check_line(line, match, as_of_event_id)` is the validator: cited events must exist, be in match order and not after the as-of event; the text must re-render identically from them; and the kind's condition must hold on them (for example `comeback`: behind after the first cited goal, level before the last, ahead after it). Lines that rely on the whole score history ("for the first time", "changed hands twice") cite every goal so far, and the check requires each cited goal to add exactly one to the total, so no goal can be left out. A line that fails is dropped from the card and reported in `suppressed`.
 
-## Insight cards (`matchlens.cards`, M3)
+## Insight cards (`matchlens.cards`)
 `build_cards(match, mode, provider=None, limit=None)` builds one card per selected key moment. A moment must re-detect identically (`verify_moment`) or its card is suppressed with a reason. Each card has `title`, `start_clock_s` (first evidence event) / `anchor_clock_s` (anchor event; its minute is shown) / `publish_clock_s` (last evidence event) / `end_clock_s` (publish + 12 s), `evidence_event_ids`, verified `facts` and a `narrative`. `CardSet.metrics` holds every metric the cards cite.
 
 **Causality.** A card is never shown before `publish_clock_s`, and analyst window metrics are as-of metrics computed at the moment's last evidence event, so a card never counts or cites an event that has not happened yet. `future_sources(...)` re-checks every cited event, evidence event and metric source against the publication time and match order; a card that fails is suppressed with the offending IDs. Regression (seed 1): the 71' goal card used to show "Shots: 4" for 60'-75' when only 3 had been taken (the 4th, `ml1-01166`, is at 74:05.8, minute 75), and the 8' press win was shown 14 s before its shot `ml1-00130`.
 
-**Scope of the guarantee.** Causality covers which moments get a card, what each card says and when it appears; a live feed could apply the same rules event by event. The public replay is still precomputed, and its two demo shortcuts (`highlights`, below) are chosen with hindsight; they only move the replay clock and never change a card.
+**Scope of the guarantee.** Causality covers which moments get a card, what each card says and when it appears; the stream processor applies the same rules event by event ([Event-by-event processing](#event-by-event-processing-matchlensstream)). The public replay is still precomputed, and its two demo shortcuts (`highlights`, below) are chosen with hindsight; they only move the replay clock and never change a card.
 
 Facts are the only factual content. Each is rendered from verified structured data and carries `event_ids` and/or `metric_ids`, and a `role`: `why` (story lines and the full-time shots vs chance quality comparison, shown first and emphasised), `what` (what happened) or `chain` (one evidence event of the move, analyst only, folded in the UI).
 
@@ -127,7 +127,7 @@ One bounded agent, no framework. For each analyst card, a proposer drafts up to 
 ## Match recap (`matchlens.recap`) — schema `matchlens.recap/v1`
 `build_recap(match, casual_cards)` returns `None` without a full-time card. Otherwise: `publish_clock_s` (the full-time card's), `headline` (that card's title), `summary` (its WHY facts) and `goals` (each goal card's scorer fact, in match order; empty unless every goal of the match has one). Each line is `{card_id, index, text, kind, event_ids, metric_ids}` with `index` -1 for a title, so the personalized variants of the casual cards apply by `(card_id, index)`. No line has wording of its own. `format_recap` renders the copy text; the bundle key is `recap`.
 
-## Overlay cues (`matchlens.overlays`, M4) — schema `matchlens.overlays/v1`
+## Overlay cues (`matchlens.overlays`) — schema `matchlens.overlays/v1`
 Top level: `match_id`, `seed`, `synthetic: true`, `time_unit: "match_seconds"`, `teams`, `final_score`, `notes`, `cues`. Each cue is one card in one mode: `cue_id`, `mode`, `kind`, `team`, `start_s` (card publication = last evidence event; every cited event and metric source is at or before it), `end_s` (`start_s` + 12 s), `anchor_s` (anchor event), `lead_in_s` (first evidence event), `title`, `facts` (verified text + `event_ids`/`metric_ids` + `kind`), `evidence_event_ids`, and `narrative` with its `status` and `label`. Consumers must show `facts` as facts and `narrative` only as labelled wording.
 
 ## Replay bundle and UI (`matchlens.replay`, `matchlens.server`, `src/matchlens/web/`)

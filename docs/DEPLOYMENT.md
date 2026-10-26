@@ -8,20 +8,28 @@ Status (2026-10-24): **public demo live on Azure Static Web Apps at <https://won
 | `PUBLIC_DEMO_URL` | set to `https://vbabenko97.github.io/matchlens-ai/` (operator) |
 | Public smoke test (Playwright e2e against the URL) | [run 1](https://github.com/vbabenko97/matchlens-ai/actions/runs/39478441723) (manual, 2026-10-20) and daily scheduled runs [2](https://github.com/vbabenko97/matchlens-ai/actions/runs/39604056321), [3](https://github.com/vbabenko97/matchlens-ai/actions/runs/39783144846), [4](https://github.com/vbabenko97/matchlens-ai/actions/runs/39955061358) (2026-10-21 to 2026-10-23): **all success**. The `pytest -q -m e2e` step ran in each run and was not skipped. Verified via the GitHub Actions API on 2026-10-24. |
 | Manual replay test of the public URL | **passed** (operator-reported, 2026-10-24) |
-| Redeploy with cache-busting | [run 40082219742](https://github.com/vbabenko97/matchlens-ai/actions/runs/40082219742) on `main` @ `0aa672c`: build, deploy and post-deploy smoke **success** (2026-10-24 09:30 UTC) |
 | Redeploy with accessibility pass | [run 40081567480](https://github.com/vbabenko97/matchlens-ai/actions/runs/40081567480) on `main` @ `2731814`: build, deploy and post-deploy smoke **success** (2026-10-24 09:21 UTC) |
-| Azure Static Web Apps | **deployed** (operator created `matchlens-demo` in `rg-matchlens-demo`); latest from `main` @ `14f1b88` by [run 40118847924](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118847924), deploy and smoke **success**. The managed API builds on Python 3.11. GitHub Pages stays the static mirror. |
+| Redeploy with cache-busting | [run 40082219742](https://github.com/vbabenko97/matchlens-ai/actions/runs/40082219742) on `main` @ `0aa672c`: build, deploy and post-deploy smoke **success** (2026-10-24 09:30 UTC) |
+| Azure Static Web Apps | **deployed** (operator created `matchlens-demo` in `rg-matchlens-demo`); from `main` @ `14f1b88` by [run 40118847924](https://github.com/vbabenko97/matchlens-ai/actions/runs/40118847924), deploy and smoke **success**. The managed API builds on Python 3.11. GitHub Pages stays the static mirror. |
+| Deploy of both hosts (2026-10-26 11:46 UTC) | `main` @ `6629d39`: Azure Static Web Apps [run 40317570596](https://github.com/vbabenko97/matchlens-ai/actions/runs/40317570596) and GitHub Pages [run 40317574235](https://github.com/vbabenko97/matchlens-ai/actions/runs/40317574235), deploy and smoke **success** |
 
 Both hosts serve the same static export. The Pages mirror never calls Azure. On the Azure host the page calls Azure only through the live-check button (`/api/live-check`, server side); everything else replays recorded runs. Re-run the deploy workflows after merges that change the UI or the bundle.
 
 ## What gets deployed
-The public demo is the **static export** of the replay UI: `python -m matchlens export-site --offline --out site`. It has:
+The public demo is the **static export** of the replay UI, built by both deploy workflows with the recorded Foundry runs:
+```bash
+python -m matchlens export-site --offline \
+  --agent-trace docs/evidence/agent-trace-2026-10-24.json \
+  --personalize-trace docs/evidence/personalize-trace-v2-2026-10-24.json \
+  --editorial-review docs/evidence/personalize-review-v3-2026-10-25.json --out site
+```
+The Azure workflow adds `--live-api`, which shows the live-check buttons. The export has:
 - `index.html`, `app.js`, `style.css`;
 - `data/bundle.json` (precomputed seed-1 match, cards and metrics);
 - `data/overlays.json`;
 - `data/matches.json` (the match picker's index) and `data/matches/<match_id>.json` plus `-overlays.json` for the extra matches (seeds 121, 106, 103, 123, 124; offline, untuned; `--single-match` leaves them out).
 
-It runs entirely in the browser, needs no server code or account, and contains **no credentials**. Its wording comes from the deterministic offline template, labelled as such. It therefore stays fully functional without Azure, and hosting costs nothing beyond the free tier.
+Apart from those buttons, it runs entirely in the browser, needs no server code or account, and contains **no credentials**. Its card wording comes from the deterministic offline template, labelled as such. On the demo match, the claim checks and the language and club variants of the fan cards replay the recorded Foundry runs; the five extra matches have no AI output. It therefore stays fully functional without Azure, and hosting costs nothing beyond the free tier.
 
 Caching: GitHub Pages serves assets with a 10-minute cache. `index.html` therefore loads `style.css?v=<hash>` and `app.js?v=<hash>` (content hashes added by `export-site`), so a new deploy never pairs new HTML with old cached CSS/JS. `bundle.json` is fetched with `cache: "no-cache"`.
 
@@ -107,6 +115,8 @@ The steps, for a re-run. Two runs, with the same `AZURE_OPENAI_*` variables as f
 After the runs: the new trace gets its own editorial review, then the deploy workflows switch to it in one PR.
 
 ## Live Foundry check on the public demo (Azure Static Web Apps managed API)
+On Azure Static Web Apps, each analyst card gets a **Check this card live with Microsoft Foundry** button. It sends `POST /api/live-check` with `{"card_id": ...}` and nothing else. The function in `api/live_check/` (code: `src/matchlens/live.py`) builds the request itself from the demo match and runs the same bounded agent and validator as `agent-review`. The reply replaces the recorded claim check on that card and is labelled as a live call, with response IDs, token use and latency. The key stays in the app settings; the browser never sees it. GitHub Pages builds have no button (no server side).
+
 **Status: deployed and verified with one live call.**
 - **Live call.** An independent review of `main` @ `ff20751`, after the deploy, reported one live call on the Azure host: 7.2 s, 3 model calls, 8,058 tokens, 4 claims verified by the validator.
 - **Quota store.** A live reply also shows that `MATCHLENS_LIVE_COUNTER_URL` is set and the Table Storage reservation works: without it the API answers `not_configured` and makes no model call.
@@ -115,8 +125,6 @@ After the runs: the new trace gets its own editorial review, then the deploy wor
   - published HTML, JS, CSS and data match a build from the tag;
   - a fresh live request: HTTP 200, 8,051 tokens, 4 claims verified, 7.5 s on the server and 13.1 s end to end;
   - the API then reported `remaining_today: 1`, kept for the video.
-
-What it is: on Azure Static Web Apps, each analyst card gets a **Check this card live with Microsoft Foundry** button. It sends `POST /api/live-check` with `{"card_id": ...}` and nothing else. The function in `api/live_check/` (code: `src/matchlens/live.py`) builds the request itself from the demo match and runs the same bounded agent and validator as `agent-review`. The reply replaces the recorded claim check on that card and is labelled as a live call, with response IDs, token use and latency. The key stays in the app settings; the browser never sees it. GitHub Pages builds have no button (no server side).
 
 Limits, in the order they apply:
 1. Only the 7 analyst card IDs of the demo match are accepted, and any other field is a 400, so the endpoint cannot carry a free-text prompt. JSON POST only: a page on another site cannot call it from a visitor's browser. Scripts and `curl` can still call it directly; only the daily cap below limits them.
@@ -132,21 +140,21 @@ Whenever a check is not made or does not finish, the reply gives a reason (`not_
 
 What the Azure-side settings do and do not do:
 - **Budget:** an alert only. Azure budgets do not stop spending, and cost data arrives with a delay ([Microsoft Learn: budgets](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/tutorial-acm-create-budgets)).
-- **TPM limit:** caps the request rate, not the total.
+- **Tokens-per-minute limit:** caps the request rate, not the total.
 - **The daily count (4) is what bounds spend.** One check makes at most 24 generation requests: up to 6 per attempt, 2 attempts, and each request resent once when its answer is cut off. HTTP 429 and network retries can add more HTTP requests on top of these. The recorded run averaged ≈ 10K input / 0.5K output tokens per card. So 100 checks a day is about 1M input tokens, under $1/day at `gpt-4.1-mini` list prices (check current pricing). A check that uses every request costs more than this average; that worst case has not been measured.
 
 Operator steps:
 1. **[operator]** Create the **Free** Static Web App (Option A steps 1–2 above) and add `AZURE_STATIC_WEB_APPS_API_TOKEN`.
 2. **[operator]** Create the shared quota store:
    - Create a Storage account (Standard, LRS; cost is cents a month), then *Storage browser → Tables → + Add table* `livechecks`.
-   - Make a SAS for that table only: *Shared access signature* on the table with permissions **Read, Add, Update**, HTTPS only, expiring after the judging period (e.g. 2026-11-30).
+   - Make a SAS for that table only: *Shared access signature* on the table with permissions **Read, Add, Update**, HTTPS only, expiring after the judging period (for example 2026-11-30).
    - Its URL looks like `https://<account>.table.core.windows.net/livechecks?sv=…&sig=…`. Treat it as a secret.
 3. **[operator]** Static Web App → *Settings → Environment variables* (production):
    - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` (the same values as for `azure-check`);
    - `MATCHLENS_LIVE_COUNTER_URL` (the table SAS URL);
    - optionally `MATCHLENS_LIVE_DAILY_LIMIT`.
-4. **[operator]** Foundry portal → the `gpt-4.1-mini` deployment → *Edit* → tokens-per-minute limit. The recorded run hit 13 HTTP 429s at the current limit; about 50K TPM lets a check finish within 30 s. Change this only after the counter is verified (step 7).
-5. **[operator]** Azure portal → *Cost Management → Budgets*: a monthly budget with an alert (e.g. $10), as an early warning.
+4. **[operator]** Foundry portal → the `gpt-4.1-mini` deployment → *Edit* → tokens-per-minute limit. The recorded run hit 13 HTTP 429s at the current limit; about 50K tokens per minute lets a check finish within 30 s. Change this only after the counter is verified (step 7).
+5. **[operator]** Azure portal → *Cost Management → Budgets*: a monthly budget with an alert (for example $10), as an early warning.
 6. **[operator]** *Actions → Deploy demo (Azure Static Web Apps, Free) → Run workflow*. The workflow copies `src/matchlens` into `api/matchlens` and uploads `api/` as the managed API. Its runtime is `python:3.11` (`staticwebapp.config.json`), which SWA managed functions list as supported ([Microsoft Learn: languages and runtimes](https://learn.microsoft.com/en-us/azure/static-web-apps/languages-runtimes)).
 7. **[operator]** Verify in this order (each live call costs tokens):
    - **Live call:**
@@ -209,9 +217,9 @@ The browser never holds a key. The Azure host's live check calls Foundry server 
 | `PUBLIC_DEMO_URL` repository variable | **set** to `https://vbabenko97.github.io/matchlens-ai/` |
 | Application Insights `matchlens-demo` + its connection string in the Static Web App's environment variables | **created and connected** 2026-10-25; values held in Azure only |
 
-## Operator decisions (2026-10-20)
-- Azure Static Web Apps Free preferred, GitHub Pages fallback. No paid resources without approval.
+## Operator decisions
+- 2026-10-20: Azure Static Web Apps Free preferred, GitHub Pages fallback. No paid resources without approval.
+- 2026-10-20: Configuration stays environment-based. Credentials are never committed, logged or shown.
 - 2026-10-24: hosting settled on GitHub Pages; no Static Web App will be created.
 - 2026-10-24 (later): the Free Static Web App was created after all and became the primary host, with the live-check API; GitHub Pages stays the static mirror.
 - 2026-10-25: Application Insights connected to the Static Web App for live-check telemetry (billed by data ingested).
-- Configuration stays environment-based. Credentials are never committed, logged or shown.

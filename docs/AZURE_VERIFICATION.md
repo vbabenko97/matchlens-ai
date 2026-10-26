@@ -2,19 +2,19 @@
 
 Goal: record evidence of **one live Responses API (v1) call** from MatchLens to a Microsoft Foundry (Azure OpenAI) model deployment. Mocked transports in the test suite do **not** count. Neither does a `demo` run that silently used the offline fallback.
 
-Every step marked **[operator]** needs your Azure account, credentials or approval. Claude must stop there.
+Every step marked **[operator]** needs your Azure account, credentials or approval. Claude Code, the AI coding assistant used on this project, must stop there.
 
 ## 0. Before you start
 - [ ] **[operator]** Approve the spend. A Standard (pay-as-you-go) deployment bills per token. The check sends one request of about 250 input and at most 200 output tokens (`max_output_tokens: 200`, `store: false`), a fraction of a cent on small models, but it is not free.
-- [ ] **[operator]** Set a budget alert on the subscription or resource group (Cost Management → Budgets), e.g. USD 5.
+- [ ] **[operator]** Set a budget alert on the subscription or resource group (Cost Management → Budgets), for example USD 5.
 - [ ] Never paste the key into chat, issues, commits, screenshots or CI logs. MatchLens never prints it.
 
 ## 1. Create the model deployment [operator]
 - [ ] In the Microsoft Foundry portal (ai.azure.com), create or select a project in a region that has quota for your chosen model.
-- [ ] Deploy a chat-capable model that supports the Responses API, e.g. `gpt-4.1-mini` (the verified choice) or `gpt-4o-mini`, deployment type *Standard* or *Global Standard*.
+- [ ] Deploy a chat-capable model that supports the Responses API, for example `gpt-4.1-mini` (the verified choice) or `gpt-4o-mini`, deployment type *Standard* or *Global Standard*.
   - Reasoning models also accept the request, but they spend output tokens on reasoning, so a 200-token limit can end as `status: incomplete`, which the check reports as a failure.
 - [ ] From the deployment's details copy:
-  - `AZURE_OPENAI_ENDPOINT`: the resource base URL, e.g. `https://<resource>.services.ai.azure.com` or `https://<resource>.openai.azure.com`. The target URI `https://<resource>.services.ai.azure.com/openai/v1/responses` is also accepted and normalised;
+  - `AZURE_OPENAI_ENDPOINT`: the resource base URL, for example `https://<resource>.services.ai.azure.com` or `https://<resource>.openai.azure.com`. The target URI `https://<resource>.services.ai.azure.com/openai/v1/responses` is also accepted and normalised;
   - `AZURE_OPENAI_DEPLOYMENT`: the deployment name, sent as the request's `model`;
   - `AZURE_OPENAI_API_KEY`: Key 1.
   - No `api-version` is needed: the v1 API has none, and `AZURE_OPENAI_API_VERSION` is ignored.
@@ -34,7 +34,7 @@ python -m matchlens azure-check | tee azure-check.json
 ## 3. Acceptance criteria (all must hold)
 - [ ] Exit code `0` and `"ok": true`.
 - [ ] `api` is `responses-v1`, `request_path` is `/openai/v1/responses`, and `endpoint_host` and `deployment` match the Foundry deployment.
-- [ ] `response_status` is `completed`, `response_id` (e.g. `resp_…`) and `model` are present, and `usage` shows positive `input_tokens` and `output_tokens`. The check enforces all of these and exits `1` otherwise.
+- [ ] `response_status` is `completed`, `response_id` (for example `resp_…`) and `model` are present, and `usage` shows positive `input_tokens` and `output_tokens`. The check enforces all of these and exits `1` otherwise.
 - [ ] `completion` is the model's `output_text`, and `completion_status` is `unverified_ai_wording`. The wording is presentation only and is not a verified fact.
 - [ ] The Foundry portal (deployment → Metrics, or Monitoring) shows a request at `checked_at_utc` (allow a few minutes for metrics to appear).
 - [ ] `azure-check.json` contains no key (`grep -F -c -- "$AZURE_OPENAI_API_KEY" azure-check.json` prints `0`; `-F` searches the key literally).
@@ -48,6 +48,11 @@ python -m matchlens azure-check | tee azure-check.json
 - [ ] Update `docs/TASKS.md` (M3: "live Azure run verified") and README's Microsoft integration section with the date, model and region.
 
 ## 5b. Record a live claim-agent run [operator: same shell as step 2]
+`agent-review` runs the bounded Foundry claim agent on the seven analyst cards of seed 1. That is up to 6 Responses API calls per attempt, plus one retry per card if the validator rejects a claim; the 2026-10-24 recording made 3 to 6 calls per card. It is **strict**, and a trace is written only when the run is acceptable evidence:
+- Any failure exits `1` (`live agent run failed: <type>`) and writes nothing, so a recorded trace never holds fallback output.
+- A completed run also exits `1` and writes nothing when `trace_problems` finds that the evidence falls short. It checks that every model call has a response ID and positive token usage, that the run made at least one real tool call, that no card holds offline fallback claims, and that each card has at least one model claim the validator accepted. The reasons are printed. An empty claim list therefore cannot pass.
+- `export-site --agent-trace` applies the same check to a committed trace.
+
 ```bash
 set -o pipefail   # otherwise tee hides a non-zero exit code
 python -m matchlens agent-review --seed 1 --out agent-trace.json | tee agent-review.txt
@@ -58,7 +63,7 @@ In zsh, do not paste trailing `# comments`: interactive zsh passes them to the c
 
 **Progress and network errors.** The run prints `[agent] <card> attempt N: model call M` to stderr, with no prompt or response content.
 - If no HTTP response arrives at all (connection, DNS, TLS, timeout), the call is retried twice, 5 s apart.
-- A final failure prints the reason, e.g. `URLError (TimeoutError: timed out)`.
+- A final failure prints the reason, for example `URLError (TimeoutError: timed out)`.
 - Retries are recorded per call as `retries` (`cause`, `wait_s`).
 - An answer cut off at the 400-token output cap is asked for once more with a 1000-token cap.
 - After each attempt, the run prints how many claims were verified and every rejected claim with the validator's reasons.
@@ -66,22 +71,18 @@ In zsh, do not paste trailing `# comments`: interactive zsh passes them to the c
 
 **HTTP 429 (rate limit).** Each model call that gets a 429 waits as Azure asks (`retry-after-ms`/`retry-after`, at most 60 s, default 10 s) and retries, up to 4 times. The waits are recorded per call in `retries`.
 - A request is kept small: metric IDs only from `list_metrics`, and `max_output_tokens: 400`. Azure counts the output limit against the per-minute quota up front.
-- A full seed-1 run is still roughly 20–30K tokens within a few minutes.
+- The 2026-10-24 recording covered the four cards that existed then (38', 71', 77', 81') and used 19 model calls: 39,839 input and 1,795 output tokens, within a few minutes.
 - If it fails with `HTTP 429 (… still rate-limited …)`, raise the deployment's *Tokens per Minute Rate Limit* in the Foundry portal (Deployments → the deployment → Edit), within your subscription quota. On pay-per-token deployments the limit itself is not billed; usage is. Then rerun.
-`agent-review` runs the bounded Foundry claim agent on the four analyst cards of seed 1. That is about 2–5 Responses API calls per card, plus one retry per card if the validator rejects a claim. It is **strict**, and a trace is written only when the run is acceptable evidence:
-- Any failure exits `1` (`live agent run failed: <type>`) and writes nothing, so a recorded trace never holds fallback output.
-- A completed run also exits `1` and writes nothing when `trace_problems` finds that the evidence falls short. It checks that every model call has a response ID and positive token usage, that the run made at least one real tool call, that no card holds offline fallback claims, and that each card has at least one model claim the validator accepted. The reasons are printed. An empty claim list therefore cannot pass.
-- `export-site --agent-trace` applies the same check to a committed trace.
 
 Acceptance:
 - [ ] Exit code `0`. This already implies the `trace_problems` checks above.
 - [ ] Every card's lines show `response resp_…` IDs, including tool calls (`list_metrics`, `get_metric`, `get_events`). No card shows `Note: foundry_agent unavailable`.
 - [ ] `agent-trace.json` has `"schema": "matchlens.agent-trace/v1"`, `"store": false`, the deployment, and per-call `response_id`/`model`/`usage`.
-- [ ] The goal card at 71' shows the injected test claim `home.goals:asof:ml1-01112 = 3` rejected ("claimed 3 but … = 2") and the correction published.
+- [ ] The first goal card (5') shows the injected test claim `away.goals:asof:ml1-00089 = 2` rejected ("claimed 2 but … = 1") and the correction published. The 2026-10-24 recording, made before the 5' and 56' goals had cards, put it on the 71' card: `home.goals:asof:ml1-01112 = 3`.
 - [ ] Any claim the model got wrong shows its reason, then a retry (`attempt 2`). The injected wrong score is checked **after** the agent's attempts and is corrected by the validator, not by the model. Model self-correction can be claimed in the video only if this recording shows a real `attempt 2`.
 
 Then commit `agent-trace.json` as `docs/evidence/agent-trace-<date>.json`. Build the public site from it with `python -m matchlens export-site --offline --agent-trace docs/evidence/agent-trace-<date>.json --out site`. That build re-checks the recorded claims, and the UI labels them "Recorded Microsoft Foundry agent run …, not a live call".
 
 ## 6. Afterwards
 - [ ] **[operator]** Keep the deployment only while it is needed; delete it or rotate the key after recording evidence if it is not used for the demo.
-- [ ] The public static demo does not call Azure and holds no key. Any future Azure-worded public build must be generated server-side or at build time, with the key kept in a secret store and the wording still labelled unverified.
+- [ ] The static pages hold no key and do not call Azure; on the Azure host, only the live-check API calls Foundry, server side ([DEPLOYMENT](DEPLOYMENT.md)). Any future Azure-worded public build must be generated server-side or at build time, with the key kept in a secret store and the wording still labelled unverified.
