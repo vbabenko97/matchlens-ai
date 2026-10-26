@@ -2,13 +2,13 @@
 
 Target: **WCAG 2.2 AA** for the replay UI (`src/matchlens/web/`). The audit was done on 2026-10-24 by reading the code, running axe-core and adding browser tests. A screen-reader pass with real assistive technology is still to do (see the end of this file).
 
-## Automated results (2026-10-24)
+## Automated results (2026-10-24 and 2026-10-25)
 - **axe-core 4.10.2** (`wcag2a/aa`, `wcag21a/aa`, `wcag22aa`, `best-practice`), Chromium, three states: start (1400×900), Analyst mode at full time with a metric inspected (1400×900), and mid-match on a phone (390×844).
   - **0 violations** in all three.
   - The only item flagged "needs review" is colour contrast on glyph-only elements (◎, ✓, ⓘ). They were measured by hand at 6.1:1 or higher.
   - Before the fixes, axe reported a target-size violation at 390px (overlapping timeline markers) and two prohibited `aria-label`s on plain `div`s.
   - axe was run ad hoc, injected into a test browser with CSP bypassed. It is not a project dependency.
-- **Re-run after the match-story redesign** (axe-core 4.10.2, WCAG tags only, Chromium): start, Casual at full time, Analyst at full time (1400×900), after "See the AI get fact-checked" with every `<details>` open (1400×900), and Casual at full time on a phone (390×844). **0 violations** in all five. New controls: the two shortcut buttons have visible text (the ▶/✓ glyphs are `aria-hidden`); the analyst event chain is a native `<details>` whose open state survives re-renders, so focus returns to the chip that was activated (browser test); the AI-check shortcut moves focus to the claim check it opens; the 24px target test now skips elements inside closed `<details>`, which are not rendered.
+- **Re-run after the match-story redesign (2026-10-24)** (axe-core 4.10.2, WCAG tags only, Chromium): start, Casual at full time, Analyst at full time (1400×900), after "See the AI get fact-checked" with every `<details>` open (1400×900), and Casual at full time on a phone (390×844). **0 violations** in all five. New controls: the two shortcut buttons have visible text (the ▶/✓ glyphs are `aria-hidden`); the analyst event chain is a native `<details>` whose open state survives re-renders, so focus returns to the chip that was activated (browser test); the AI-check shortcut moves focus to the claim check it opens; the 24px target test now skips elements inside closed `<details>`, which are not rendered.
 - **Re-run for the casual redesign (2026-10-25)** (axe-core 4.10.2, WCAG tags only, Chromium, CSP bypassed in the test browser only):
   - States: Casual at 81' (1400×900); the lineups with a player followed (1400×900); Casual in Ukrainian following the away club, every **More** open (1400×900); Analyst with the lineups at full time (1400×900); the lineups on a phone (390×844), every **More** open. **0 violations** in all five; "needs review" lists only colour contrast over the pitch, as before.
   - New controls:
@@ -44,7 +44,7 @@ Target: **WCAG 2.2 AA** for the replay UI (`src/matchlens/web/`). The audit was 
 | 3 | The `role="radio"` mode toggle had no arrow-key support or roving tabindex. Its focus ring was clipped by the pill's `overflow: hidden`. | 2.1.1, 2.4.7 | ←/→/↑/↓/Home/End move the selection, with a single tab stop. The ring is now drawn inset. |
 | 4 | Global Space/← → shortcuts also fired on `summary`, links and radios, which broke native keys. | 2.1.1 | Shortcuts skip interactive elements and the scrollable card panel. They also ignore modifier keys. |
 | 5 | No `h1`. The ⓘ xG hint was title-only, and the ✓ marks had no text equivalent. | 1.3.1, 1.1.1 | Brand is the `h1`. Hidden text reads "(synthetic heuristic, not empirically calibrated)" and "Verified:" / "Verified, heuristic value:". The glyphs are `aria-hidden`. |
-| 6 | The seek slider announced raw seconds. | 1.3.1 | `aria-valuetext` is set to e.g. "10:00, 1H". |
+| 6 | The seek slider announced raw seconds. | 1.3.1 | `aria-valuetext` is set to text such as "10:00, 1H". |
 | 7 | Timeline markers were 17.6px and chips about 18px. Markers also overlapped on phones. | 2.5.8 | Markers are 24px and chips have `min-height: 24px`. Markers that would overlap stack into extra rows, recomputed on resize. |
 | 8 | Control borders were 1.38:1. | 1.4.11 | New `--control-border` token (≥ 3:1 on all panels). |
 | 9 | The scrollable card panel was not keyboard-reachable in Casual mode. | 2.1.1 | `tabindex="0"` with a visible focus ring, labelled by its heading. |

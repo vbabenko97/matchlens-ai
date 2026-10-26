@@ -10,7 +10,24 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-26): stream shot in the video, runner pinned
+## Latest checkpoint (2026-10-26): docs reviewed for a first-time reader
+- **Goal:** review the README and the docs for a reader who has not seen the project, and correct facts that changed since they were written. TASKS (this log) and SPEC (the agreed requirements) keep their wording. No code change, so no redeploy.
+- **Facts corrected.**
+  - AZURE_VERIFICATION 5b described the four-card recording of 2026-10-24. `agent-review` now reviews seven cards and puts its test claim on the 5' card (`away.goals:asof:ml1-00089 = 2`). The recording used 19 calls, with 39,839 input and 1,795 output tokens.
+  - DEPLOYMENT records the deploys of `6629d39` (2026-10-26, both hosts) and the export command the workflows run.
+  - DATA_MODEL points to the stream processor.
+  - The README quotes the fallback label exactly. It now says that the second personalizer attempt also retries the checker's rejections (23 of its 40 verified lines had been rejected by the critic).
+- **Reader fixes.** README: the opening runs from what it is, to the screenshot, to the links; the pipeline table is a list; "validator", "event validator" and "checker" each name one thing; a clone command is added. README and SUBMISSION say "work with" for "work around". The docs drop milestone codes and Latin abbreviations.
+- **After review of the PR.** The README heading is "Try the demo", because the 60 seconds had no source. AZURE_VERIFICATION step 5 points to DEPLOYMENT, replacing a README section that does not exist. DATA_MODEL marks the press-win regression as history.
+- **Left for the author:** 7 flags, listed in the PR. Among them are the editorial-review story told twice in the README and the voice-over's "work around these facts" (change it only if the video is not recorded yet).
+- **Verified:**
+  - `python -m pytest -q` gives 713 passed, 3 skipped; `ruff check .` and `ruff format --check .` pass.
+  - A per-file token diff shows every number, URL, code span, link target and quoted string kept, except the logged corrections.
+  - Relative links and anchors resolve, and the README renders through GitHub's markdown API.
+  - A reader given only the README, and a reviewer checking each changed claim, read the result. Their findings are applied.
+- **Next:** unchanged from the checkpoint "review fixes before the video" below.
+
+## Checkpoint (2026-10-26): stream shot in the video, runner pinned
 - **Goal:** act on a second review before the video, without changing the app. The review's main code suggestion, cards for press wins, is not taken: seed 1 has 6 press wins next to its 7 cards, `story.py` has no "why" lines for them, the recorded personalizer and agent runs do not cover them, and the 77' press win is the build-up of the 77' goal.
 - **Video script.** The terminal shot (`matchlens feed --seed 1 --speed 120 | matchlens stream -`, 4 s) opens the 0:10–0:26 shot instead of being optional, so the video shows the match taken one event at a time, not only the replay. The voice-over for that shot is 33 words in 16 s. The quoted terminal lines (`76:44  event 1206 arrived: shot (goal), 2-2`, `▸ casual card published: Eastvale Athletic draw level`) were checked with `--speed 0`.
 - **Submission text.** The testing instructions say that the page replays a match processed in advance and that the stream processor gives the same cards one event at a time.

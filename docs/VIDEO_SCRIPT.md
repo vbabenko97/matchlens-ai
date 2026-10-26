@@ -46,8 +46,8 @@ Do not say "every AI line is proven": the critic is a model, and the voice-over 
 | C: on-air graphic | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/broadcast.html?mode=casual&rundown=1&hold=5&bg=dark` | Rundown playing |
 | D: live check | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?mode=analyst&t=4606` | Analyst, just after 77'; the 77' card on top |
 | E: recap | `https://wonderful-hill-04967dd0f.5.azurestaticapps.net/?t=5400` | Casual, English, full time |
-| G: telemetry | Application Insights `matchlens-demo` → *Monitoring → Logs*, *Agent* off, **KQL mode**, query 5 from [telemetry.kql](telemetry.kql) pasted | Run it about 5 min **after** the live call in Tab D: rows reach Logs with a 2–5 min delay. Zoom so the results grid fills the frame, or crop in editing: the portal header shows the account e-mail and the address bar the subscription ID. Never open the connection string or the environment variables while recording. |
 | F: diagram | `docs/images/architecture-azure.png` in an image viewer, or the README section "How the demo runs on Azure" | Full screen |
+| G: telemetry | Application Insights `matchlens-demo` → *Monitoring → Logs*, *Agent* off, **KQL mode**, query 5 from [telemetry.kql](telemetry.kql) pasted | Run it about 5 min **after** the live call in Tab D: rows reach Logs with a 2–5 min delay. Zoom so the results grid fills the frame, or crop in editing: the portal header shows the account e-mail and the address bar the subscription ID. Never open the connection string or the environment variables while recording. |
 | H: feed | A terminal in the repository root after `pip install -e .`, large font, a plain prompt without user name or path | About 40 s before the 0:10 shot, start `python -m matchlens feed --seed 1 --speed 120 \| python -m matchlens stream -`: the 77' goal arrives after 38 s at 120× |
 
 ## Shots
