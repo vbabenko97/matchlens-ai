@@ -48,6 +48,7 @@ const state = {
   view: "live", lineupKey: "", // pitch view: "live" (ball events) or "lineups" (both squads)
   barsKey: "", teamTotals: null, // casual comparison bars; team totals summed from the player stats
   openMore: new Set(), // casual cards whose "More" is open
+  openCalls: new Set(), openWording: new Set(), // claim-check response IDs, analyst "Wording"
 };
 
 const LANG_NAME = { en: "English", de: "Deutsch", uk: "Українська" };
@@ -439,6 +440,10 @@ function renderCard(card, isActive) {
     nar.appendChild(el("p", { class: "text" }, n.text));
   } else if (!loc && !duplicate && analyst) {
     const det = el("details");
+    det.open = state.openWording.has(card.card_id);
+    det.addEventListener("toggle", () => {
+      if (det.open) state.openWording.add(card.card_id); else state.openWording.delete(card.card_id);
+    });
     det.appendChild(el("summary", {}, "Wording"));
     det.appendChild(el("p", { class: "text" }, n.text));
     nar.appendChild(det);
@@ -527,6 +532,10 @@ function renderReview(r, spotlight) {
       "rejections go back to the agent once. Only verified claims are published."));
     const tools = calls.reduce((n, c) => n + c.tool_calls.length, 0);
     const ids = el("details", { class: "calls" });
+    ids.open = state.openCalls.has(r.card_id);
+    ids.addEventListener("toggle", () => {
+      if (ids.open) state.openCalls.add(r.card_id); else state.openCalls.delete(r.card_id);
+    });
     ids.appendChild(el("summary", {},
       `${r.attempts.length} attempt(s), ${calls.length} model call(s), ${tools} tool call(s): response IDs`));
     ids.appendChild(el("p", { class: "hint" }, calls.map((c) => c.response_id).join(", ")));
@@ -1276,7 +1285,7 @@ function renderMarkers() {
     }
   }
   for (const c of cardsForMode()) {
-    const b = el("button", { type: "button", class: `marker ${c.kind}`, "aria-label": `${KIND_LABEL[c.kind]} ${whenOf(c)}: ${c.title}`, title: c.title },
+    const b = el("button", { type: "button", class: `marker ${c.kind}`, "aria-label": `${KIND_LABEL[c.kind]} ${whenOf(c)}`, title: `${KIND_LABEL[c.kind]} ${whenOf(c)}` },
       MARKER_GLYPH[c.kind] || "•");
     b.style.left = `${(100 * c.anchor_clock_s) / d}%`;
     b.addEventListener("click", () => seek(c.start_clock_s));
@@ -1323,7 +1332,22 @@ function render() {
 
 function seek(t) {
   state.t = Math.max(0, Math.min(state.bundle.duration_s, t));
+  clearLaterEvidence();
   render();
+}
+
+// Seeking back before selected evidence clears it from the pitch and the inspector, so no
+// event is drawn or shown before it has happened.
+function clearLaterEvidence() {
+  const later = state.selected.some((id) => {
+    const e = state.eventsById.get(id);
+    return e && e.clock_s > state.t;
+  });
+  if (!later) return;
+  state.selected = [];
+  state.cardsKey = "";
+  $("inspector-body").replaceChildren();
+  $("inspector-hint").hidden = false;
 }
 
 function setMode(mode) {
@@ -1382,6 +1406,7 @@ function showAiCheck(target) {
   setPlaying(false);
   setMode("analyst");
   state.spotlight = target.card_id;
+  state.cardsKey = ""; // redraw even when the replay is already at this card
   seek(target.publish_s);
   const sec = document.querySelector(`[data-review="${CSS.escape(target.card_id)}"]`);
   if (sec) reveal(sec);

@@ -90,7 +90,7 @@ Verified locally against independent static hosts: the app server, a plain stati
 ## Critic agent runs (meaning review) — operator step
 **Status (2026-10-24): both runs recorded and wired in.** The operator ran both in Azure Cloud Shell (`gpt-4.1-mini`, Responses API v1); `trace_problems` passes and neither file has key-like strings.
 - `docs/evidence/critic-eval-2026-10-24.json` (19:23 UTC): 56 critic calls over 220 lines; against the 12 editorial rejections, 8 caught, 4 missed, 13 false alarms (recall 0.667, precision 0.381). `critic-eval --from` reproduces these numbers.
-- `docs/evidence/personalize-trace-v2-2026-10-24.json` (19:40 UTC): 90 personalizer calls (35,444 in / 9,934 out tokens) and 89 critic calls (37,906 in / 7,620 out); 34 of 56 cards retried. Of 232 lines, 4 are kept by the checker and 10 by the critic.
+- `docs/evidence/personalize-trace-v2-2026-10-24.json` (19:40 UTC): 90 personalizer calls (35,444 in / 9,934 out tokens) and 89 critic calls (37,906 in / 7,620 out); 34 of 56 cards retried. Of 232 lines, 4 are kept by the checker and 10 by the critic. Replayed since the 56' move line was corrected (2026-10-26, "then 6 passes", not 7), the checker keeps 12: the 8 rewrites of that line still say 7.
 - Its editorial review, `docs/evidence/personalize-review-v2-2026-10-24.json` (by Claude Code, not checked by a human), rejects 12 of the 218 accepted lines, so 26 of 232 lines show English.
 - `docs/evidence/personalize-review-v3-2026-10-25.json` supersedes it. It keeps those 12 rejections and adds 18 more from a second AI review of the Ukrainian lines (ChatGPT, run by the operator; not checked by a human), so 44 of 232 lines show English.
 - Both deploy workflows replay the v2 trace with the v3 review.
@@ -101,7 +101,7 @@ The steps, for a re-run. Two runs, with the same `AZURE_OPENAI_*` variables as f
    ```bash
    python -m matchlens critic-eval --out docs/evidence/critic-eval-<date>.json
    ```
-   - It replays the recorded personalizer run, sends the 220 lines that passed `check_line` to the critic, and compares the verdicts with the 12 rejections of the editorial review. That review was made by Claude Code, not a human, so the scores measure agreement with it. The critic's prompt names error categories only, with no examples from those lines.
+   - It replays the recorded personalizer run, sends the lines that passed `check_line` to the critic (220 when the evaluation was recorded, 212 since the 56' move line was corrected), and compares the verdicts with the 12 rejections of the editorial review. That review was made by Claude Code, not a human, so the scores measure agreement with it. The critic's prompt names error categories only, with no examples from those lines.
    - It prints lines, caught, missed, false alarms, recall and precision, and each miss and false alarm.
    - `--from <file>` re-scores a recorded evaluation without a call.
 2. **Record a new personalizer run with the critic in the loop:**

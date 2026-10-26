@@ -508,6 +508,46 @@ def test_ai_check_shortcut_opens_the_claim_check(page, bundle):
         assert "on its second try" in explain.text_content()
 
 
+def test_ai_check_shortcut_spotlights_the_card_when_already_past_it(page, bundle):
+    """Regression: after the replay had passed the card (watching the comeback, then pausing),
+    the shortcut scrolled to the card without its spotlight and with the claim list folded."""
+    target = bundle["highlights"]["ai_check"]
+    _open(page, f"?t={target['publish_s'] + 20}")
+    page.click("#jump-ai")
+    sec = page.locator(f'.review.spotlight[data-review="{target["card_id"]}"]')
+    assert sec.count() == 1 and sec.locator("details.claims").evaluate("d => d.open")
+    # The response IDs stay open when the cards are redrawn (here: evidence shown on the pitch).
+    sec.locator("details.calls > summary").click()
+    page.click(f'#cards [data-evidence="{target["card_id"]}"]')
+    assert sec.locator("details.calls").evaluate("d => d.open")
+
+
+def test_seeking_back_clears_evidence_that_has_not_happened(page, bundle):
+    """Regression: evidence shown on the pitch stayed drawn after Restart, at 0-0."""
+    target = bundle["highlights"]["ai_check"]
+    goal = target["card_id"].split(":")[-1]
+    _open(page, f"?mode=analyst&t={target['publish_s']}")
+    page.locator(f'#cards .chip[data-event-id="{goal}"]').first.click()
+    assert page.locator("#highlight > *").count() > 0
+    assert page.locator("#inspector-json").count() == 1
+    page.click("#restart")
+    assert page.evaluate("window.matchlens.state.selected") == []
+    assert page.locator("#highlight > *").count() == 0
+    assert page.locator("#inspector-json").count() == 0 and page.is_visible("#inspector-hint")
+
+
+def test_moment_markers_do_not_give_the_result_away(page):
+    _open(page)
+    for mode in ("casual", "analyst"):
+        page.click(f".mode-toggle button[data-mode={mode}]")
+        labels = page.locator("#markers button.marker").evaluate_all(
+            "bs => bs.map(b => [b.getAttribute('aria-label'), b.title])"
+        )
+        assert labels
+        for label, title in labels:
+            assert re.fullmatch(r"(Goal|Big chance|Full time) (\d+'|FT)", label) and title == label
+
+
 def _recap_lines(page):
     """The text of each recap line, without the ✓ and the screen-reader prefix."""
     return page.locator("#recap-body .facts li > div > span:not(.sr-only)").all_text_contents()
