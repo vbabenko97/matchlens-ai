@@ -6,7 +6,7 @@ The form asks for a pitch, the Microsoft technologies used, a public GitHub link
 - **Public repository:** <https://github.com/vbabenko97/matchlens-ai>. Submission version: tag [`v1.3-submission`](https://github.com/vbabenko97/matchlens-ai/tree/v1.3-submission). It is created once, on `main`, right before the form is submitted, after the last code change; the link then resolves to that commit, so no document has to be updated after tagging. Earlier tags mark earlier versions; `v1.2-submission` is the fallback if the final version is not ready.
 - **Demo (primary, Azure):** <https://wonderful-hill-04967dd0f.5.azurestaticapps.net/>
 - **Demo (backup, GitHub Pages, static only):** <https://vbabenko97.github.io/matchlens-ai/>
-- **Demo video:** *add the YouTube/Vimeo URL*
+- **Demo video:** <https://youtu.be/4q2mIk0xPjs> (1 min 38 s)
 
 ## Elevator pitch
 MatchLens AI is explainable match intelligence for the people who put words on screen: a studio editor or stream producer who has to say why a moment matters without risking a wrong number on air. From synthetic football match events it builds a card for every key moment that says why it matters (a comeback, an equaliser, what a missed chance would have meant) and cites the events it comes from. Cards appear only once their evidence exists. The same facts become two different experiences: a view for casual fans that reads at a glance (comparison bars, both lineups, one line per moment), in English, German or Ukrainian and from either club's side, and an analyst view with event chains, metrics and an evidence inspector. They also go out as timed overlay JSON that a broadcast lower-third plays in OBS or vMix, and as a full-time recap to copy or download with its sources.

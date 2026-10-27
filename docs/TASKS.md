@@ -7,10 +7,27 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [x] M2 (Oct 21-22): Metrics and 2-4 robust key-moment detectors; unit tests with hand-checked fixtures.
 - [x] M3 (Oct 23-24; live Foundry Responses API v1 call verified by `azure-check` on 2026-10-24, evidence in `docs/evidence/azure-check-2026-10-24.json`): Evidence-grounded cards with claim checks, Microsoft Foundry/Azure path, clearly labeled offline fallback; two distinct audience modes.
 - [x] M4 (Oct 20, local; public hosting is M5): Browser UI, match replay, overlays, downloadable overlay JSON, integration tests.
-- [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); rehearsal and video remaining): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
+- [ ] M5 (Oct 26; **partial**: public demo live on GitHub Pages at https://vbabenko97.github.io/matchlens-ai/, smoke test green; accessibility code pass done (screen-reader check pending); video recorded and published on 2026-10-27, https://youtu.be/4q2mIk0xPjs): Public deployment, accessibility check, real demo rehearsal, README, short video recorded and published.
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
-## Latest checkpoint (2026-10-26): docs reviewed for a first-time reader
+## Latest checkpoint (2026-10-27): demo video recorded and published
+- **Goal:** record the demo video from the deployed version by `docs/VIDEO_SCRIPT.md`, publish it and link it.
+- **Video:** <https://youtu.be/4q2mIk0xPjs>, 1 min 38 s, 1920×1080 at 30 fps, English captions burned in. The voice-over is synthetic (ElevenLabs). The operator uploaded it to YouTube.
+- **Recording.** Claude Code recorded the browser shots from the Azure host with Playwright's Chromium (headless, 1920×1080, 125% zoom), drew a visible pointer, and cut the shots to the voice-over with ffmpeg. The recording scripts are not in the repository.
+- **The live call.** The live-check button was pressed once, at 2026-10-27T17:26:20Z, on the 77' analyst card: 4 model calls, 11,089 tokens, 10.5 s, all 4 claims verified at the first attempt. The video shortens the wait and labels the cut "wait shortened".
+- **Differences from the script.**
+  - Telemetry shot: query 5, with its window widened to one day, ran with `az monitor app-insights query` and appears as terminal output instead of the portal's Logs page. It shows the row of the live call above.
+  - Feed shot: the output of a real `feed --seed 1 --speed 120 | stream -` run was captured with each line's arrival time and replayed in a terminal-style page. The 77' goal arrived after 41.7 s, not the 38 s the script gives.
+  - Voice-over: "work with these facts", as the README and SUBMISSION say. VIDEO_SCRIPT now says the same.
+- **Ukrainian lines.** The operator read the four Ukrainian lines that the video shows (on the 77' and 81' cards) and found no error. The other Ukrainian lines have still not been reviewed by a person.
+- **Docs.** README and SUBMISSION link the video. DEPLOYMENT records the live call's telemetry row.
+- **Verified:** ffprobe gives 98.1 s, H.264 video and AAC audio; YouTube's oEmbed endpoint answers for the link with the video's title; the telemetry row was read with `az monitor app-insights query`. No code changed, so no tests were run and no redeploy is needed.
+- **Next:**
+  1. Paste the video link into the Innovation Studio form.
+  2. Screen-reader pass (`docs/ACCESSIBILITY.md`), still open.
+  3. Merge this change, then tag once and submit before 2026-10-27 23:59 PT (2026-10-28 07:59 Vienna): `git fetch origin main && git tag -a v1.3-submission FETCH_HEAD -m "Submission version" && git push origin v1.3-submission`.
+
+## Checkpoint (2026-10-26): docs reviewed for a first-time reader
 - **Goal:** review the README and the docs for a reader who has not seen the project, and correct facts that changed since they were written. TASKS (this log) and SPEC (the agreed requirements) keep their wording. No code change, so no redeploy.
 - **Facts corrected.**
   - AZURE_VERIFICATION 5b described the four-card recording of 2026-10-24. `agent-review` now reviews seven cards and puts its test claim on the 5' card (`away.goals:asof:ml1-00089 = 2`). The recording used 19 calls, with 39,839 input and 1,795 output tokens.
