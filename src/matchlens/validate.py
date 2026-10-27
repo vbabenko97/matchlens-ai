@@ -55,7 +55,7 @@ def _check_meta(match: Match, issues: list[str]) -> None:
     if meta.home.side != HOME or meta.away.side != AWAY:
         issues.append("meta: team sides must be 'home' and 'away'")
     home_ids, away_ids = meta.player_ids(HOME), meta.player_ids(AWAY)
-    if len(home_ids) + len(away_ids) != len(meta.home.players) + len(meta.away.players):
+    if len(home_ids | away_ids) != len(meta.home.players) + len(meta.away.players):
         issues.append("meta: player IDs must be unique across both squads")
     if meta.period_length_s <= 0:
         issues.append("meta: period_length_s must be positive")

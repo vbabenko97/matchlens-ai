@@ -48,7 +48,7 @@ from .narrative import (
     OfflineTemplateProvider,
     narrate,
 )
-from .schema import AWAY, HOME, Match, minute_of
+from .schema import AWAY, HOME, PASS_SUBTYPES, Match, minute_of
 from .story import StoryLine, chance_story, check_line, full_time_story, goal_story
 
 DISPLAY_AFTER_S = 12.0  # how long a card stays up after it is published
@@ -170,7 +170,9 @@ def _story_facts(
 
 def _move(d: dict, ids: tuple[str, ...]) -> Fact:
     start = _STARTS.get(d["chain_start"], d["chain_start"].replace("_", " "))
-    n = d["build_up_passes"]
+    # ``build_up_passes`` counts every pass of the chain; when the chain began with a pass (a
+    # throw-in, a goal kick, the kick-off), that pass is the start, not one of the passes after.
+    n = d["build_up_passes"] - (d["chain_start"] in PASS_SUBTYPES)
     if n == 0:
         return Fact(f"It came straight from {start}.", FACT, ids)
     return Fact(f"The move began with {start}, then {n} pass{'es' if n > 1 else ''}.", FACT, ids)

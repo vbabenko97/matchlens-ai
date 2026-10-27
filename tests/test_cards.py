@@ -275,6 +275,30 @@ def test_seed_1_cards_do_not_look_ahead():
         _assert_causal(m, card_set)
 
 
+def test_seed_1_move_from_a_throw_in_counts_the_passes_after_it():
+    """Regression: the 56' goal began with a throw-in and 6 passes followed, but the casual
+    card said "then 7 passes": the throw-in was counted as one of the passes after itself."""
+    m = generate_match(1)
+    card = next(c for c in build_cards(m, CASUAL).cards if c.moment_id == "goal:ml1-00871")
+    assert card.facts[-1].text == "The move began with a throw-in, then 6 passes."
+
+
+@pytest.mark.parametrize("seed", [1, 4, 7, 42])
+def test_move_line_counts_the_passes_after_the_first_event(seed):
+    m = generate_match(seed)
+    by_id = {e.event_id: e for e in m.events}
+    for card in build_cards(m, CASUAL).cards:
+        if card.kind != "goal":
+            continue
+        move = card.facts[-1]
+        chain = [by_id[i] for i in move.event_ids if by_id[i].type != "pressure"]
+        after = sum(e.type == "pass" for e in chain[1:])
+        if after == 0:
+            assert move.text.startswith("It came straight from"), move.text
+        else:
+            assert move.text.endswith(f", then {after} pass{'es' if after > 1 else ''}.")
+
+
 @pytest.mark.parametrize("seed", range(1, 21))
 def test_cards_never_cite_the_future(seed):
     m = generate_match(seed)

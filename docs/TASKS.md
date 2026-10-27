@@ -11,7 +11,7 @@ Update this file after verified work. A task is done only when the acceptance ch
 - [ ] M6 (Oct 27): Final originality/security/requirements audit, public repository, demo link and video link; complete actual Innovation Studio submission before deadline.
 
 ## Latest checkpoint (2026-10-27): demo video recorded and published
-- **Goal:** record the demo video from the deployed version by `docs/VIDEO_SCRIPT.md`, publish it and link it.
+- **Goal:** record the demo video from the deployed version by `docs/VIDEO_SCRIPT.md`, publish it and link it. The Azure host served `296eb06` (PR #40): its `app.js` matched that commit byte for byte on 2026-10-27.
 - **Video:** <https://youtu.be/4q2mIk0xPjs>, 1 min 38 s, 1920×1080 at 30 fps, English captions burned in. The voice-over is synthetic (ElevenLabs). The operator uploaded it to YouTube.
 - **Recording.** Claude Code recorded the browser shots from the Azure host with Playwright's Chromium (headless, 1920×1080, 125% zoom), drew a visible pointer, and cut the shots to the voice-over with ffmpeg. The recording scripts are not in the repository.
 - **The live call.** The live-check button was pressed once, at 2026-10-27T17:26:20Z, on the 77' analyst card: 4 model calls, 11,089 tokens, 10.5 s, all 4 claims verified at the first attempt. The video shortens the wait and labels the cut "wait shortened".
@@ -26,6 +26,29 @@ Update this file after verified work. A task is done only when the acceptance ch
   1. Paste the video link into the Innovation Studio form.
   2. Screen-reader pass (`docs/ACCESSIBILITY.md`), still open.
   3. Merge this change, then tag once and submit before 2026-10-27 23:59 PT (2026-10-28 07:59 Vienna): `git fetch origin main && git tag -a v1.3-submission FETCH_HEAD -m "Submission version" && git push origin v1.3-submission`.
+
+## Checkpoint (2026-10-26): bug hunt before the demo
+- **Goal:** read the whole repository again for hidden bugs before the demo is prepared. Python core read in full; the web UI, the live-check function, the SWA config and the workflows reviewed in a browser (Playwright on local Chromium). Only real defects are fixed; no feature added.
+- **Fixed, visible in the public demo.**
+  - Casual 56' card (seed 1) said "The move began with a throw-in, then 7 passes"; 6 passes followed. `build_up_passes` counts the restart pass that starts a chain, and `_move` counted it again as one of the passes after it. It affected 35 of 215 goals over seeds 1-60 (every chain started by a kick-off, goal kick or throw-in). The analyst line ("7 pass(es) before the shot, started by throw in") was right and is unchanged. The extra matches had the same error on one card each (seeds 103, 123, 124).
+  - Consequence for the recorded personalizer run: the 8 rewrites of that line still say 7, so the checker now keeps the English fact for them (published replay: checker 4 -> 12; 52 of 232 lines in English). Where the run made no second attempt, the replay now stops (`NoRecordedRetry`) instead of reporting `recorded_foundry_personalizer unavailable (IndexError)`.
+  - "See the AI get fact-checked" after the replay had passed the 77' card (for example after "Watch the comeback") scrolled to the card without its spotlight and with the claim list folded: `showAiCheck` set the spotlight after the redraw and the card cache key did not change.
+  - Evidence shown on the pitch, and the event in the inspector, stayed after Restart or any seek back before it (the 77' move drawn at 0-0). `seek` now clears selected evidence that has not happened yet.
+  - Timeline marker tooltips and `aria-label`s carried the card title ("Full time: Eastvale Athletic come from behind to win 2-3") from kick-off; they now say only kind and minute ("Full time FT", "Goal 81'").
+  - The claim check's response-ID list and the analyst "Wording" closed on every card redraw; their open state is kept like the other folds.
+- **Fixed, not in any demo match** (the six published bundles are byte-identical with and without this part):
+  - `comeback` was used when the team had already led since it trailed (seeds 16, 43, 56, 59, 69, 110, 156, 175, 198 of 1-200), for example "were 1-0 down in minute 2. Goals in minutes 13, 16, 48 and 85 turned it around" for a team that led 1-3 at 48'. Such a goal is now `back_in_front`, citing the goals since it last trailed; `check_line` rejects a comeback whose team led on the way back.
+  - `redemption` ("this time it went in") was added to every later goal of a player who had missed a big chance, not only the first goal after it (seeds 53, 63, 91).
+  - `validate` did not catch the same player ID in both squads (it compared set sizes per squad); a match file could pass with one. The generator never produces one.
+- **Found, not fixed (low impact, noted for after the deadline).**
+  - A first-half event pinned to 45:00 is shown as minute 46 and counted in the 45'-60' window; one card in seeds 1-200 (seed 58, a 45:00 goal "in minute 46"). None in the demo matches. A fix changes `minute_of` or the generator, and so the recorded runs.
+  - Space after clicking a shortcut or a marker presses that button again (focus stays on it). For recording: click the pitch first, or use the play button.
+- **Verified:**
+  - `python -m pytest -q` gives 727 passed, 3 skipped (e2e on local Chromium, both local targets); `ruff check .` and `ruff format --check .` pass.
+  - Each new regression test fails on the old code: the move-line tests (cards), back-in-front and redemption (story), the shared player ID (validator), and the three browser tests (AI-check spotlight and response IDs, evidence cleared on seek back, marker labels).
+  - The deploy export command (`deploy-pages.yml`) builds. Against the old build, the demo match differs only in the 56' move line (card, overlay cue, its 8 personalized variants), and the extra matches only in their move lines from a throw-in (seeds 103, 123, 124: one card each, one pass fewer).
+- **Merged and deployed:** PR #40 squash-merged as `296eb06` after green CI on the PR head `7294cd0` (test 3.11, test 3.13, e2e). Both deploys of `296eb06` succeeded, each with its smoke job (e2e against the public URL): SWA [run 40367964384](https://github.com/vbabenko97/matchlens-ai/actions/runs/40367964384) with 64 passed, 6 skipped; Pages [run 40367968855](https://github.com/vbabenko97/matchlens-ai/actions/runs/40367968855) with 65 passed, 5 skipped. That is 3 more passed than the previous deploy on each host: the new browser tests, which fail on the old `app.js`. No live-check call was made.
+- **Next:** record the video from this deployed version (the 56' casual card reads "then 6 passes"; pause with the play button, not Space, after a shortcut). The other open steps are in the "review fixes before the video" checkpoint: the screen-reader pass (1), the video link (3), the tag and the submission (4).
 
 ## Checkpoint (2026-10-26): docs reviewed for a first-time reader
 - **Goal:** review the README and the docs for a reader who has not seen the project, and correct facts that changed since they were written. TASKS (this log) and SPEC (the agreed requirements) keep their wording. No code change, so no redeploy.

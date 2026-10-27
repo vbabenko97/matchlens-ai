@@ -380,6 +380,18 @@ def test_russian_letters_are_not_ukrainian(names):
     assert reasons == ["Russian letters in a Ukrainian text"]
 
 
+MOVE_56 = "casual:goal:ml1-00871"  # its move line said "then 7 passes" when the run was recorded
+
+
+def _corrected_move_line(result, line) -> bool:
+    return (
+        result.card_id == MOVE_56
+        and line.source == "The move began with a throw-in, then 6 passes."
+        and line.text == line.source
+        and line.reasons == ("numbers differ (missing 6; not in the fact: 7)",)
+    )
+
+
 def test_the_committed_run_replays_with_the_flipped_scores_kept_in_english(match, cards):
     from pathlib import Path
 
@@ -390,7 +402,12 @@ def test_the_committed_run_replays_with_the_flipped_scores_kept_in_english(match
     results = personalize_cards(match, cards, RecordedPersonalizer(trace, PERSONALIZE_TRACE))
     lines = [(r, ln) for r in results for ln in r.lines]
     kept = [(r, ln) for r, ln in lines if ln.status == KEPT]
-    assert len(lines) == 232 and len(kept) == 12
+    # 12 kept by the run itself, plus the 8 rewrites of the 56' move line, which still say
+    # "7 passes": its English source was corrected to 6 after the run was recorded.
+    assert len(lines) == 232 and len(kept) == 20
+    assert sum(_corrected_move_line(r, ln) for r, ln in kept) == 8
+    # Where the run made no retry, the replay does not invent one or report a failure.
+    assert all(r.fallback_reason is None for r in results)
     # The worst slip of the run: "Eastvale Athletic перемагають 3-2" on a 2-3 scoreboard.
     title = next(
         ln
@@ -437,7 +454,7 @@ def test_the_editorial_review_keeps_the_rejected_lines_in_english(match, cards):
     lines = [ln for r in results for ln in r.lines]
     reviewed = [ln for ln in lines if any(x.startswith("editorial review:") for x in ln.reasons)]
     assert len(lines) == 232 and len(reviewed) == len(review["rejections"]) == 12
-    assert sum(ln.status == KEPT for ln in lines) == 24
+    assert sum(ln.status == KEPT for ln in lines) == 32  # 8 of them: the corrected move line
     assert all(ln.text == ln.source and ln.attempt == 0 for ln in reviewed)
     shown = " ".join(ln.text for ln in lines)
     assert not [p for p in BAD_PHRASES if p in shown]

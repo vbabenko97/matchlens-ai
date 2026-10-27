@@ -272,12 +272,14 @@ class OracleCritic:
 def test_eval_scores_the_critic_against_the_editorial_labels(match, cards):
     labelled = _labels()
     inputs = _eval_inputs(match, cards)
-    assert sum(len(items) for _, items, _, _ in inputs) == 220  # every line the checker passed
+    # Every line the checker passes: 220 when the run was recorded, 212 since the 56' move line
+    # was corrected (its 8 rewrites still say "7 passes" and are now rejected by the checker).
+    assert sum(len(items) for _, items, _, _ in inputs) == 212
     extra = {("casual:goal:ml1-00089", "de", "neutral", 0)}
     doc = critic_eval(inputs, OracleCritic(labelled, extra), _config(), "t", "r")
     assert doc["schema"] == EVAL_SCHEMA and len(doc["runs"]) == len(inputs)
     m = eval_metrics(doc, labelled)
-    assert (m["lines"], m["caught"], m["missed"], m["false_alarms"]) == (220, 12, 0, 1)
+    assert (m["lines"], m["caught"], m["missed"], m["false_alarms"]) == (212, 12, 0, 1)
     assert m["recall"] == 1.0 and m["precision"] == round(12 / 13, 3)
     assert m["false_alarm_lines"][0]["line"] == extra.pop()
 
@@ -355,7 +357,9 @@ def test_the_published_run_replays_with_the_critic_and_the_review(match, cards):
     results = personalize_cards(match, cards, proposer)
     lines = [ln for r in results for ln in r.lines]
     assert len(lines) == 232
-    assert _kept_by(lines) == {"checker": 4, "critic": 10, "editorial": 30}
+    # Checker: 4 in the recorded run, plus the 8 rewrites of the corrected 56' move line.
+    assert _kept_by(lines) == {"checker": 12, "critic": 10, "editorial": 30}
+    assert all(r.fallback_reason is None for r in results)
     assert all(r.critic == "recorded_foundry_critic" for r in results)
     rewritten = [(r.lang, ln.text) for r in results for ln in r.lines if ln.status == VERIFIED]
     bad = (*BAD_PHRASES, "precise passes", "ein Heuristik")
